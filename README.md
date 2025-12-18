@@ -8,9 +8,10 @@ Current version: **0.1.0**
 
 ✅ **100% Free Hosting** - Designed for GitHub Pages, Netlify, or Vercel
 ✅ **Word-by-Word Learning** - Focus on memorizing individual words
-✅ **Audio Pronunciation** - Hover over words to hear European Portuguese pronunciation
+✅ **Audio Pronunciation** - Click words or speaker to hear European Portuguese
 ✅ **Personal Vault** - Track all words you've learned
 ✅ **Quick Review Quiz** - Drill yourself on learned words
+✅ **Vault Search & Sort** - Filter learned words by Portuguese/English
 ✅ **User Dashboard** - Monitor progress and manage settings
 ✅ **Completed Lesson Badges** - See which lessons you’ve finished
 ✅ **Versioned Build** - Footer badge shows current app version
@@ -68,6 +69,7 @@ Simply open `index.html` in a web browser, or deploy to any of the free hosting 
 
 - Load site, ensure version pill shows v0.1.0.
 - Toggle Dark Mode, refresh page, confirm preference persists and UI remains legible.
+- Use vault search to filter a word, switch sort between Portuguese/English, clear filters.
 - Start Basic Greetings lesson, complete it, confirm streak increments and vault shows learned words.
 - Open dashboard: progress updates, account status is Free Plan.
 - Run Quick Review Quiz: complete 3-5 questions, verify scoring and correct/incorrect states.

@@ -330,6 +330,56 @@ body {
     align-items: flex-start;
 }
 
+.vault-filters {
+    max-width: 1000px;
+    margin: 0 auto 2rem auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.vault-filters input {
+    flex: 1;
+    min-width: 220px;
+    padding: 0.65rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--surface-subtle);
+    color: var(--text);
+}
+
+.vault-sort-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sort {
+    background: var(--surface-subtle);
+    color: var(--text);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 0.55rem 0.9rem;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-sort.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 6px 14px rgba(102, 126, 234, 0.25);
+}
+
+.btn-clear {
+    background: transparent;
+    color: var(--muted);
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    padding: 0.55rem 0.9rem;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
 .btn-review {
     background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
     color: white;

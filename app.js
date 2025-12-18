@@ -13,6 +13,11 @@ const userData = {
     theme: 'light'
 };
 
+const vaultFilters = {
+    query: '',
+    sort: 'pt'
+};
+
 // Sample beginner Portuguese words with European Portuguese focus
 const lessons = [
     {
@@ -262,14 +267,8 @@ function updateDashboard() {
     const progress = availableLessons === 0 ? 0 : (Math.min(userData.lessonsCompleted, availableLessons) / availableLessons) * 100;
     document.getElementById('progressFill').style.width = progress + '%';
     document.getElementById('progressText').textContent = Math.round(progress) + '% Complete';
-    
-    // Render learned words in vault
-    const wordList = document.getElementById('wordList');
-    wordList.innerHTML = '';
-    userData.learnedWords.forEach(word => {
-        const wordCard = createWordCard(word);
-        wordList.appendChild(wordCard);
-    });
+
+    renderVault();
 }
 
 function showPaywall() {
@@ -323,6 +322,44 @@ function setupEventListeners() {
     const resetBtn = document.getElementById('resetProgressBtn');
     if (resetBtn) {
         resetBtn.addEventListener('click', resetProgress);
+    }
+
+    const vaultSearch = document.getElementById('vaultSearch');
+    if (vaultSearch) {
+        vaultSearch.addEventListener('input', (e) => {
+            vaultFilters.query = e.target.value.toLowerCase();
+            renderVault();
+        });
+    }
+
+    const sortPt = document.getElementById('vaultSortPt');
+    const sortEn = document.getElementById('vaultSortEn');
+    const clearFilters = document.getElementById('vaultClearFilters');
+
+    if (sortPt) {
+        sortPt.addEventListener('click', () => {
+            vaultFilters.sort = 'pt';
+            renderVault();
+            setActiveSortButton('pt');
+        });
+    }
+
+    if (sortEn) {
+        sortEn.addEventListener('click', () => {
+            vaultFilters.sort = 'en';
+            renderVault();
+            setActiveSortButton('en');
+        });
+    }
+
+    if (clearFilters) {
+        clearFilters.addEventListener('click', () => {
+            vaultFilters.query = '';
+            vaultFilters.sort = 'pt';
+            if (vaultSearch) vaultSearch.value = '';
+            renderVault();
+            setActiveSortButton('pt');
+        });
     }
 }
 
@@ -509,4 +546,34 @@ function generateOptions(correctWord, pool) {
         correct: word.pt === correctWord.pt
     }));
     return combined;
+}
+
+function renderVault() {
+    const wordList = document.getElementById('wordList');
+    if (!wordList) return;
+
+    const filtered = userData.learnedWords
+        .filter(word => {
+            if (!vaultFilters.query) return true;
+            return word.pt.toLowerCase().includes(vaultFilters.query) || word.en.toLowerCase().includes(vaultFilters.query);
+        })
+        .sort((a, b) => {
+            const key = vaultFilters.sort === 'en' ? 'en' : 'pt';
+            return a[key].localeCompare(b[key]);
+        });
+
+    wordList.innerHTML = '';
+    filtered.forEach(word => {
+        const wordCard = createWordCard(word);
+        wordList.appendChild(wordCard);
+    });
+
+    setActiveSortButton(vaultFilters.sort);
+}
+
+function setActiveSortButton(key) {
+    const sortPt = document.getElementById('vaultSortPt');
+    const sortEn = document.getElementById('vaultSortEn');
+    if (sortPt) sortPt.classList.toggle('active', key === 'pt');
+    if (sortEn) sortEn.classList.toggle('active', key === 'en');
 }
