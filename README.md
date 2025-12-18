@@ -39,20 +39,12 @@ Current version: **0.1.0**
 ### Vercel
 1. Sign up at vercel.com
 2. Import your GitHub repository
+✅ **Login-Gated Lessons** - Sign in to access beyond Basic Greetings
 3. Auto-deploy on every update
 
 ## Technology Stack
 
-- **Pure HTML/CSS/JavaScript** - No frameworks needed
-- **Web Speech API** - For text-to-speech pronunciation
-- **LocalStorage** - For saving user progress
-- **Responsive CSS Grid** - Modern layout
-- **Google Fonts** - Poppins typography
-
-## Future Enhancements
-
-- [ ] AI Chat Integration for conversation practice
-- [ ] Pronunciation feedback using speech recognition
+- Attempt a lesson beyond Basic Greetings while logged out: auth modal appears; log in and confirm access.
 - [ ] Intermediate and advanced lessons
 - [ ] Payment gateway integration (Stripe/PayPal)
 - [ ] Mobile app version

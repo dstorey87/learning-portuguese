@@ -10,7 +10,9 @@ const userData = {
     voicePreference: 'female',
     lessonsCompleted: 0,
     completedLessonIds: [],
-    theme: 'light'
+    theme: 'light',
+    isLoggedIn: false,
+    userName: ''
 };
 
 const vaultFilters = {
@@ -112,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     renderVersion();
     applyTheme(userData.theme);
+    updateAuthUI();
 });
 
 function loadUserData() {
@@ -153,6 +156,12 @@ function renderLessons() {
 }
 
 function startLesson(lesson) {
+    // Require login beyond basic greetings
+    if (lesson.id > 1 && !userData.isLoggedIn) {
+        showAuthModal();
+        return;
+    }
+
     // Check for premium content (lessons 6+)
     if (lesson.id > 5 && !userData.isPremium) {
         showPaywall();
@@ -261,7 +270,7 @@ function backToLessons() {
 function updateDashboard() {
     document.getElementById('totalWords').textContent = userData.learnedWords.length;
     document.getElementById('streak').textContent = userData.streak;
-    document.getElementById('accountStatus').textContent = userData.isPremium ? 'Premium Member' : 'Free Plan';
+    document.getElementById('accountStatus').textContent = userData.isLoggedIn ? `Logged in${userData.userName ? ' as ' + userData.userName : ''}` : 'Free Plan';
     
     const availableLessons = getAvailableLessonCount();
     const progress = availableLessons === 0 ? 0 : (Math.min(userData.lessonsCompleted, availableLessons) / availableLessons) * 100;
@@ -285,6 +294,40 @@ function setupEventListeners() {
     document.getElementById('startBtn').addEventListener('click', () => {
         document.getElementById('learn').scrollIntoView({ behavior: 'smooth' });
     });
+
+    const loginBtn = document.getElementById('loginBtn');
+    const authClose = document.querySelector('.close-auth');
+    const authForm = document.getElementById('authForm');
+
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            if (userData.isLoggedIn) {
+                handleLogout();
+            } else {
+                showAuthModal();
+            }
+        });
+    }
+
+    if (authClose) {
+        authClose.addEventListener('click', hideAuthModal);
+    }
+
+    if (authForm) {
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('authName');
+            const emailInput = document.getElementById('authEmail');
+            const name = nameInput?.value.trim();
+            const email = emailInput?.value.trim();
+            if (!name || !email) {
+                alert('Please enter a name and email.');
+                return;
+            }
+            handleLogin(name, email);
+            hideAuthModal();
+        });
+    }
 
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
@@ -546,6 +589,41 @@ function generateOptions(correctWord, pool) {
         correct: word.pt === correctWord.pt
     }));
     return combined;
+}
+
+function showAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function hideAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function handleLogin(name, email) {
+    userData.isLoggedIn = true;
+    userData.userName = name;
+    saveUserData();
+    updateAuthUI();
+}
+
+function handleLogout() {
+    userData.isLoggedIn = false;
+    userData.userName = '';
+    saveUserData();
+    updateAuthUI();
+}
+
+function updateAuthUI() {
+    const loginBtn = document.getElementById('loginBtn');
+    const accountStatus = document.getElementById('accountStatus');
+    if (loginBtn) {
+        loginBtn.textContent = userData.isLoggedIn ? 'Log Out' : 'Log In';
+    }
+    if (accountStatus) {
+        accountStatus.textContent = userData.isLoggedIn ? `Logged in as ${userData.userName || 'Learner'}` : 'Free Plan';
+    }
 }
 
 function renderVault() {

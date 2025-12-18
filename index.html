@@ -20,6 +20,7 @@
                 <a href="#dashboard">Dashboard</a>
                 <button class="btn-theme" id="themeToggle">Dark Mode</button>
                 <button class="btn-premium" id="premiumBtn">Go Premium</button>
+                <button class="btn-login" id="loginBtn">Log In</button>
             </div>
         </div>
     </nav>
@@ -117,6 +118,20 @@
         </div>
     </div>
 
+    <div id="authModal" class="auth-modal" style="display: none;">
+        <div class="auth-content">
+            <span class="close-auth">&times;</span>
+            <h2>Log In to Continue</h2>
+            <p>Access more lessons by signing in.</p>
+            <form id="authForm" class="auth-form">
+                <label for="authName">Name</label>
+                <input type="text" id="authName" name="name" placeholder="Your name" required>
+                <label for="authEmail">Email</label>
+                <input type="email" id="authEmail" name="email" placeholder="you@example.com" required>
+                <button type="submit" class="btn-auth-submit">Log In</button>
+            </form>
+        </div>
+    </div>
     <footer class="footer">
         <div class="footer-content">
             <span class="version-pill" id="appVersion">v0.1.0</span>
