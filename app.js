@@ -9,7 +9,8 @@ const userData = {
     isPremium: false,
     voicePreference: 'female',
     lessonsCompleted: 0,
-    completedLessonIds: []
+    completedLessonIds: [],
+    theme: 'light'
 };
 
 // Sample beginner Portuguese words with European Portuguese focus
@@ -105,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupNavigation();
     renderVersion();
+    applyTheme(userData.theme);
 });
 
 function loadUserData() {
@@ -116,6 +118,9 @@ function loadUserData() {
         }
     }
     userData.lessonsCompleted = userData.completedLessonIds.length;
+    if (!userData.theme) {
+        userData.theme = 'light';
+    }
     updateDashboard();
 }
 
@@ -178,11 +183,13 @@ function createWordCard(word) {
     const audioIcon = card.querySelector('.audio-icon');
     const playAudio = () => speakWord(word.pt);
     
-    card.addEventListener('mouseenter', playAudio);
+    card.addEventListener('click', playAudio);
     audioIcon.addEventListener('click', (e) => {
         e.stopPropagation();
         playAudio();
     });
+
+    card.addEventListener('click', () => animateCard(card));
     
     return card;
 }
@@ -279,6 +286,18 @@ function setupEventListeners() {
     document.getElementById('startBtn').addEventListener('click', () => {
         document.getElementById('learn').scrollIntoView({ behavior: 'smooth' });
     });
+
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const next = userData.theme === 'light' ? 'dark' : 'light';
+            userData.theme = next;
+            saveUserData();
+            applyTheme(next);
+            updateThemeToggle();
+        });
+        updateThemeToggle();
+    }
 
     const upgradeBtn = document.querySelector('.btn-upgrade');
     if (upgradeBtn) {
@@ -452,6 +471,27 @@ function renderVersion() {
     if (versionEl) {
         versionEl.textContent = `v${APP_VERSION}`;
     }
+}
+
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+    } else {
+        document.body.classList.remove('dark-theme');
+    }
+}
+
+function updateThemeToggle() {
+    const themeToggle = document.getElementById('themeToggle');
+    if (!themeToggle) return;
+    const isDark = userData.theme === 'dark';
+    themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+}
+
+function animateCard(card) {
+    card.classList.remove('pulse');
+    void card.offsetWidth; // restart animation
+    card.classList.add('pulse');
 }
 
 function shuffle(array) {

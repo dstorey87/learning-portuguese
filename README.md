@@ -14,6 +14,7 @@ Current version: **0.1.0**
 ✅ **User Dashboard** - Monitor progress and manage settings
 ✅ **Completed Lesson Badges** - See which lessons you’ve finished
 ✅ **Versioned Build** - Footer badge shows current app version
+✅ **Light/Dark Themes** - Toggle with persistence across visits
 ✅ **Premium Paywall** - Unlock advanced features (placeholder for payment integration)
 ✅ **Gender-Switching Voice** - Choose male or female voice for audio
 ✅ **Progress Tracking** - Streak counter and completion percentage
@@ -66,6 +67,7 @@ Simply open `index.html` in a web browser, or deploy to any of the free hosting 
 ## Manual End-to-End Test Plan (v0.1.0)
 
 - Load site, ensure version pill shows v0.1.0.
+- Toggle Dark Mode, refresh page, confirm preference persists and UI remains legible.
 - Start Basic Greetings lesson, complete it, confirm streak increments and vault shows learned words.
 - Open dashboard: progress updates, account status is Free Plan.
 - Run Quick Review Quiz: complete 3-5 questions, verify scoring and correct/incorrect states.

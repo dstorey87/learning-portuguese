@@ -1,3 +1,27 @@
+:root {
+    --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --surface: #ffffff;
+    --surface-subtle: #f8f9fa;
+    --text: #333;
+    --muted: #666;
+    --accent: #667eea;
+    --accent-2: #764ba2;
+    --premium-1: #f093fb;
+    --premium-2: #f5576c;
+}
+
+.dark-theme {
+    --bg: linear-gradient(135deg, #0f172a 0%, #111827 100%);
+    --surface: #111827;
+    --surface-subtle: #1f2937;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --accent: #a5b4fc;
+    --accent-2: #818cf8;
+    --premium-1: #f093fb;
+    --premium-2: #f5576c;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -6,9 +30,10 @@
 
 body {
     font-family: 'Poppins', sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg);
     min-height: 100vh;
-    color: #333;
+    color: var(--text);
+    transition: background 0.4s ease, color 0.3s ease;
 }
 
 .navbar {
@@ -22,6 +47,11 @@ body {
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
 }
 
+.dark-theme .navbar {
+    background: rgba(17, 24, 39, 0.9);
+    box-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+}
+
 .nav-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -33,7 +63,7 @@ body {
 .logo {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #667eea;
+    color: var(--accent);
 }
 
 .nav-links {
@@ -42,19 +72,41 @@ body {
     align-items: center;
 }
 
+.btn-theme {
+    background: var(--surface-subtle);
+    color: var(--text);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-theme:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.dark-theme .btn-theme {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: #1f2937;
+    color: var(--text);
+}
+
 .nav-links a {
     text-decoration: none;
-    color: #333;
+    color: var(--text);
     font-weight: 500;
     transition: color 0.3s;
 }
 
 .nav-links a:hover {
-    color: #667eea;
+    color: var(--accent);
 }
 
 .btn-premium {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, var(--premium-1) 0%, var(--premium-2) 100%);
     color: white;
     border: none;
     padding: 0.5rem 1.5rem;
@@ -162,16 +214,17 @@ body {
 }
 
 .learning-section, .vault-section, .dashboard-section {
-    background: white;
+    background: var(--surface);
     padding: 4rem 2rem;
     min-height: 100vh;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .learning-section h2, .vault-section h2, .dashboard-section h2 {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 3rem;
-    color: #667eea;
+    color: var(--accent);
 }
 
 .lesson-grid {
@@ -183,7 +236,7 @@ body {
 }
 
 .lesson-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
     padding: 2rem;
     border-radius: 20px;
     color: white;
@@ -240,7 +293,7 @@ body {
 }
 
 .stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
     padding: 2rem 3rem;
     border-radius: 20px;
     color: white;
@@ -291,7 +344,7 @@ body {
 .review-result {
     min-height: 20px;
     font-weight: 600;
-    color: #333;
+    color: var(--text);
 }
 
 .review-result.success {
@@ -304,7 +357,7 @@ body {
 
 .review-quiz {
     width: 100%;
-    background: #f8f9fa;
+    background: var(--surface-subtle);
     border-radius: 16px;
     padding: 1.25rem;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
@@ -320,7 +373,7 @@ body {
 .quiz-question {
     font-size: 1.1rem;
     margin-bottom: 1rem;
-    color: #333;
+    color: var(--text);
 }
 
 .quiz-options {
@@ -329,7 +382,7 @@ body {
 }
 
 .quiz-option {
-    background: white;
+    background: var(--surface);
     border: 2px solid #e5e7eb;
     border-radius: 12px;
     padding: 0.75rem 1rem;
@@ -371,10 +424,10 @@ body {
 }
 
 .word-card {
-    background: #f8f9fa;
+    background: var(--surface-subtle);
     padding: 1.5rem;
     border-radius: 15px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid var(--accent);
     cursor: pointer;
     transition: all 0.3s;
     position: relative;
@@ -388,12 +441,12 @@ body {
 .word-card .portuguese {
     font-size: 1.3rem;
     font-weight: 600;
-    color: #667eea;
+    color: var(--accent);
     margin-bottom: 0.5rem;
 }
 
 .word-card .english {
-    color: #666;
+    color: var(--muted);
 }
 
 .word-card .audio-icon {
@@ -412,7 +465,7 @@ body {
 }
 
 .dashboard-card {
-    background: #f8f9fa;
+    background: var(--surface-subtle);
     padding: 2rem;
     border-radius: 20px;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
@@ -420,7 +473,7 @@ body {
 
 .dashboard-card h3 {
     margin-bottom: 1rem;
-    color: #667eea;
+    color: var(--accent);
 }
 
 .btn-upgrade {
@@ -465,7 +518,7 @@ body {
     display: flex;
     gap: 1rem;
     align-items: center;
-    color: #444;
+    color: var(--text);
 }
 
 .version-pill {
@@ -482,7 +535,7 @@ body {
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
     transition: width 0.5s ease;
 }
 
@@ -500,12 +553,13 @@ body {
 }
 
 .paywall-content {
-    background: white;
+    background: var(--surface);
     padding: 3rem;
     border-radius: 30px;
     max-width: 500px;
     position: relative;
     animation: slideUp 0.4s ease;
+    color: var(--text);
 }
 
 .close-paywall {
@@ -518,7 +572,7 @@ body {
 }
 
 .paywall-content h2 {
-    color: #667eea;
+    color: var(--accent);
     margin-bottom: 2rem;
     text-align: center;
 }
@@ -530,7 +584,7 @@ body {
 .feature {
     padding: 1rem;
     font-size: 1.1rem;
-    color: #333;
+    color: var(--text);
 }
 
 .btn-subscribe {
@@ -574,6 +628,41 @@ body {
         transform: translateY(0);
         opacity: 1;
     }
+}
+
+.dark-theme .learning-section,
+.dark-theme .vault-section,
+.dark-theme .dashboard-section {
+    color: var(--text);
+}
+
+.dark-theme .word-card,
+.dark-theme .dashboard-card,
+.dark-theme .review-quiz {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.dark-theme .progress-bar {
+    background: #111827;
+}
+
+.dark-theme .quiz-option {
+    border-color: #374151;
+}
+
+.dark-theme .footer {
+    background: rgba(15, 23, 42, 0.9);
+    border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+.pulse {
+    animation: pop 0.25s ease;
+}
+
+@keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
 }
 
 @media (max-width: 768px) {
