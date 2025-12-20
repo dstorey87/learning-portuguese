@@ -18,9 +18,7 @@
                 <a href="#learn">Learn</a>
                 <a href="#vault">My Vault</a>
                 <a href="#dashboard">Dashboard</a>
-                <button class="btn-theme" id="themeToggle">Dark Mode</button>
                 <button class="btn-premium" id="premiumBtn">Go Premium</button>
-                <button class="btn-login" id="loginBtn">Log In</button>
             </div>
         </div>
     </nav>
@@ -28,7 +26,7 @@
     <section id="home" class="hero">
         <div class="hero-content">
             <h1>Master European Portuguese</h1>
-            <p>Learn word by word with interactive lessons, audio pronunciation, and AI conversation practice</p>
+            <p>Learn word by word with interactive lessons and engaging practice</p>
             <button class="btn-start" id="startBtn">Start Learning Free</button>
         </div>
         <div class="hero-animation">
@@ -39,7 +37,17 @@
     </section>
 
     <section id="learn" class="learning-section">
-        <h2>Begin Your Journey</h2>
+        <div class="learning-header">
+            <div>
+                <h2>Begin Your Journey</h2>
+                <p class="muted">Pick a topic and start listening.</p>
+            </div>
+            <div class="speaker-toggle">
+                <label><input type="radio" name="speakerGender" value="male" checked> Male form</label>
+                <label><input type="radio" name="speakerGender" value="female"> Female form</label>
+            </div>
+        </div>
+        <div class="topics-bar" id="topicFilters"></div>
         <div class="lesson-grid" id="lessonGrid">
             <!-- Lessons will be dynamically loaded -->
         </div>
@@ -60,7 +68,6 @@
         <div class="vault-actions">
             <button class="btn-review" id="reviewBtn">Quick Review Quiz</button>
             <div id="reviewResult" class="review-result"></div>
-            <div id="reviewQuiz" class="review-quiz"></div>
         </div>
         <div class="vault-filters">
             <input type="text" id="vaultSearch" placeholder="Search Portuguese or English" aria-label="Search learned words">
@@ -75,7 +82,7 @@
         </div>
     </section>
 
-    <section id="dashboard" class="dashboard-section" style="display: none;">
+    <section id="dashboard" class="dashboard-section">
         <h2>User Dashboard</h2>
         <div class="dashboard-grid">
             <div class="dashboard-card">
@@ -92,13 +99,31 @@
                 <button class="btn-reset" id="resetProgressBtn">Reset Progress</button>
             </div>
             <div class="dashboard-card">
-                <h3>Voice Settings</h3>
-                <label>
-                    <input type="radio" name="voice" value="female" checked> Female Voice
-                </label>
-                <label>
-                    <input type="radio" name="voice" value="male"> Male Voice
-                </label>
+                <h3>Voice Settings (EU‑PT only)</h3>
+                <p class="muted">Choose a free, on-device EU Portuguese voice. Bundled Piper downloads only on demand. No Brazilian voices are shown.</p>
+                <div class="voice-settings">
+                    <label class="select-label">Preferred source
+                        <select id="voiceSourceSelect" aria-label="Voice source">
+                            <option value="auto">Auto (system first)</option>
+                        </select>
+                    </label>
+                    <label class="select-label">Voice option
+                        <select id="voiceSelect" aria-label="Voice option"></select>
+                    </label>
+                    <div class="voice-actions">
+                        <button class="btn-small" id="voiceSampleBtn">Play Sample</button>
+                        <button class="btn-small" id="voiceSaveBtn">Save Default</button>
+                        <button class="btn-small" id="voiceDisableBundledBtn">Disable Bundled Voices</button>
+                        <button class="btn-small" id="voiceDownloadBtn">Download Bundled Voice</button>
+                    </div>
+                    <div class="voice-status" id="voiceStatus">Detecting system voices…</div>
+                    <div class="voice-diagnostics">
+                        <div class="voice-line" id="voiceAvailability">System voices: —. Bundled voice: —.</div>
+                        <div class="voice-line" id="voiceSelection">Selected: none (text only until ready).</div>
+                        <div class="voice-line" id="voiceLastUsed">Last playback: idle.</div>
+                    </div>
+                    <div class="demo-phrase" id="voiceDemo">Demo: Olá! Vamos praticar português europeu: pão, coração, obrigado, vinte e oito.</div>
+                </div>
             </div>
         </div>
     </section>
@@ -118,27 +143,13 @@
         </div>
     </div>
 
-    <div id="authModal" class="auth-modal" style="display: none;">
-        <div class="auth-content">
-            <span class="close-auth">&times;</span>
-            <h2>Log In to Continue</h2>
-            <p>Access more lessons by signing in.</p>
-            <form id="authForm" class="auth-form">
-                <label for="authName">Name</label>
-                <input type="text" id="authName" name="name" placeholder="Your name" required>
-                <label for="authEmail">Email</label>
-                <input type="email" id="authEmail" name="email" placeholder="you@example.com" required>
-                <button type="submit" class="btn-auth-submit">Log In</button>
-            </form>
-        </div>
-    </div>
     <footer class="footer">
         <div class="footer-content">
-            <span class="version-pill" id="appVersion">v0.1.0</span>
+            <span class="version-pill" id="appVersion">v0.4.0</span>
             <span>Built with HTML, CSS, and JavaScript</span>
         </div>
     </footer>
 
-    <script src="app.js"></script>
+    <script type="module" src="./app.js"></script>
 </body>
 </html>
