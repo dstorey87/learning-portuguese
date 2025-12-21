@@ -2,4 +2,9 @@ node_modules/
 test-results/
 playwright-report/
 .DS_Store
-npm-debug.log*
+*.log
+
+# TTS model artifacts - exclude large binaries from git
+pt_PT-tugão-medium.onnx
+tts-server/models/
+*.onnx
