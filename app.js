@@ -108,7 +108,8 @@ const userData = {
     lessonAccuracy: [],
     lessonAttempts: [],
     lessonCorrect: [],
-    lastLessonId: null
+    lastLessonId: null,
+    lastStudyDate: null
 };
 
 const uiState = {
@@ -121,6 +122,35 @@ const uiState = {
 const vaultFilters = {
     query: '',
     sort: 'pt'
+};
+
+// SM-2 Spaced Repetition Algorithm constants
+const SRS_INTERVALS = {
+    1: 1,        // 1 day
+    2: 3,        // 3 days
+    3: 7,        // 1 week
+    4: 14,       // 2 weeks
+    5: 30        // 1 month
+};
+
+// Mnemonic memory aids for difficult words
+const MNEMONICS = {
+    'pão': { tip: '🍞 Sounds like "pow!" - bread gives you power!', phonetic: 'POWNG (nasal)' },
+    'mãe': { tip: '👩 "Mine" - my mother is mine', phonetic: 'MING (nasal)' },
+    'não': { tip: '🚫 "Now!" but with nasal - say NO now!', phonetic: 'NOWNG (nasal)' },
+    'obrigado': { tip: '🙏 "Oh breeGAdoh" - Oh I\'m glad to thank you', phonetic: 'oh-bree-GAH-doo' },
+    'obrigada': { tip: '🙏 "Oh breeGAdah" - Female form ends in A', phonetic: 'oh-bree-GAH-dah' },
+    'sim': { tip: '✓ "Seem" - seems like yes!', phonetic: 'SEENG (nasal)' },
+    'bom': { tip: '👍 "Bong" - good vibes like a bong', phonetic: 'BONG (nasal)' },
+    'boa': { tip: '👌 "BOah" -boa constrictor is good at hugging', phonetic: 'BOH-ah' },
+    'dia': { tip: '☀️ "DEE-ah" - day starts with D', phonetic: 'DEE-ah' },
+    'noite': { tip: '🌙 "NOYt" - night, no light', phonetic: 'NOY-tuh' },
+    'água': { tip: '💧 "AH-gwah" - agua = water, remember aquarium', phonetic: 'AH-gwah' },
+    'por favor': { tip: '🙏 "Poor fah-VOOR" - please do me a favor', phonetic: 'poor fah-VOOR' },
+    'desculpe': { tip: '😬 "desh-KOOL-puh" - excuse me, don\'t be cruel', phonetic: 'desh-KOOL-puh' },
+    'coração': { tip: '❤️ "koo-rah-SOWNG" - heart with strong nasal ending', phonetic: 'koo-rah-SOWNG' },
+    'estou': { tip: '📍 "shTOH" - I AM (temporary state)', phonetic: 'shTOH' },
+    'sou': { tip: '🧑 "SOH" - I AM (permanent identity)', phonetic: 'SOH' }
 };
 
 const voiceDefaults = {
@@ -943,13 +973,60 @@ function recordSuccess(word, context = {}) {
 function updateSrs(key, correct) {
     const entry = userData.learnedWords.find(w => getWordKey(w) === key);
     if (!entry) return;
+    
+    // Initialize SRS properties if missing
     if (!entry.srsLevel) entry.srsLevel = 1;
+    if (!entry.easeFactor) entry.easeFactor = 2.5;
+    if (!entry.repetitions) entry.repetitions = 0;
+    if (!entry.nextReview) entry.nextReview = Date.now();
+    
+    // SM-2 Algorithm implementation
     if (correct) {
-        entry.srsLevel = Math.min(5, entry.srsLevel + 1);
+        entry.repetitions += 1;
+        
+        if (entry.repetitions === 1) {
+            entry.srsLevel = 1;
+        } else if (entry.repetitions === 2) {
+            entry.srsLevel = Math.min(5, 2);
+        } else {
+            // Promote based on performance
+            const newLevel = Math.min(5, entry.srsLevel + 1);
+            entry.srsLevel = newLevel;
+        }
+        
+        // Calculate next review interval using SM-2
+        const interval = SRS_INTERVALS[entry.srsLevel];
+        entry.nextReview = Date.now() + (interval * 24 * 60 * 60 * 1000);
+        
+        // Adjust ease factor (quality = 4 for correct)
+        entry.easeFactor = Math.max(1.3, entry.easeFactor + (0.1 - (5 - 4) * (0.08 + (5 - 4) * 0.02)));
+        
     } else {
+        // Reset on failure
+        entry.repetitions = 0;
         entry.srsLevel = 1;
+        entry.nextReview = Date.now() + (1 * 60 * 60 * 1000); // Review in 1 hour
+        
+        // Decrease ease factor (quality = 0 for incorrect)
+        entry.easeFactor = Math.max(1.3, entry.easeFactor + (0.1 - (5 - 0) * (0.08 + (5 - 0) * 0.02)));
     }
+    
     entry.lastReviewed = Date.now();
+}
+
+// Get words due for review
+function getDueWords() {
+    const now = Date.now();
+    return userData.learnedWords.filter(word => {
+        const nextReview = word.nextReview || 0;
+        return now >= nextReview;
+    });
+}
+
+// Get word mnemonic if available
+function getMnemonic(word) {
+    const pt = word.pt?.toLowerCase();
+    return MNEMONICS[pt] || null;
 }
 
 function resolveLessonId(word, providedLessonId) {
@@ -1134,10 +1211,16 @@ function renderVault() {
     filtered.forEach(word => {
         const card = document.createElement('div');
         card.className = 'word-card';
+        
+        // Check for mnemonic
+        const mnemonic = getMnemonic(word);
+        const mnemonicHTML = mnemonic ? `<div class="mnemonic-hint" style="font-size: 0.85em; opacity: 0.7; margin-top: 4px;">💡 ${mnemonic.tip}</div>` : '';
+        
         card.innerHTML = `
             <div class="portuguese">${word.pt}</div>
             <div class="english">${word.en}</div>
             ${word.resolvedFrom && word.resolvedFrom !== word.pt ? `<div class="alt-form">Base: ${word.resolvedFrom}</div>` : ''}
+            ${mnemonicHTML}
         `;
         wordList.appendChild(card);
     });
@@ -1197,7 +1280,10 @@ function startReviewQuiz(targetPool = null) {
     const resultContainer = document.getElementById('reviewResult');
     if (!promptEl || !optionsEl || !resultContainer) return;
 
-    const pool = Array.isArray(targetPool) && targetPool.length ? targetPool : userData.learnedWords;
+    // Prioritize due words for spaced repetition
+    const dueWords = getDueWords();
+    const pool = Array.isArray(targetPool) && targetPool.length ? targetPool : 
+                 (dueWords.length > 0 ? dueWords : userData.learnedWords);
 
     if (!pool.length) {
         promptEl.textContent = 'Learn a lesson first to unlock review quizzes.';
