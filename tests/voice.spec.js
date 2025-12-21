@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const HOME_URL = 'http://localhost:4310/';
+const HOME_URL = 'http://localhost:4321/';
 
 // Light smoke to ensure the dashboard voice settings and diagnostics render.
 test('dashboard voice settings shows diagnostics', async ({ page }) => {
