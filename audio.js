@@ -11,6 +11,58 @@ let lastVoiceUsed = {
   timestamp: Date.now()
 };
 
+const audioContextSingleton = {
+  instance: null
+};
+
+const BUNDLED_META_KEY = 'ptBundledVoiceMetaV1';
+const DEFAULT_BUNDLED_META = {
+  downloaded: false,
+  sizeBytes: 63_201_294,
+  updatedAt: null,
+  version: 'piper-pt-pt-tugao-medium',
+  voiceKey: null,
+  url: null,
+  sha256: null,
+  provider: null
+};
+
+const BUNDLED_VOICE_OPTIONS = [
+  {
+    key: 'bundled|pt-pt|piper-tugao-medium',
+    name: 'Piper EU-PT (tugão, medium)',
+    gender: 'neutral',
+    provider: 'Piper',
+    sizeBytes: 63_201_294,
+    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx',
+    sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4'
+  }
+];
+
+function readBundledMeta() {
+  try {
+    const raw = localStorage.getItem(BUNDLED_META_KEY);
+    if (!raw) return { ...DEFAULT_BUNDLED_META };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_BUNDLED_META,
+      ...parsed,
+      downloaded: Boolean(parsed.downloaded)
+    };
+  } catch (error) {
+    console.warn('Unable to read bundled voice meta', error);
+    return { ...DEFAULT_BUNDLED_META };
+  }
+}
+
+function writeBundledMeta(meta) {
+  try {
+    localStorage.setItem(BUNDLED_META_KEY, JSON.stringify(meta));
+  } catch (error) {
+    console.warn('Unable to persist bundled voice meta', error);
+  }
+}
+
 function setLastVoiceUsed(payload) {
   lastVoiceUsed = {
     status: 'idle',
@@ -33,8 +85,176 @@ function providerFromVoice(voice) {
   return 'System';
 }
 
+function getAudioContext() {
+  if (typeof window === 'undefined') return null;
+  if (!audioContextSingleton.instance) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return null;
+    audioContextSingleton.instance = new Ctor();
+  }
+  return audioContextSingleton.instance;
+}
+
+async function playArrayBuffer(arrayBuffer) {
+  const ctx = getAudioContext();
+  if (!ctx) throw new Error('AudioContext not available in this browser.');
+  if (ctx.state === 'suspended' && ctx.resume) {
+    try { await ctx.resume(); } catch (_) { /* ignore */ }
+  }
+  const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+  return new Promise((resolve, reject) => {
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.onended = () => resolve();
+      source.start(0);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 export function getLastVoiceUsed() {
   return lastVoiceUsed;
+}
+
+export function getBundledVoiceStatus() {
+  return readBundledMeta();
+}
+
+export function isBundledVoiceReady() {
+  return readBundledMeta().downloaded;
+}
+
+export function getBundledVoiceOptions() {
+  return [...BUNDLED_VOICE_OPTIONS];
+}
+
+export function clearBundledVoice() {
+  writeBundledMeta({ ...DEFAULT_BUNDLED_META, downloaded: false, updatedAt: Date.now() });
+}
+
+export function startBundledVoiceDownload({ voiceKey, onProgress, onError } = {}) {
+  const voice = BUNDLED_VOICE_OPTIONS.find(v => v.key === voiceKey) || BUNDLED_VOICE_OPTIONS[0];
+  const controller = new AbortController();
+  let canceled = false;
+
+  const toHex = (buffer) => Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const safeProgress = (value) => {
+    if (canceled) return;
+    const pct = Math.min(100, Math.max(0, Math.round(value)));
+    if (typeof onProgress === 'function') onProgress(pct, voice);
+  };
+
+  const persistMeta = (sizeBytesOverride) => {
+    const meta = {
+      ...DEFAULT_BUNDLED_META,
+      downloaded: true,
+      updatedAt: Date.now(),
+      sizeBytes: sizeBytesOverride || voice?.sizeBytes || DEFAULT_BUNDLED_META.sizeBytes,
+      voiceKey: voice?.key || null,
+      url: voice?.url || null,
+      sha256: voice?.sha256 || null,
+      provider: voice?.provider || null
+    };
+    writeBundledMeta(meta);
+  };
+
+  const finishSuccess = (sizeBytesOverride) => {
+    persistMeta(sizeBytesOverride);
+    safeProgress(100);
+  };
+
+  const runSimulated = () => {
+    let progress = 0;
+    const tick = () => {
+      if (canceled) return;
+      progress = Math.min(100, progress + Math.floor(Math.random() * 14) + 8);
+      if (progress >= 100) {
+        finishSuccess();
+        return;
+      }
+      safeProgress(progress);
+      setTimeout(tick, 280);
+    };
+    setTimeout(tick, 180);
+  };
+
+  const download = async () => {
+    if (!voice?.url) {
+      if (typeof onError === 'function') onError(new Error('Missing bundled voice URL'));
+      return runSimulated();
+    }
+
+    safeProgress(1);
+    try {
+      const response = await fetch(voice.url, { signal: controller.signal });
+      if (canceled) return;
+      if (!response.ok || !response.body) throw new Error(`Download failed (${response.status})`);
+
+      const total = Number(response.headers.get('content-length')) || voice.sizeBytes || 0;
+      const reader = response.body.getReader();
+      let received = 0;
+      const chunks = [];
+
+      let finished = false;
+      while (!finished) {
+        const { done, value } = await reader.read();
+        if (canceled) return;
+        finished = Boolean(done);
+        if (finished) break;
+        if (value) {
+          received += value.byteLength;
+          chunks.push(value);
+          const baseline = total || voice.sizeBytes || 75_000_000;
+          const pct = Math.min(99, Math.round((received / baseline) * 100));
+          safeProgress(Math.max(5, pct));
+        }
+      }
+
+      const blob = new Blob(chunks, { type: 'application/octet-stream' });
+      const sizeBytes = blob.size || total || voice.sizeBytes || DEFAULT_BUNDLED_META.sizeBytes;
+
+      if (voice?.sha256 && crypto?.subtle) {
+        const hashBuffer = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+        const digestHex = toHex(hashBuffer);
+        if (digestHex.toLowerCase() !== voice.sha256.toLowerCase()) {
+          const hashError = new Error('Bundled voice integrity check failed');
+          if (typeof onError === 'function') onError(hashError);
+          console.warn('SHA-256 mismatch for bundled voice', { expected: voice.sha256, actual: digestHex });
+          return;
+        }
+      }
+
+      if (typeof caches !== 'undefined') {
+        try {
+          const cache = await caches.open('bundled-voices-v1');
+          await cache.put(voice.url, new Response(blob));
+        } catch (cacheError) {
+          console.warn('Bundled voice cache write failed', cacheError);
+        }
+      }
+
+      finishSuccess(sizeBytes);
+    } catch (error) {
+      if (canceled) return;
+      console.warn('Bundled voice download failed, falling back to simulated download.', error);
+      if (typeof onError === 'function') onError(error);
+      runSimulated();
+    }
+  };
+
+  download();
+
+  return {
+    cancel: () => {
+      canceled = true;
+      controller.abort();
+    },
+    isCanceled: () => canceled
+  };
 }
 
 export async function speakWord(text, { voicePreference = 'female', voiceKey: forcedVoiceKey = null, rate = 0.85, onStart, onEnd, onVoiceUsed, metaOverride } = {}) {
@@ -109,7 +329,7 @@ export function getEngineVoiceOptions(engine = 'webspeech', lang = 'pt-PT') {
   }));
 }
 
-export async function speakWithEngine({ text, lang = 'pt-PT', gender = 'female', engine = 'webspeech', voiceKey = null, rate = 1, onStart, onEnd, onVoiceUsed }) {
+export async function speakWithEngine({ text, lang = 'pt-PT', gender = 'female', engine = 'webspeech', voiceKey = null, rate = 1, onStart, onEnd, onVoiceUsed, httpEndpoint = null, modelUrl = null }) {
   if (engine === 'webspeech') {
     return speakWord(text, {
       voicePreference: gender,
@@ -134,27 +354,56 @@ export async function speakWithEngine({ text, lang = 'pt-PT', gender = 'female',
     });
   }
 
-  // Temporary stub for bundled/alt engines: play via Web Speech but log the intended engine
-  const metaOverride = {
-    status: 'played',
-    engine,
-    provider: engine,
-    name: `${engine} EU-PT voice`,
-    lang,
-    voiceKey: voiceKey || `${engine}|pt-pt|default`,
-    forcedKey: voiceKey,
-    rate
-  };
-  setLastVoiceUsed(metaOverride);
-  if (typeof onVoiceUsed === 'function') onVoiceUsed(metaOverride);
-  return speakWord(text, {
-    voicePreference: gender,
-    voiceKey: null,
-    rate,
-    onStart,
-    onEnd,
-    metaOverride
-  });
+  if (engine === 'bundled' && !isBundledVoiceReady()) {
+    setLastVoiceUsed({ status: 'bundled-missing', engine: 'bundled', voiceKey, rate });
+    if (typeof onEnd === 'function') onEnd();
+    return;
+  }
+
+  if (engine === 'bundled') {
+    const metaBase = {
+      engine: 'bundled',
+      provider: 'HTTP TTS',
+      name: 'Bundled EU-PT voice',
+      lang,
+      voiceKey: voiceKey || 'bundled|pt-pt|piper-tugao-medium',
+      forcedKey: voiceKey,
+      rate
+    };
+
+    if (!httpEndpoint) {
+      const missingMeta = { ...metaBase, status: 'bundled-endpoint-missing' };
+      setLastVoiceUsed(missingMeta);
+      if (typeof onVoiceUsed === 'function') onVoiceUsed(missingMeta);
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
+
+    try {
+      const response = await fetch(httpEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, lang, voiceKey: metaBase.voiceKey, modelUrl })
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
+      if (!arrayBuffer || !arrayBuffer.byteLength) throw new Error('Empty audio response from TTS endpoint');
+
+      await playArrayBuffer(arrayBuffer);
+
+      const successMeta = { ...metaBase, status: 'played' };
+      setLastVoiceUsed(successMeta);
+      if (typeof onVoiceUsed === 'function') onVoiceUsed(successMeta);
+      if (typeof onEnd === 'function') onEnd();
+    } catch (error) {
+      console.warn('Bundled HTTP TTS playback failed', error);
+      const failMeta = { ...metaBase, status: 'bundled-http-failed', error: error?.message };
+      setLastVoiceUsed(failMeta);
+      if (typeof onVoiceUsed === 'function') onVoiceUsed(failMeta);
+      if (typeof onEnd === 'function') onEnd();
+    }
+  }
 }
 
 function genderFromName(name, fallback = 'neutral') {

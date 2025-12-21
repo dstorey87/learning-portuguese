@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learn European Portuguese - Free Interactive Course</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f2937'/%3E%3Ccircle cx='32' cy='32' r='26' fill='%23667eea'/%3E%3Ctext x='50%25' y='58%25' font-size='28' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-weight='700'%3EPT%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +19,10 @@
                 <a href="#learn">Learn</a>
                 <a href="#vault">My Vault</a>
                 <a href="#dashboard">Dashboard</a>
+                <a href="#tips">Tips</a>
+                <a href="#plans">Plans</a>
+                <a href="#coach">AI Coach</a>
+                <button class="btn-theme" id="themeToggle" aria-label="Toggle theme" aria-pressed="false">Dark mode</button>
                 <button class="btn-premium" id="premiumBtn">Go Premium</button>
             </div>
         </div>
@@ -29,10 +34,19 @@
             <p>Learn word by word with interactive lessons and engaging practice</p>
             <button class="btn-start" id="startBtn">Start Learning Free</button>
         </div>
-        <div class="hero-animation">
-            <div class="floating-word" data-word="Olá">Olá 👋</div>
-            <div class="floating-word" data-word="Obrigado">Obrigado 🙏</div>
-            <div class="floating-word" data-word="Portugal">Portugal 🇵🇹</div>
+        <div class="hero-visual">
+            <div class="hero-photo tram" aria-hidden="true">
+                <span class="photo-label">Lisboa</span>
+            </div>
+            <div class="hero-photo coast" aria-hidden="true">
+                <span class="photo-label">Costa</span>
+            </div>
+            <div class="hero-stack">
+                <div class="stack-card">Pastel de nata</div>
+                <div class="stack-card">Tram 28</div>
+                <div class="stack-card">Fado nights</div>
+            </div>
+            <div class="hero-badge" aria-label="European Portuguese only">EU‑PT only</div>
         </div>
     </section>
 
@@ -48,12 +62,18 @@
             </div>
         </div>
         <div class="topics-bar" id="topicFilters"></div>
+        <div class="mood-strip" aria-hidden="true">
+            <div class="mood-card">☕ Café</div>
+            <div class="mood-card">🚋 Elétrico</div>
+            <div class="mood-card">🌊 Atlântico</div>
+            <div class="mood-card">🗺️ Viagem</div>
+        </div>
         <div class="lesson-grid" id="lessonGrid">
             <!-- Lessons will be dynamically loaded -->
         </div>
     </section>
 
-    <section id="vault" class="vault-section" style="display: none;">
+    <section id="vault" class="vault-section">
         <h2>📚 My Learned Words Vault</h2>
         <div class="vault-stats">
             <div class="stat-card">
@@ -66,8 +86,19 @@
             </div>
         </div>
         <div class="vault-actions">
-            <button class="btn-review" id="reviewBtn">Quick Review Quiz</button>
-            <div id="reviewResult" class="review-result"></div>
+            <div class="review-card">
+                <div class="review-header">
+                    <button class="btn-review" id="reviewBtn">Quick Review Quiz</button>
+                    <span class="muted">Multiple choice powered by your SRS buckets.</span>
+                </div>
+                <div id="reviewPrompt" class="review-prompt">Tap start to generate a quick question.</div>
+                <div id="reviewOptions" class="review-options"></div>
+                <div id="reviewResult" class="review-result"></div>
+            </div>
+            <div class="srs-panel">
+                <p class="muted">SRS Buckets</p>
+                <div id="srsBuckets" class="srs-buckets"></div>
+            </div>
         </div>
         <div class="vault-filters">
             <input type="text" id="vaultSearch" placeholder="Search Portuguese or English" aria-label="Search learned words">
@@ -98,6 +129,14 @@
                 <p id="progressText">0% Complete</p>
                 <button class="btn-reset" id="resetProgressBtn">Reset Progress</button>
             </div>
+            <div class="dashboard-card lesson-metrics">
+                <h3>Lesson Insights</h3>
+                <div class="metric-row">
+                    <div class="metric-pill" id="lessonAccuracyStat">No accuracy data yet</div>
+                    <div class="metric-pill" id="lessonTimeStat">No time tracked yet</div>
+                </div>
+                <p class="muted" id="lessonDetailStat">Complete a lesson to see details.</p>
+            </div>
             <div class="dashboard-card">
                 <h3>Voice Settings (EU‑PT only)</h3>
                 <p class="muted">Choose a free, on-device EU Portuguese voice. Bundled Piper downloads only on demand. No Brazilian voices are shown.</p>
@@ -116,6 +155,10 @@
                         <button class="btn-small" id="voiceDisableBundledBtn">Disable Bundled Voices</button>
                         <button class="btn-small" id="voiceDownloadBtn">Download Bundled Voice</button>
                     </div>
+                    <label class="select-label">Bundled TTS API URL (HTTP)
+                        <input type="url" id="voiceBundledApiUrl" placeholder="https://your-tts-endpoint.example.com/tts" aria-label="Bundled TTS API URL">
+                    </label>
+                    <p class="muted">Set an online TTS endpoint to stream audio for the bundled Piper model. Payload: JSON with text, lang, voiceKey, and modelUrl; response: audio/wav or audio/ogg.</p>
                     <div class="voice-status" id="voiceStatus">Detecting system voices…</div>
                     <div class="voice-diagnostics">
                         <div class="voice-line" id="voiceAvailability">System voices: —. Bundled voice: —.</div>
@@ -123,6 +166,126 @@
                         <div class="voice-line" id="voiceLastUsed">Last playback: idle.</div>
                     </div>
                     <div class="demo-phrase" id="voiceDemo">Demo: Olá! Vamos praticar português europeu: pão, coração, obrigado, vinte e oito.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tips" class="tips-section">
+        <div class="section-heading">
+            <h2>EU Portuguese Tips (Free)</h2>
+            <p class="muted">Proven ways to learn faster in 2025 without paying a cent.</p>
+        </div>
+        <div class="tips-grid">
+            <div class="tip-card">
+                <h3>Smart Note-Taking</h3>
+                <ul>
+                    <li>Use spaced, tiny cards: PT on top, EN + phonetics + example below.</li>
+                    <li>Color-code gendered words (-o/-a) and nasal endings (ão/õe/em).</li>
+                    <li>Record 10-second voice memos of your own pronunciation daily.</li>
+                    <li>Weekly review: rewrite sentences from memory, then check audio.</li>
+                </ul>
+            </div>
+            <div class="tip-card">
+                <h3>Free Apps (Mobile + Desktop)</h3>
+                <ul>
+                    <li>Mobile: Google Recorder/Voice Memos + AnkiDroid/AnkiMobile for spaced repetition.</li>
+                    <li>Desktop ("the C"): Anki + Language Reactor (YouTube/Netflix subtitles) + Mozilla TTS demo voices (EU-PT) for local playback.</li>
+                    <li>Browser: Forvo + Lexico.pt for authentic EU-PT audio; Linguee for context sentences.</li>
+                    <li>Keyboard: install PT-PT keyboard for fast accents (AltGr + vowels).</li>
+                </ul>
+            </div>
+            <div class="tip-card">
+                <h3>Daily Micro-Drills</h3>
+                <ul>
+                    <li>Shadow 5–8 key sentences (hear → repeat) with nasal vowels and stress.</li>
+                    <li>Swap gender/number: obrigado→obrigada, filho→filha, pronto→pronta.</li>
+                    <li>Record, compare to native audio, correct one sound per rep.</li>
+                    <li>Finish with a 2-minute self-quiz: translate 5 words both directions.</li>
+                </ul>
+            </div>
+            <div class="tip-card">
+                <h3>Get Unstuck Fast</h3>
+                <ul>
+                    <li>Nasal vowels: hold the vowel shorter; focus on “ão/ãe/õe” contrast.</li>
+                    <li>Ser vs. Estar: ser = permanent traits; estar = states/locations.</li>
+                    <li>Por vs. Para: por = through/cause; para = destination/purpose.</li>
+                    <li>Listening wall: loop 30–60s of EU-PT radio daily to normalize rhythm.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section id="plans" class="plans-section">
+        <div class="section-heading">
+            <h2>Learning Plans</h2>
+            <p class="muted">Fast-track with free basics or unlock the paid hero path.</p>
+        </div>
+        <div class="plan-grid">
+            <div class="plan-card">
+                <div class="plan-header">
+                    <span class="plan-label">Free Tier</span>
+                    <span class="plan-duration">Weeks 0–4</span>
+                </div>
+                <ul class="plan-list">
+                    <li>Week 1: Greetings, numbers 0–20, please/thank you; pronounce “ão/ães”.</li>
+                    <li>Week 2: Café orders + transport; shadow 5 sentences daily.</li>
+                    <li>Week 3: Daily routines (eu sou/estou/tenho); gender swaps for nouns.</li>
+                    <li>Week 4: Survival phrases; 5-minute review sessions twice daily.</li>
+                </ul>
+                <div class="plan-outcome">Outcome: hold a 1–2 minute intro and order food confidently.</div>
+            </div>
+            <div class="plan-card premium-plan" id="paidPlan">
+                <div class="plan-header">
+                    <span class="plan-label premium">Paid Tier</span>
+                    <span class="plan-duration">Weeks 5–24</span>
+                </div>
+                <div class="premium-locked" id="paidPlanLocked">
+                    <p>Unlock Premium to see the full hero roadmap and practice packs.</p>
+                    <button class="btn-premium" id="unlockPaidPlan">Go Premium</button>
+                </div>
+                <div class="premium-body" id="paidPlanBody">
+                    <ul class="plan-list">
+                        <li>Weeks 5–8: Pronunciation clean-up (ʃ/ʒ, nasal vowels), 400-word core deck.</li>
+                        <li>Weeks 9–12: Past & future tenses in speech; 3× weekly speaking drills.</li>
+                        <li>Weeks 13–18: Domain packs (travel, work, healthcare); role-play scripts.</li>
+                        <li>Weeks 19–24: Fluency sprints; 10-minute conversation with <2 errors/min.</li>
+                    </ul>
+                    <div class="plan-outcome">Outcome: B1-B2 range—handle travel, daily life, and basic work chats with clear EU-PT pronunciation.</div>
+                    <div class="plan-metrics">Proficiency markers: 1000+ active words, narrate past/future, shadow native clips at 85–90% clarity.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="coach" class="coach-section">
+        <div class="section-heading">
+            <h2>AI Coach (Free & Local)</h2>
+            <p class="muted">Hints adapt to your mistakes—no cloud, EU-PT only, speaks when needed.</p>
+        </div>
+        <div class="coach-grid">
+            <div class="coach-card">
+                <h3>Your Smart Hints</h3>
+                <div id="aiHints" class="hint-list">
+                    <p class="muted">Complete a lesson or quiz to see personalized tips.</p>
+                </div>
+            </div>
+            <div class="coach-card">
+                <h3>Stuck? Try This</h3>
+                <ul id="stuckList" class="stuck-list">
+                    <li>Nasal endings: practice “pão / mãos / corações” at 0.9× speed.</li>
+                    <li>Gender endings: swap -o/-a pairs and replay audio twice.</li>
+                    <li>Sentence melody: shadow “Como está? Onde fica o metro?” focusing on stress.</li>
+                    <li>Recall both ways: PT→EN then EN→PT for your 5 hardest words.</li>
+                </ul>
+            </div>
+            <div class="coach-card">
+                <h3>Skill Dashboard</h3>
+                <div id="skillStats" class="skill-grid">
+                    <p class="muted">Complete a lesson to see skill stats.</p>
+                </div>
+                <div class="fix-pack-list" id="fixPackList">
+                    <p class="muted">No fix packs yet—make a few attempts first.</p>
                 </div>
             </div>
         </div>

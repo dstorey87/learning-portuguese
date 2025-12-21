@@ -8,8 +8,8 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npx serve -l 4310 --no-port-switching --no-clipboard .',
-    url: 'http://localhost:4310',
+    command: 'npx serve -l 4321 --no-port-switching --no-clipboard .',
+    url: 'http://localhost:4321',
     reuseExistingServer: false,
     timeout: 30_000,
   },
