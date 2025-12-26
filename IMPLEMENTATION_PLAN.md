@@ -79,25 +79,429 @@ All task tables MUST include these columns:
 
 ### Testing Requirements
 
-Every new service/component MUST have:
+Every new service/component MUST have **COMPREHENSIVE tests** covering ALL functionality.
 
-1. **Unit tests** - Test individual functions work correctly
-2. **Integration tests** - Test it works with other modules
-3. **Playwright tests** - Test UI interactions if applicable
+**Test Coverage Categories:**
 
-Test files go in:
-- `tests/unit/` - Unit tests
-- `tests/integration/` - Integration tests  
-- `tests/` - E2E Playwright tests
+| Category | What To Test | Example |
+|----------|--------------|---------|
+| **Existence** | Element renders in DOM | `expect(button).toBeVisible()` |
+| **Clickability** | Buttons/links respond to clicks | `button.click(); expect(action).toHaveBeenCalled()` |
+| **State Changes** | UI updates correctly | `click(); expect(expanded).toBe(true)` |
+| **Data Flow** | Component receives/sends data | `expect(userStats).toEqual(expected)` |
+| **CRUD Operations** | Create/Read/Update/Delete work | `create(); expect(list.length).toBe(1)` |
+| **Error Handling** | Graceful failure | `expect(errorMessage).toBeVisible()` |
+| **Connections** | External services reachable | `expect(ollamaStatus).toBe('connected')` |
+
+**Test File Structure:**
+```
+tests/
+├── unit/                        # Individual function tests
+│   ├── services/
+│   │   ├── AuthService.test.js
+│   │   ├── AIService.test.js
+│   │   └── ...
+│   └── components/
+│       ├── Modal.test.js
+│       └── ...
+├── integration/                 # Module interaction tests
+│   ├── lesson-flow.test.js
+│   ├── auth-flow.test.js
+│   └── voice-playback.test.js
+├── e2e/                         # Full user journey tests
+│   ├── complete-lesson.spec.js
+│   └── ...
+└── registry/                    # Component registry tests (feeds Monitoring)
+    └── component-health.spec.js
+```
 
 ### Cleanup Requirements
 
-After integrating new code:
+After integrating new code, you MUST specify exactly what to remove:
 
-1. **Identify redundant code** in old files (app.js, styles.css, etc.)
-2. **Remove the duplicate code** from old files
-3. **Verify app still works** after removal
-4. **Track line count reduction** in commit message
+| Step | Action | Must Document |
+|------|--------|---------------|
+| 1 | Identify redundant code | File name + line numbers |
+| 2 | List functions to remove | Function names |
+| 3 | Remove the code | Actual deletion |
+| 4 | Run tests to verify | All tests pass |
+| 5 | Document reduction | Lines removed count |
+
+**Example Cleanup Documentation:**
+```markdown
+CLEANUP for INT-001 (Wire AuthService):
+- DELETE: auth.js lines 1-294 (entire file)
+- REMOVE FROM app.js:
+  - Lines 15-28: Old auth imports
+  - Lines 120-180: Duplicate getUser/saveUser functions
+- VERIFY: `npm test` passes
+- REDUCTION: 354 lines removed
+```
+
+---
+
+## ⚠️ MANDATORY: Comprehensive Component Test Registry
+
+**Every UI element MUST be registered and tested. This registry feeds the Monitoring Dashboard.**
+
+### Why This Exists
+
+The Monitoring Dashboard (Phase 9) needs to know about EVERY component to check health. We build this registry AS WE BUILD the components, not retroactively.
+
+### Component Registration Format
+
+Every component MUST be registered in `tests/registry/components.json`:
+
+```json
+{
+    "componentId": "ai-chat-window",
+    "name": "AI Chat Window",
+    "type": "interactive",
+    "selector": "#ai-chat-window, .ai-chat-container",
+    "phase": "5B",
+    "tests": {
+        "existence": {
+            "testId": "ai-chat-exists",
+            "description": "Chat window renders in DOM"
+        },
+        "visibility": {
+            "testId": "ai-chat-visible",
+            "description": "Chat window is visible when expanded"
+        },
+        "interactions": [
+            {
+                "testId": "ai-chat-toggle",
+                "action": "click floating button",
+                "expected": "window expands/collapses",
+                "stateChange": "isExpanded toggles"
+            },
+            {
+                "testId": "ai-chat-send",
+                "action": "type message and click send",
+                "expected": "message appears in chat history",
+                "dataFlow": "message sent to Ollama"
+            },
+            {
+                "testId": "ai-chat-voice-input",
+                "action": "click voice button and speak",
+                "expected": "transcription appears in input",
+                "connection": "Whisper service"
+            }
+        ],
+        "dataConnections": [
+            {
+                "testId": "ai-chat-user-context",
+                "source": "AuthService.getUser()",
+                "expected": "chat knows current user's weak words"
+            },
+            {
+                "testId": "ai-chat-lesson-context",
+                "source": "LessonService.getCurrentLesson()",
+                "expected": "chat knows what lesson user is viewing"
+            }
+        ],
+        "crudOperations": [
+            {
+                "testId": "ai-chat-create-lesson",
+                "operation": "CREATE",
+                "action": "user says 'create a lesson for my weak words'",
+                "expected": "new custom lesson created and appears in lesson list"
+            },
+            {
+                "testId": "ai-chat-read-history",
+                "operation": "READ",
+                "action": "chat loads",
+                "expected": "previous chat history displayed"
+            }
+        ],
+        "errorHandling": [
+            {
+                "testId": "ai-chat-ollama-down",
+                "scenario": "Ollama service unavailable",
+                "expected": "graceful error message, not crash"
+            }
+        ]
+    }
+}
+```
+
+### Required Tests Per Component Type
+
+**BUTTONS:**
+| Test | Description | Required |
+|------|-------------|----------|
+| exists | Button renders | ✅ |
+| visible | Button is visible | ✅ |
+| enabled | Button is not disabled | ✅ |
+| clickable | Click triggers action | ✅ |
+| feedback | Visual feedback on click | ✅ |
+| loading | Loading state if async | ✅ if async |
+| error | Error state on failure | ✅ |
+
+**EXPANDABLE PANELS (Accordion):**
+| Test | Description | Required |
+|------|-------------|----------|
+| exists | Panel renders | ✅ |
+| collapsed-default | Starts collapsed | ✅ |
+| expand-on-click | Expands when clicked | ✅ |
+| collapse-on-click | Collapses when clicked again | ✅ |
+| single-open | Other panels close when opening | ✅ |
+| animation | Smooth expand/collapse animation | ✅ |
+| content-loads | Content inside loads correctly | ✅ |
+
+**FORMS/INPUTS:**
+| Test | Description | Required |
+|------|-------------|----------|
+| exists | Input renders | ✅ |
+| accepts-input | Can type in field | ✅ |
+| validation | Invalid input shows error | ✅ |
+| submit | Form submits correctly | ✅ |
+| reset | Clear/reset works | ✅ |
+| autofocus | Correct field focused | ✅ if applicable |
+
+**DATA DISPLAYS (Stats, Charts):**
+| Test | Description | Required |
+|------|-------------|----------|
+| exists | Display renders | ✅ |
+| loads-data | Data fetched from service | ✅ |
+| correct-data | Data matches source | ✅ |
+| updates | Live updates when data changes | ✅ if live |
+| empty-state | Shows message when no data | ✅ |
+
+**MODALS/DIALOGS:**
+| Test | Description | Required |
+|------|-------------|----------|
+| exists | Modal in DOM | ✅ |
+| hidden-default | Not visible by default | ✅ |
+| opens | Trigger opens modal | ✅ |
+| closes-x | X button closes | ✅ |
+| closes-outside | Click outside closes | ✅ if applicable |
+| closes-escape | Escape key closes | ✅ |
+| focus-trap | Focus stays in modal | ✅ |
+
+**SERVICE CONNECTIONS:**
+| Test | Description | Required |
+|------|-------------|----------|
+| endpoint-reachable | Service responds | ✅ |
+| auth-header | Auth token sent | ✅ if auth required |
+| response-valid | Response matches schema | ✅ |
+| timeout-handled | Timeout shows error | ✅ |
+| retry | Retries on failure | ✅ if configured |
+
+### Master Component Registry (Build as you go)
+
+This table tracks ALL components. Update it as each component is built:
+
+| Component ID | Phase | Type | Tests Written | Tests Pass | In Registry |
+|--------------|-------|------|---------------|------------|-------------|
+| nav-sidebar | 1B | navigation | [ ] | [ ] | [ ] |
+| nav-topbar | 1B | navigation | [ ] | [ ] | [ ] |
+| nav-mobile-drawer | 3 | navigation | [ ] | [ ] | [ ] |
+| lesson-card | 1B | card | [ ] | [ ] | [ ] |
+| word-card | 1B | card | [ ] | [ ] | [ ] |
+| challenge-renderer | 1B | interactive | [ ] | [ ] | [ ] |
+| modal-base | 1B | modal | [ ] | [ ] | [ ] |
+| toast-notification | 1B | notification | [ ] | [ ] | [ ] |
+| progress-chart | 1B | data-display | [ ] | [ ] | [ ] |
+| accordion-panel | 4 | expandable | [ ] | [ ] | [ ] |
+| ai-chat-window | 5B | interactive | [ ] | [ ] | [ ] |
+| ai-chat-button | 5B | button | [ ] | [ ] | [ ] |
+| ai-tips-panel | 5 | data-display | [ ] | [ ] | [ ] |
+| voice-play-btn | 8 | button | [ ] | [ ] | [ ] |
+| voice-speed-slider | 8 | control | [ ] | [ ] | [ ] |
+| voice-download-btn | 8 | button | [ ] | [ ] | [ ] |
+| login-modal | 7 | modal | [ ] | [ ] | [ ] |
+| admin-panel | 7 | page | [ ] | [ ] | [ ] |
+| hearts-display | 7 | data-display | [ ] | [ ] | [ ] |
+| xp-display | 7 | data-display | [ ] | [ ] | [ ] |
+| streak-display | 7 | data-display | [ ] | [ ] | [ ] |
+| quiz-options | 1B | interactive | [ ] | [ ] | [ ] |
+| quiz-submit | 1B | button | [ ] | [ ] | [ ] |
+| pronunciation-challenge | 8 | interactive | [ ] | [ ] | [ ] |
+
+### Test Implementation Template
+
+For EVERY component, create a test file following this template:
+
+```javascript
+// tests/registry/[component-id].spec.js
+
+import { test, expect } from '@playwright/test';
+
+const COMPONENT_ID = 'ai-chat-window';
+
+// ============================================================================
+// EXISTENCE & VISIBILITY
+// ============================================================================
+
+test.describe(`${COMPONENT_ID}: Existence & Visibility`, () => {
+    test('renders in DOM', async ({ page }) => {
+        await page.goto('/');
+        const element = page.locator('#ai-chat-window, .ai-chat-container');
+        await expect(element).toBeAttached();
+    });
+
+    test('is visible when expanded', async ({ page }) => {
+        await page.goto('/');
+        await page.click('#ai-chat-toggle');
+        const element = page.locator('#ai-chat-window');
+        await expect(element).toBeVisible();
+    });
+});
+
+// ============================================================================
+// INTERACTIONS
+// ============================================================================
+
+test.describe(`${COMPONENT_ID}: Interactions`, () => {
+    test('toggle button expands/collapses window', async ({ page }) => {
+        await page.goto('/');
+        const toggleBtn = page.locator('#ai-chat-toggle');
+        const window = page.locator('#ai-chat-window');
+        
+        // Initially collapsed
+        await expect(window).not.toBeVisible();
+        
+        // Click to expand
+        await toggleBtn.click();
+        await expect(window).toBeVisible();
+        
+        // Click to collapse
+        await toggleBtn.click();
+        await expect(window).not.toBeVisible();
+    });
+
+    test('send button sends message', async ({ page }) => {
+        await page.goto('/');
+        await page.click('#ai-chat-toggle');
+        
+        const input = page.locator('#ai-chat-input');
+        const sendBtn = page.locator('#ai-chat-send');
+        const messages = page.locator('.chat-message');
+        
+        await input.fill('Hello AI');
+        await sendBtn.click();
+        
+        // User message appears
+        await expect(messages.last()).toContainText('Hello AI');
+    });
+});
+
+// ============================================================================
+// DATA CONNECTIONS
+// ============================================================================
+
+test.describe(`${COMPONENT_ID}: Data Connections`, () => {
+    test('receives user context from AuthService', async ({ page }) => {
+        // Login first
+        await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('portugueseAuth', JSON.stringify({
+                loggedIn: true,
+                username: 'TestUser',
+                isAdmin: false
+            }));
+        });
+        await page.reload();
+        
+        await page.click('#ai-chat-toggle');
+        
+        // Chat should know the user
+        const welcomeMessage = page.locator('.chat-welcome');
+        await expect(welcomeMessage).toContainText('TestUser');
+    });
+
+    test('receives lesson context', async ({ page }) => {
+        await page.goto('/');
+        // Navigate to a lesson
+        await page.click('[data-lesson-id="BB-001"]');
+        await page.click('#ai-chat-toggle');
+        
+        // Chat should know current lesson
+        const context = page.locator('.chat-context');
+        await expect(context).toContainText('Personal Pronouns');
+    });
+});
+
+// ============================================================================
+// CRUD OPERATIONS
+// ============================================================================
+
+test.describe(`${COMPONENT_ID}: CRUD Operations`, () => {
+    test('CREATE: can create custom lesson via chat', async ({ page }) => {
+        await page.goto('/');
+        await page.click('#ai-chat-toggle');
+        
+        const input = page.locator('#ai-chat-input');
+        await input.fill('Create a lesson for my weak words');
+        await page.click('#ai-chat-send');
+        
+        // Wait for AI response
+        await page.waitForSelector('.chat-message.ai-response');
+        
+        // New lesson should appear in list
+        await page.click('[data-nav="learn"]');
+        const customLesson = page.locator('[data-lesson-type="custom"]');
+        await expect(customLesson).toBeVisible();
+    });
+
+    test('READ: loads chat history on open', async ({ page }) => {
+        // Set up previous chat
+        await page.goto('/');
+        await page.evaluate(() => {
+            localStorage.setItem('ai_chat_history', JSON.stringify([
+                { role: 'user', content: 'Previous message' }
+            ]));
+        });
+        await page.reload();
+        
+        await page.click('#ai-chat-toggle');
+        const messages = page.locator('.chat-message');
+        await expect(messages.first()).toContainText('Previous message');
+    });
+});
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+test.describe(`${COMPONENT_ID}: Error Handling`, () => {
+    test('shows error when Ollama is unavailable', async ({ page }) => {
+        // Mock Ollama being down
+        await page.route('**/api/generate', route => route.abort());
+        
+        await page.goto('/');
+        await page.click('#ai-chat-toggle');
+        
+        const input = page.locator('#ai-chat-input');
+        await input.fill('Test message');
+        await page.click('#ai-chat-send');
+        
+        const errorMessage = page.locator('.chat-error');
+        await expect(errorMessage).toBeVisible();
+        await expect(errorMessage).toContainText('AI service unavailable');
+    });
+});
+
+// ============================================================================
+// REGISTRY EXPORT (for Monitoring Dashboard)
+// ============================================================================
+
+export const componentHealthChecks = {
+    componentId: COMPONENT_ID,
+    checks: [
+        { id: 'exists', status: 'pending' },
+        { id: 'visible', status: 'pending' },
+        { id: 'toggle', status: 'pending' },
+        { id: 'send', status: 'pending' },
+        { id: 'user-context', status: 'pending' },
+        { id: 'lesson-context', status: 'pending' },
+        { id: 'create-lesson', status: 'pending' },
+        { id: 'read-history', status: 'pending' },
+        { id: 'error-handling', status: 'pending' }
+    ]
+};
+```
 
 ---
 
@@ -456,34 +860,314 @@ learning_portuguese/
 
 Phase 1 created new modular code in `src/`. This phase:
 1. Wires new modules into the app
-2. Tests everything works
-3. Removes redundant code from old files
+2. Tests EVERY function comprehensively
+3. Removes redundant code from old files (with specific line references)
 4. Validates line count reductions
+5. Registers components in the test registry
 
-### 1B.1 Service Integration
+### 1B.1 Service Integration (With Specific Cleanup Targets)
 
-| Task ID | Task | Status | Tests | Cleanup | Priority |
-|---------|------|--------|-------|---------|----------|
-| INT-001 | Wire AuthService into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-002 | Wire AIService into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-003 | Wire VoiceService into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-004 | Wire TTSService into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-005 | Wire LessonService into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-006 | Wire ProgressTracker into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-007 | Wire Logger into all services | [ ] | [ ] | N/A | P0 |
-| INT-008 | Wire HealthChecker startup | [ ] | [ ] | N/A | P0 |
+#### INT-001: Wire AuthService into app.js
 
-### 1B.2 Component Integration
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace auth.js imports with src/services/AuthService.js |
+| **Files to Modify** | app.js lines 15-28 (imports) |
+| **Code to Remove** | auth.js (entire file - 294 lines) |
+| **Tests Required** | See AuthService Test Specification below |
 
-| Task ID | Task | Status | Tests | Cleanup | Priority |
-|---------|------|--------|-------|---------|----------|
-| INT-010 | Wire Modal.js into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-011 | Wire Toast.js into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-012 | Wire LessonCard.js into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-013 | Wire WordCard.js into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-014 | Wire ChallengeRenderer.js into app.js | [ ] | [ ] | [ ] | P0 |
-| INT-015 | Wire ProgressChart.js into app.js | [ ] | [ ] | [ ] | P1 |
-| INT-016 | Wire Navigation.js into app.js | [ ] | [ ] | [ ] | P0 |
+**AuthService Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| AUTH-T001 | `getUser()` returns user object | Unit | ✅ |
+| AUTH-T002 | `saveUser()` persists to localStorage | Unit | ✅ |
+| AUTH-T003 | `login()` sets loggedIn=true | Unit | ✅ |
+| AUTH-T004 | `loginAdmin()` requires correct password | Unit | ✅ |
+| AUTH-T005 | `loginAdmin()` with wrong password fails | Unit | ✅ |
+| AUTH-T006 | `logout()` clears user state | Unit | ✅ |
+| AUTH-T007 | `isAdmin()` returns correct boolean | Unit | ✅ |
+| AUTH-T008 | `getHearts()` returns number or Infinity | Unit | ✅ |
+| AUTH-T009 | `loseHeart()` decrements hearts | Unit | ✅ |
+| AUTH-T010 | `loseHeart()` dispatches heartsChanged event | Integration | ✅ |
+| AUTH-T011 | `addHeart()` increments hearts | Unit | ✅ |
+| AUTH-T012 | `refillHearts()` sets to max | Unit | ✅ |
+| AUTH-T013 | `getTimeToNextHeart()` calculates correctly | Unit | ✅ |
+| AUTH-T014 | Heart auto-refill after HEART_REFILL_MINUTES | Integration | ✅ |
+| AUTH-T015 | `addXP()` adds to total | Unit | ✅ |
+| AUTH-T016 | `addXP()` dispatches xpChanged event | Integration | ✅ |
+| AUTH-T017 | `updateStreak()` continues streak | Unit | ✅ |
+| AUTH-T018 | `updateStreak()` breaks streak after gap | Unit | ✅ |
+| AUTH-T019 | `completeLesson()` increments lessonsToday | Unit | ✅ |
+| AUTH-T020 | Hearts display updates on change | E2E | ✅ |
+| AUTH-T021 | XP display updates on change | E2E | ✅ |
+| AUTH-T022 | Streak display updates on change | E2E | ✅ |
+| AUTH-T023 | Admin login modal works | E2E | ✅ |
+| AUTH-T024 | Logout button clears session | E2E | ✅ |
+
+---
+
+#### INT-002: Wire AIService into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace ai-tutor.js imports with src/services/AIService.js |
+| **Files to Modify** | app.js lines 7-9 (imports), lines 3500-4000 (AI functions) |
+| **Code to Remove** | ai-tutor.js (entire file) |
+| **Tests Required** | See AIService Test Specification below |
+
+**AIService Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| AI-T001 | `checkOllamaStatus()` returns status object | Unit | ✅ |
+| AI-T002 | `checkOllamaStatus()` handles offline gracefully | Unit | ✅ |
+| AI-T003 | `getAIStatus()` returns current status | Unit | ✅ |
+| AI-T004 | `initAIService()` attempts connection | Unit | ✅ |
+| AI-T005 | `getPronunciationFeedback()` returns tips | Unit | ✅ |
+| AI-T006 | `getPronunciationFeedback()` handles errors | Unit | ✅ |
+| AI-T007 | `getTranslationFeedback()` returns feedback | Unit | ✅ |
+| AI-T008 | `getGrammarHelp()` returns explanation | Unit | ✅ |
+| AI-T009 | `chat()` sends message to Ollama | Integration | ✅ |
+| AI-T010 | `chat()` receives response | Integration | ✅ |
+| AI-T011 | `streamChat()` streams response chunks | Integration | ✅ |
+| AI-T012 | AI status indicator shows green when connected | E2E | ✅ |
+| AI-T013 | AI status indicator shows red when offline | E2E | ✅ |
+| AI-T014 | AI tips panel loads content | E2E | ✅ |
+| AI-T015 | AI tips update when user makes mistakes | E2E | ✅ |
+
+---
+
+#### INT-003: Wire VoiceService into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace audio.js voice functions with src/services/VoiceService.js |
+| **Files to Modify** | app.js lines 2-6 (imports) |
+| **Code to Remove** | audio.js voice functions (keep TTS for now) |
+| **Tests Required** | See VoiceService Test Specification below |
+
+**VoiceService Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| VOICE-T001 | `getPortugueseVoiceOptions()` returns array | Unit | ✅ |
+| VOICE-T002 | `speakWord()` calls speech synthesis | Unit | ✅ |
+| VOICE-T003 | `speakWord()` applies correct speed | Unit | ✅ |
+| VOICE-T004 | `stopSpeech()` stops current playback | Unit | ✅ |
+| VOICE-T005 | `getDownloadedVoices()` returns installed | Unit | ✅ |
+| VOICE-T006 | `markVoiceDownloaded()` saves to storage | Unit | ✅ |
+| VOICE-T007 | `isVoiceDownloaded()` returns boolean | Unit | ✅ |
+| VOICE-T008 | `getDownloadableVoices()` excludes installed | Unit | ✅ |
+| VOICE-T009 | Voice play button exists | E2E | ✅ |
+| VOICE-T010 | Voice play button is clickable | E2E | ✅ |
+| VOICE-T011 | Voice play button plays audio | E2E | ✅ |
+| VOICE-T012 | Voice speed slider exists | E2E | ✅ |
+| VOICE-T013 | Voice speed slider is interactive | E2E | ✅ |
+| VOICE-T014 | Voice speed actually changes playback | E2E | ✅ |
+| VOICE-T015 | Voice selector dropdown exists | E2E | ✅ |
+| VOICE-T016 | Voice selector has options | E2E | ✅ |
+| VOICE-T017 | Selecting voice changes playback voice | E2E | ✅ |
+| VOICE-T018 | Download voice button exists | E2E | ✅ |
+| VOICE-T019 | Download initiates on click | E2E | ✅ |
+| VOICE-T020 | Downloaded voice appears in selector | E2E | ✅ |
+
+---
+
+#### INT-004: Wire TTSService into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace ai-tts.js with src/services/TTSService.js |
+| **Files to Modify** | app.js lines 7 (imports) |
+| **Code to Remove** | ai-tts.js (entire file) |
+| **Tests Required** | See TTSService Test Specification below |
+
+**TTSService Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| TTS-T001 | `checkServerHealth()` returns status | Unit | ✅ |
+| TTS-T002 | `checkServerHealth()` handles offline | Unit | ✅ |
+| TTS-T003 | `getAvailableVoices()` returns array | Unit | ✅ |
+| TTS-T004 | `speak()` sends request to server | Integration | ✅ |
+| TTS-T005 | `speak()` plays audio response | Integration | ✅ |
+| TTS-T006 | `stop()` halts playback | Unit | ✅ |
+| TTS-T007 | `isSpeaking()` returns correct state | Unit | ✅ |
+| TTS-T008 | TTS server indicator green when running | E2E | ✅ |
+| TTS-T009 | TTS server indicator red when stopped | E2E | ✅ |
+
+---
+
+#### INT-005: Wire LessonService into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace inline lesson logic with src/services/LessonService.js |
+| **Files to Modify** | app.js lines 800-2000 (lesson functions) |
+| **Code to Remove** | app.js lesson functions (after wire-up) |
+| **Tests Required** | See LessonService Test Specification below |
+
+**LessonService Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| LESSON-T001 | `initLessonState()` creates state object | Unit | ✅ |
+| LESSON-T002 | `getLessonState()` returns current state | Unit | ✅ |
+| LESSON-T003 | `getCurrentChallenge()` returns challenge | Unit | ✅ |
+| LESSON-T004 | `nextChallenge()` advances to next | Unit | ✅ |
+| LESSON-T005 | `nextChallenge()` stops at end | Unit | ✅ |
+| LESSON-T006 | `recordCorrect()` updates state | Unit | ✅ |
+| LESSON-T007 | `recordMistake()` updates state | Unit | ✅ |
+| LESSON-T008 | `getLessonAccuracy()` calculates % | Unit | ✅ |
+| LESSON-T009 | `buildQuizOptions()` returns 4 options | Unit | ✅ |
+| LESSON-T010 | `buildQuizOptions()` includes correct answer | Unit | ✅ |
+| LESSON-T011 | `buildHintForWord()` returns hint | Unit | ✅ |
+| LESSON-T012 | `calculateLessonXP()` returns number | Unit | ✅ |
+| LESSON-T013 | Lesson card renders | E2E | ✅ |
+| LESSON-T014 | Lesson card shows title | E2E | ✅ |
+| LESSON-T015 | Lesson card shows progress | E2E | ✅ |
+| LESSON-T016 | Clicking lesson card opens lesson | E2E | ✅ |
+| LESSON-T017 | Word displays in lesson | E2E | ✅ |
+| LESSON-T018 | Next button advances word | E2E | ✅ |
+| LESSON-T019 | Back button goes to previous | E2E | ✅ |
+| LESSON-T020 | Quiz options display | E2E | ✅ |
+| LESSON-T021 | Selecting correct answer shows success | E2E | ✅ |
+| LESSON-T022 | Selecting wrong answer shows failure | E2E | ✅ |
+| LESSON-T023 | Lesson completes after all words | E2E | ✅ |
+| LESSON-T024 | Completion modal shows score | E2E | ✅ |
+| LESSON-T025 | XP awarded on completion | E2E | ✅ |
+
+---
+
+#### INT-006: Wire ProgressTracker into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace inline progress logic with src/services/ProgressTracker.js |
+| **Files to Modify** | app.js progress-related functions |
+| **Code to Remove** | app.js userData object handling |
+| **Tests Required** | See ProgressTracker Test Specification below |
+
+**ProgressTracker Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| PROG-T001 | `loadProgress()` reads from storage | Unit | ✅ |
+| PROG-T002 | `saveProgress()` writes to storage | Unit | ✅ |
+| PROG-T003 | `addLearnedWord()` adds to list | Unit | ✅ |
+| PROG-T004 | `getLearnedWords()` returns array | Unit | ✅ |
+| PROG-T005 | `isWordLearned()` returns boolean | Unit | ✅ |
+| PROG-T006 | `recordLessonCompletion()` saves record | Unit | ✅ |
+| PROG-T007 | `getCompletedLessons()` returns list | Unit | ✅ |
+| PROG-T008 | `isLessonCompleted()` returns boolean | Unit | ✅ |
+| PROG-T009 | `getWeeklyActivity()` returns 7 days | Unit | ✅ |
+| PROG-T010 | `getProgressSummary()` returns stats | Unit | ✅ |
+| PROG-T011 | Progress chart renders | E2E | ✅ |
+| PROG-T012 | Progress chart shows correct data | E2E | ✅ |
+| PROG-T013 | Weekly activity displays | E2E | ✅ |
+| PROG-T014 | Total words count updates | E2E | ✅ |
+
+---
+
+#### INT-007: Wire Logger into all services
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Add Logger imports to all services for centralized logging |
+| **Files to Modify** | All service files in src/services/ |
+| **Code to Remove** | N/A (additive) |
+| **Tests Required** | See Logger Test Specification below |
+
+**Logger Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| LOG-T001 | `debug()` logs at debug level | Unit | ✅ |
+| LOG-T002 | `info()` logs at info level | Unit | ✅ |
+| LOG-T003 | `warn()` logs at warn level | Unit | ✅ |
+| LOG-T004 | `error()` logs at error level | Unit | ✅ |
+| LOG-T005 | Log level filtering works | Unit | ✅ |
+| LOG-T006 | `getHistory()` returns log array | Unit | ✅ |
+| LOG-T007 | `clearHistory()` empties logs | Unit | ✅ |
+| LOG-T008 | `exportHistory()` returns JSON | Unit | ✅ |
+| LOG-T009 | Console output shows in dev tools | Manual | ✅ |
+
+---
+
+#### INT-008: Wire HealthChecker startup
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Run health checks on app startup |
+| **Files to Modify** | app.js initialization code |
+| **Code to Remove** | N/A (additive) |
+| **Tests Required** | See HealthChecker Test Specification below |
+
+**HealthChecker Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| HEALTH-T001 | `checkOllama()` returns status | Unit | ✅ |
+| HEALTH-T002 | `checkTTS()` returns status | Unit | ✅ |
+| HEALTH-T003 | `checkWhisper()` returns status | Unit | ✅ |
+| HEALTH-T004 | `checkWebSpeech()` returns status | Unit | ✅ |
+| HEALTH-T005 | `checkAllServices()` runs all checks | Unit | ✅ |
+| HEALTH-T006 | `getOverallStatus()` aggregates | Unit | ✅ |
+| HEALTH-T007 | `startMonitoring()` begins interval | Unit | ✅ |
+| HEALTH-T008 | `stopMonitoring()` clears interval | Unit | ✅ |
+| HEALTH-T009 | Health events dispatched | Integration | ✅ |
+| HEALTH-T010 | Status indicator reflects health | E2E | ✅ |
+
+---
+
+### 1B.2 Component Integration (With Specific Cleanup Targets)
+
+#### INT-010: Wire Modal.js into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace inline modal code with src/components/common/Modal.js |
+| **Files to Modify** | app.js modal functions |
+| **Code to Remove** | app.js: `showModal()`, `hideModal()`, modal HTML generators |
+| **Tests Required** | See Modal Test Specification below |
+
+**Modal Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| MODAL-T001 | Modal exists in DOM | E2E | ✅ |
+| MODAL-T002 | Modal hidden by default | E2E | ✅ |
+| MODAL-T003 | Modal opens on trigger | E2E | ✅ |
+| MODAL-T004 | Modal displays title | E2E | ✅ |
+| MODAL-T005 | Modal displays content | E2E | ✅ |
+| MODAL-T006 | X button closes modal | E2E | ✅ |
+| MODAL-T007 | Click outside closes modal | E2E | ✅ |
+| MODAL-T008 | Escape key closes modal | E2E | ✅ |
+| MODAL-T009 | Focus trapped in modal | E2E | ✅ |
+| MODAL-T010 | Modal backdrop appears | E2E | ✅ |
+| MODAL-T011 | Multiple modals stack correctly | E2E | ✅ |
+
+---
+
+#### INT-011: Wire Toast.js into app.js
+
+| Aspect | Details |
+|--------|---------|
+| **Task** | Replace inline toast code with src/components/common/Toast.js |
+| **Files to Modify** | app.js toast functions |
+| **Code to Remove** | app.js: `showToast()`, toast HTML generators |
+| **Tests Required** | See Toast Test Specification below |
+
+**Toast Test Specification:**
+| Test ID | Test | Category | Required |
+|---------|------|----------|----------|
+| TOAST-T001 | Toast container exists | E2E | ✅ |
+| TOAST-T002 | Toast appears on trigger | E2E | ✅ |
+| TOAST-T003 | Toast shows message | E2E | ✅ |
+| TOAST-T004 | Toast auto-dismisses | E2E | ✅ |
+| TOAST-T005 | Toast can be manually dismissed | E2E | ✅ |
+| TOAST-T006 | Success toast has green style | E2E | ✅ |
+| TOAST-T007 | Error toast has red style | E2E | ✅ |
+| TOAST-T008 | Warning toast has yellow style | E2E | ✅ |
+| TOAST-T009 | Multiple toasts stack | E2E | ✅ |
+
+---
+
+#### INT-012 to INT-016: Component Wiring
+
+*(Similar detailed specifications for LessonCard, WordCard, ChallengeRenderer, ProgressChart, Navigation)*
 
 ### 1B.3 CSS Integration
 
@@ -493,37 +1177,72 @@ Phase 1 created new modular code in `src/`. This phase:
 | INT-021 | Remove duplicate styles from styles.css | [ ] | N/A | [ ] | P0 |
 | INT-022 | Verify all styles still apply | [ ] | [ ] | N/A | P0 |
 
-### 1B.4 Old File Cleanup Tracking
+**CSS Cleanup Specification:**
+```markdown
+Files to create imports for:
+- src/styles/variables.css
+- src/styles/reset.css
+- src/styles/buttons.css
+- src/styles/cards.css
+- src/styles/modals.css
+- src/styles/navigation.css
+- src/styles/animations.css
 
-| File | Original Lines | After Cleanup | Reduction | Status |
-|------|----------------|---------------|-----------|--------|
-| app.js | 5,531 | TBD | TBD | [ ] |
-| styles.css | 4,553 | TBD | TBD | [ ] |
-| auth.js | TBD | DELETE | 100% | [ ] |
-| audio.js | TBD | DELETE | 100% | [ ] |
-| ai-tutor.js | TBD | DELETE | 100% | [ ] |
-| ai-tts.js | TBD | DELETE | 100% | [ ] |
-| ai-speech.js | TBD | DELETE | 100% | [ ] |
-| data.js | 566 | DELETE | 100% | [ ] |
+Styles to REMOVE from styles.css after import:
+- Lines 1-50: CSS variables (moved to variables.css)
+- Lines 51-100: Reset styles (moved to reset.css)
+- Lines 200-400: Button styles (moved to buttons.css)
+- Lines 500-800: Card styles (moved to cards.css)
+- Lines 900-1100: Modal styles (moved to modals.css)
+- Lines 1200-1500: Navigation styles (moved to navigation.css)
+- Lines 4000-4553: Animation keyframes (moved to animations.css)
+```
 
-### 1B.5 Test Suite Creation
+### 1B.4 Old File Cleanup Tracking (Precise Line Counts)
 
-| Task ID | Task | Status | Priority |
-|---------|------|--------|----------|
-| TEST-001 | Create unit tests for AuthService | [ ] | P0 |
-| TEST-002 | Create unit tests for AIService | [ ] | P0 |
-| TEST-003 | Create unit tests for VoiceService | [ ] | P0 |
-| TEST-004 | Create unit tests for TTSService | [ ] | P0 |
-| TEST-005 | Create unit tests for LessonService | [ ] | P0 |
-| TEST-006 | Create unit tests for ProgressTracker | [ ] | P0 |
-| TEST-007 | Create unit tests for Logger | [ ] | P0 |
-| TEST-008 | Create unit tests for HealthChecker | [ ] | P0 |
-| TEST-009 | Create integration test: full lesson flow | [ ] | P0 |
-| TEST-010 | Create integration test: auth flow | [ ] | P0 |
-| TEST-011 | Create integration test: voice playback | [ ] | P0 |
-| TEST-012 | Create Playwright test: lesson completion | [ ] | P0 |
-| TEST-013 | Create Playwright test: quiz answering | [ ] | P0 |
-| TEST-014 | Create Playwright test: navigation | [ ] | P0 |
+| File | Original Lines | Functions to Remove | After Cleanup | Status |
+|------|----------------|---------------------|---------------|--------|
+| app.js | 5,831 | See breakdown below | ~2,000 | [ ] |
+| styles.css | 4,553 | CSS blocks listed above | ~2,000 | [ ] |
+| auth.js | 294 | DELETE ENTIRE FILE | 0 | [ ] |
+| audio.js | ~400 | DELETE ENTIRE FILE | 0 | [ ] |
+| ai-tutor.js | ~300 | DELETE ENTIRE FILE | 0 | [ ] |
+| ai-tts.js | ~200 | DELETE ENTIRE FILE | 0 | [ ] |
+| ai-speech.js | ~150 | DELETE ENTIRE FILE | 0 | [ ] |
+| data.js | 566 | Keep until Phase 2 | 566 | [ ] |
+
+**app.js Functions to Remove After Integration:**
+```
+Lines ~100-200: Auth-related (getUser, saveUser, etc.) - replaced by AuthService
+Lines ~300-500: Voice-related functions - replaced by VoiceService
+Lines ~500-700: TTS functions - replaced by TTSService
+Lines ~800-2000: Lesson logic - replaced by LessonService
+Lines ~2000-2500: Progress tracking - replaced by ProgressTracker
+Lines ~2500-3000: Modal/Toast functions - replaced by components
+Lines ~3500-4000: AI tutor functions - replaced by AIService
+Lines ~4500-5000: Speech recognition - replaced by VoiceService
+```
+
+### 1B.5 Test Suite Creation (With Full Coverage)
+
+| Task ID | Task | Tests Count | Status | Priority |
+|---------|------|-------------|--------|----------|
+| TEST-001 | AuthService unit tests | 19 | [ ] | P0 |
+| TEST-002 | AIService unit tests | 11 | [ ] | P0 |
+| TEST-003 | VoiceService unit tests | 8 | [ ] | P0 |
+| TEST-004 | TTSService unit tests | 7 | [ ] | P0 |
+| TEST-005 | LessonService unit tests | 12 | [ ] | P0 |
+| TEST-006 | ProgressTracker unit tests | 10 | [ ] | P0 |
+| TEST-007 | Logger unit tests | 8 | [ ] | P0 |
+| TEST-008 | HealthChecker unit tests | 8 | [ ] | P0 |
+| TEST-009 | AuthService E2E tests | 5 | [ ] | P0 |
+| TEST-010 | VoiceService E2E tests | 12 | [ ] | P0 |
+| TEST-011 | LessonService E2E tests | 13 | [ ] | P0 |
+| TEST-012 | Modal component tests | 11 | [ ] | P0 |
+| TEST-013 | Toast component tests | 9 | [ ] | P0 |
+| TEST-014 | Full lesson flow integration | 1 | [ ] | P0 |
+
+**Total Tests Required for Phase 1B: 124 tests**
 
 ---
 
