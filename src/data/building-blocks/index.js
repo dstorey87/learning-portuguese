@@ -22,17 +22,15 @@
 
 // Import all building block lessons
 import pronounsLesson from './pronouns.js';
-// Future imports:
-// import verbSerLesson from './verbs-ser.js';
-// import verbEstarLesson from './verbs-estar.js';
-// import verbTerLesson from './verbs-ter.js';
-// import articlesLesson from './articles.js';
-// import demonstrativesLesson from './demonstratives.js';
-// import connectorsLesson from './connectors.js';
-// import prepositionsLesson from './prepositions.js';
-// import questionsLesson from './questions.js';
-// import negationLesson from './negation.js';
-// import possessivesLesson from './possessives.js';
+import verbSerLesson from './verbs-ser.js';
+import verbEstarLesson from './verbs-estar.js';
+import verbTerLesson from './verbs-ter.js';
+import articlesLesson from './articles.js';
+import connectorsLesson from './connectors.js';
+import prepositionsLesson from './prepositions.js';
+import questionsLesson from './questions.js';
+import negationLesson from './negation.js';
+import possessivesLesson from './possessives.js';
 
 /**
  * Building blocks topic definition
@@ -46,17 +44,15 @@ export const buildingBlocksTopic = {
     order: 0, // Should appear first
     lessons: [
         pronounsLesson,
-        // Add more as they're created:
-        // verbSerLesson,
-        // verbEstarLesson,
-        // verbTerLesson,
-        // articlesLesson,
-        // demonstrativesLesson,
-        // connectorsLesson,
-        // prepositionsLesson,
-        // questionsLesson,
-        // negationLesson,
-        // possessivesLesson,
+        verbSerLesson,
+        verbEstarLesson,
+        verbTerLesson,
+        articlesLesson,
+        connectorsLesson,
+        prepositionsLesson,
+        questionsLesson,
+        negationLesson,
+        possessivesLesson,
     ]
 };
 
@@ -99,6 +95,17 @@ export function arePrerequisitesMet(lessonId, completedLessons) {
 }
 
 // Export individual lessons for direct import
-export { pronounsLesson };
+export { 
+    pronounsLesson,
+    verbSerLesson,
+    verbEstarLesson,
+    verbTerLesson,
+    articlesLesson,
+    connectorsLesson,
+    prepositionsLesson,
+    questionsLesson,
+    negationLesson,
+    possessivesLesson
+};
 
 export default buildingBlocksTopic;
