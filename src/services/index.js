@@ -120,4 +120,33 @@ export {
     default as TTSService
 } from './TTSService.js';
 
+// Lesson Service
+export {
+    LESSON_CONFIG,
+    CHALLENGE_TYPES,
+    CHALLENGE_PHASES,
+    getWordKey,
+    resolveWordForm,
+    buildQuizOptions,
+    buildLessonChallenges,
+    initLessonState,
+    getLessonState,
+    getCurrentChallenge,
+    nextChallenge,
+    recordCorrect,
+    recordMistake,
+    resetLessonState,
+    getLessonDuration,
+    getLessonAccuracy,
+    calculateAccuracy,
+    updateLessonAccuracyData,
+    buildHintForWord,
+    generateHints,
+    getMnemonic,
+    getAllMnemonics,
+    buildLessonCompletionData,
+    calculateLessonXP,
+    default as LessonService
+} from './LessonService.js';
+
 export const SERVICES_VERSION = '0.1.0';
