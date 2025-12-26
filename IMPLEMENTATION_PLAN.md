@@ -3685,19 +3685,19 @@ const visualFeedback = {
 | SPEECH-033 | Create phoneme-by-phoneme display | [ ] | [ ] | N/A | P1 |
 | SPEECH-034 | Add pronunciation progress animation | [ ] | [ ] | N/A | P1 |
 | **UI Integration** |
-| SPEECH-040 | Update ChallengeRenderer for new speech service | [ ] | [ ] | [ ] | P0 |
+| SPEECH-040 | Update ChallengeRenderer for new speech service | [x] | [x] | [x] | P0 |
 | SPEECH-041 | Add speech settings panel | [ ] | [ ] | N/A | P1 |
 | SPEECH-042 | Create pronunciation practice mode | [ ] | [ ] | N/A | P1 |
-| SPEECH-043 | Implement retry flow with progressive feedback | [ ] | [ ] | N/A | P0 |
+| SPEECH-043 | Implement retry flow with progressive feedback | [x] | [x] | N/A | P0 |
 | **AI Pipeline Integration** |
-| SPEECH-050 | Stream pronunciation scores to AI | [ ] | [ ] | [ ] | P0 |
-| SPEECH-051 | Generate AI tips based on phoneme weaknesses | [ ] | [ ] | N/A | P0 |
+| SPEECH-050 | Stream pronunciation scores to AI | [x] | [x] | [x] | P0 |
+| SPEECH-051 | Generate AI tips based on phoneme weaknesses | [x] | [x] | N/A | P0 |
 | SPEECH-052 | Create custom pronunciation drill generator | [ ] | [ ] | N/A | P1 |
 | SPEECH-053 | Track pronunciation progress over time | [ ] | [ ] | N/A | P0 |
 | **Testing** |
 | SPEECH-060 | Unit tests for AudioRecorder | [x] | N/A | N/A | P0 |
 | SPEECH-061 | Unit tests for PronunciationService | [x] | N/A | N/A | P0 |
-| SPEECH-062 | Unit tests for GOP scoring | [ ] | N/A | N/A | P0 |
+| SPEECH-062 | Unit tests for WebSpeechService/PhoneticScorer | [x] | N/A | N/A | P0 |
 | SPEECH-063 | E2E tests for pronunciation flow | [ ] | N/A | N/A | P0 |
 | SPEECH-064 | E2E tests for fallback chain | [ ] | N/A | N/A | P0 |
 
