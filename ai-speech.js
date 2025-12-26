@@ -71,7 +71,12 @@ export const WHISPER_CONFIG = {
     returnTimestamps: true,
     chunkLengthS: 30,
     strideLength: 5,
-    cacheName: 'whisper-models-v1'
+    cacheName: 'whisper-models-v1',
+    // Cache and loading improvements
+    maxRetries: 3,
+    retryDelayMs: 1000,
+    preloadDelay: 2000,  // Delay before background preload
+    cacheExpireDays: 30  // How long to keep cached models
 };
 
 // ============================================================================
@@ -83,6 +88,8 @@ let whisperModelLoading = false;
 let whisperModelLoaded = false;
 let currentWhisperModel = null;
 let webSpeechInstance = null;
+let loadError = null;
+let transformersEnv = null;  // Cached Transformers.js environment
 
 // Audio recording state (for Whisper)
 let mediaRecorder = null;
@@ -95,23 +102,146 @@ let recordingStream = null;
 // ============================================================================
 
 /**
+ * Check if Whisper model is cached in browser storage
+ * @param {string} modelSize - 'tiny', 'base', or 'small'
+ * @returns {Promise<{cached: boolean, size?: number, date?: string}>}
+ */
+export async function checkWhisperCache(modelSize = WHISPER_CONFIG.defaultModel) {
+    try {
+        const modelInfo = WHISPER_MODELS[modelSize] || WHISPER_MODELS.tiny;
+        
+        // Check Cache API for model files
+        if ('caches' in window) {
+            const cache = await caches.open(WHISPER_CONFIG.cacheName);
+            const keys = await cache.keys();
+            const modelKeys = keys.filter(k => k.url.includes(modelInfo.url.replace('/', '_')));
+            
+            if (modelKeys.length > 0) {
+                // Estimate cached size
+                let totalSize = 0;
+                for (const key of modelKeys) {
+                    const response = await cache.match(key);
+                    if (response) {
+                        const blob = await response.blob();
+                        totalSize += blob.size;
+                    }
+                }
+                
+                return {
+                    cached: true,
+                    size: totalSize,
+                    files: modelKeys.length,
+                    model: modelSize
+                };
+            }
+        }
+        
+        // Also check IndexedDB (Transformers.js uses this)
+        if ('indexedDB' in window) {
+            return new Promise((resolve) => {
+                const request = indexedDB.open('transformers-cache', 1);
+                request.onsuccess = () => {
+                    const db = request.result;
+                    if (db.objectStoreNames.contains('models')) {
+                        const tx = db.transaction('models', 'readonly');
+                        const store = tx.objectStore('models');
+                        const getRequest = store.get(modelInfo.url);
+                        getRequest.onsuccess = () => {
+                            resolve({
+                                cached: !!getRequest.result,
+                                model: modelSize,
+                                source: 'indexeddb'
+                            });
+                        };
+                        getRequest.onerror = () => resolve({ cached: false, model: modelSize });
+                    } else {
+                        resolve({ cached: false, model: modelSize });
+                    }
+                    db.close();
+                };
+                request.onerror = () => resolve({ cached: false, model: modelSize });
+            });
+        }
+        
+        return { cached: false, model: modelSize };
+    } catch (error) {
+        Logger.warn('Cache check failed', { error: error.message });
+        return { cached: false, model: modelSize, error: error.message };
+    }
+}
+
+/**
+ * Clear Whisper model cache
+ * @param {string} modelSize - Optional: specific model to clear, or 'all'
+ * @returns {Promise<boolean>}
+ */
+export async function clearWhisperCache(modelSize = 'all') {
+    try {
+        if ('caches' in window) {
+            if (modelSize === 'all') {
+                await caches.delete(WHISPER_CONFIG.cacheName);
+                Logger.info('Cleared all Whisper cache');
+            } else {
+                const cache = await caches.open(WHISPER_CONFIG.cacheName);
+                const keys = await cache.keys();
+                const modelInfo = WHISPER_MODELS[modelSize];
+                if (modelInfo) {
+                    const toDelete = keys.filter(k => k.url.includes(modelInfo.url.replace('/', '_')));
+                    await Promise.all(toDelete.map(k => cache.delete(k)));
+                    Logger.info('Cleared Whisper cache for model', { model: modelSize });
+                }
+            }
+        }
+        
+        // Also clear memory
+        if (currentWhisperModel === modelSize || modelSize === 'all') {
+            whisperPipeline = null;
+            whisperModelLoaded = false;
+            currentWhisperModel = null;
+        }
+        
+        return true;
+    } catch (error) {
+        Logger.error('Failed to clear cache', { error: error.message });
+        return false;
+    }
+}
+
+/**
+ * Get loading error if initialization failed
+ * @returns {Object|null} Error info or null
+ */
+export function getWhisperLoadError() {
+    return loadError;
+}
+
+/**
  * Initialize Whisper model with improved caching and progress
  * @param {string} modelSize - 'tiny', 'base', or 'small'
  * @param {Function} onProgress - Progress callback (0-100)
+ * @param {Object} options - Additional options: { forceReload, timeout }
  * @returns {Promise<boolean>} Success status
  */
-export async function initializeWhisper(modelSize = WHISPER_CONFIG.defaultModel, onProgress = null) {
+export async function initializeWhisper(modelSize = WHISPER_CONFIG.defaultModel, onProgress = null, options = {}) {
+    const { forceReload = false, timeout = 120000 } = options;
+    
     // Already loaded?
-    if (whisperModelLoaded && currentWhisperModel === modelSize) {
+    if (whisperModelLoaded && currentWhisperModel === modelSize && !forceReload) {
         Logger.debug('Whisper model already loaded', { model: modelSize });
+        if (onProgress) onProgress(100);
         return true;
     }
     
     // Currently loading?
     if (whisperModelLoading) {
         Logger.debug('Whisper model loading in progress, waiting...');
-        // Wait for current loading to complete
+        // Wait for current loading to complete with timeout
+        const startWait = Date.now();
         while (whisperModelLoading) {
+            if (Date.now() - startWait > timeout) {
+                Logger.warn('Timeout waiting for model load');
+                return false;
+            }
             await new Promise(r => setTimeout(r, 100));
         }
         return whisperModelLoaded;
@@ -119,54 +249,132 @@ export async function initializeWhisper(modelSize = WHISPER_CONFIG.defaultModel,
     
     whisperModelLoading = true;
     currentWhisperModel = modelSize;
+    loadError = null;
+    
+    const attemptLoad = async (retry = 0) => {
+        try {
+            Logger.info('Loading Whisper model', { model: modelSize, attempt: retry + 1 });
+            
+            // Dynamic import of Transformers.js (cached after first load)
+            if (!transformersEnv) {
+                const transformers = await import(
+                    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
+                );
+                transformersEnv = {
+                    pipeline: transformers.pipeline,
+                    env: transformers.env
+                };
+            }
+            
+            const { pipeline: createPipeline, env } = transformersEnv;
+            
+            // Configure caching for persistence
+            env.cacheDir = './.cache/transformers';
+            env.allowLocalModels = true;
+            env.useBrowserCache = true;  // Use browser Cache API
+            
+            const modelInfo = WHISPER_MODELS[modelSize] || WHISPER_MODELS.tiny;
+            
+            if (onProgress) onProgress(5);
+            
+            // Check cache status first
+            const cacheStatus = await checkWhisperCache(modelSize);
+            if (cacheStatus.cached) {
+                Logger.info('Loading Whisper from cache', { model: modelSize });
+                if (onProgress) onProgress(20);  // Skip to 20% if cached
+            }
+            
+            // Create pipeline with progress tracking and timeout
+            const loadPromise = createPipeline(
+                'automatic-speech-recognition',
+                modelInfo.url,
+                {
+                    progress_callback: (progress) => {
+                        if (onProgress && progress.progress !== undefined) {
+                            // Scale progress: cached=20-95, fresh=5-95
+                            const baseProgress = cacheStatus.cached ? 20 : 5;
+                            const scaledProgress = baseProgress + Math.round(progress.progress * (95 - baseProgress) / 100);
+                            onProgress(Math.min(95, scaledProgress));
+                        }
+                    },
+                    // Enable quantization for faster loading and smaller files
+                    quantized: true
+                }
+            );
+            
+            // Add timeout
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Model loading timeout')), timeout);
+            });
+            
+            whisperPipeline = await Promise.race([loadPromise, timeoutPromise]);
+            
+            if (onProgress) onProgress(100);
+            
+            whisperModelLoaded = true;
+            loadError = null;
+            Logger.info('Whisper model loaded successfully', { 
+                model: modelSize, 
+                fromCache: cacheStatus.cached,
+                attempts: retry + 1 
+            });
+            return true;
+            
+        } catch (error) {
+            Logger.error('Whisper load attempt failed', { 
+                error: error.message, 
+                model: modelSize, 
+                attempt: retry + 1 
+            });
+            
+            // Retry logic
+            if (retry < WHISPER_CONFIG.maxRetries - 1) {
+                const delay = WHISPER_CONFIG.retryDelayMs * Math.pow(2, retry);  // Exponential backoff
+                Logger.info(`Retrying in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
+                return attemptLoad(retry + 1);
+            }
+            
+            // All retries exhausted
+            loadError = {
+                message: error.message,
+                model: modelSize,
+                attempts: retry + 1,
+                timestamp: new Date().toISOString()
+            };
+            
+            whisperModelLoaded = false;
+            whisperPipeline = null;
+            return false;
+        }
+    };
     
     try {
-        Logger.info('Loading Whisper model', { model: modelSize });
-        
-        // Dynamic import of Transformers.js
-        const { pipeline: createPipeline, env } = await import(
-            'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
-        );
-        
-        // Configure caching
-        env.cacheDir = './.cache/transformers';
-        env.allowLocalModels = true;
-        
-        const modelInfo = WHISPER_MODELS[modelSize] || WHISPER_MODELS.tiny;
-        
-        if (onProgress) onProgress(5);
-        
-        // Create pipeline with progress tracking
-        whisperPipeline = await createPipeline(
-            'automatic-speech-recognition',
-            modelInfo.url,
-            {
-                progress_callback: (progress) => {
-                    if (onProgress && progress.progress !== undefined) {
-                        // Scale from 5-95 to leave room for init/complete
-                        const scaledProgress = 5 + Math.round(progress.progress * 0.9);
-                        onProgress(Math.min(95, scaledProgress));
-                    }
-                },
-                // Enable quantization for faster loading
-                quantized: true
-            }
-        );
-        
-        if (onProgress) onProgress(100);
-        
-        whisperModelLoaded = true;
-        Logger.info('Whisper model loaded successfully', { model: modelSize });
-        return true;
-        
-    } catch (error) {
-        Logger.error('Failed to load Whisper model', { error: error.message, model: modelSize });
-        whisperModelLoaded = false;
-        whisperPipeline = null;
-        return false;
+        return await attemptLoad(0);
     } finally {
         whisperModelLoading = false;
     }
+}
+
+/**
+ * Preload Whisper model in background (non-blocking)
+ * Useful for warming up the model while user is doing other things
+ * @param {string} modelSize - Model to preload
+ * @returns {Promise<void>}
+ */
+export async function preloadWhisper(modelSize = WHISPER_CONFIG.defaultModel) {
+    if (whisperModelLoaded && currentWhisperModel === modelSize) {
+        Logger.debug('Model already loaded, skip preload');
+        return;
+    }
+    
+    // Delay preload to not interfere with initial page load
+    await new Promise(r => setTimeout(r, WHISPER_CONFIG.preloadDelay));
+    
+    Logger.info('Starting background Whisper preload', { model: modelSize });
+    
+    // Load silently in background
+    await initializeWhisper(modelSize, null, { timeout: 180000 });
 }
 
 /**
@@ -828,6 +1036,10 @@ export default {
     canUseWhisper,
     getWhisperModelInfo,
     unloadWhisper,
+    preloadWhisper,
+    checkWhisperCache,
+    clearWhisperCache,
+    getWhisperLoadError,
     WHISPER_MODELS,
     WHISPER_CONFIG,
     
