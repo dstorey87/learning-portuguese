@@ -68,30 +68,38 @@ This plan transforms PortuLingo into a professional language learning platform w
 All task tables MUST include these columns:
 
 ```markdown
-| Task ID | Task | Status | Tests | Cleanup | Priority |
-|---------|------|--------|-------|---------|----------|
-| XX-001  | Description | [ ] | [ ] | [ ] or N/A | P0 |
+| Task ID | Task | Status | Cleanup | Priority |
+|---------|------|--------|---------|----------|
+| XX-001  | Description | [ ] | [ ] or N/A | P0 |
 ```
 
 - **Status**: `[ ]` not started, `[x]` complete
-- **Tests**: `[ ]` tests not written, `[x]` tests pass
 - **Cleanup**: `[ ]` old code not removed, `[x]` old code removed, `N/A` no cleanup needed
+
+**Note:** Tests are written at phase/milestone completion, not per-task.
 
 ### Testing Requirements
 
-Every new service/component MUST have **COMPREHENSIVE tests** covering ALL functionality.
+**⚡ STREAMLINED: Tests at Major Milestones Only**
 
-**Test Coverage Categories:**
+To maintain development velocity, testing is required at **phase completion** rather than per-task:
+
+| When to Test | What to Test |
+|--------------|--------------|
+| Phase completion | All new services/components from that phase |
+| Before merge to main | Run full test suite (`npm test`) |
+| After critical fixes | Affected functionality only |
+| Before releases | Full regression suite |
+
+**Test Coverage Categories (apply at milestones):**
 
 | Category | What To Test | Example |
 |----------|--------------|---------|
 | **Existence** | Element renders in DOM | `expect(button).toBeVisible()` |
-| **Clickability** | Buttons/links respond to clicks | `button.click(); expect(action).toHaveBeenCalled()` |
+| **Clickability** | Buttons respond to clicks | `button.click(); expect(action).called` |
 | **State Changes** | UI updates correctly | `click(); expect(expanded).toBe(true)` |
 | **Data Flow** | Component receives/sends data | `expect(userStats).toEqual(expected)` |
-| **CRUD Operations** | Create/Read/Update/Delete work | `create(); expect(list.length).toBe(1)` |
 | **Error Handling** | Graceful failure | `expect(errorMessage).toBeVisible()` |
-| **Connections** | External services reachable | `expect(ollamaStatus).toBe('connected')` |
 
 **Test File Structure:**
 ```

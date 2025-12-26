@@ -183,6 +183,19 @@ export function buildQuizOptions(correctWord, pool, learnedWords = []) {
  * @returns {Array} Array of challenge objects
  */
 export function buildLessonChallenges(lesson, options = {}) {
+    // QUICK WIN: Use existing challenge data if available (building blocks have rich challenges)
+    if (lesson.challenges && lesson.challenges.length > 0) {
+        return lesson.challenges.map((challenge, idx) => ({
+            ...challenge,
+            index: idx,
+            // Ensure word reference is resolved if challenge references word by index
+            word: typeof challenge.wordIndex === 'number' 
+                ? lesson.words?.[challenge.wordIndex] 
+                : challenge.word
+        }));
+    }
+    
+    // FALLBACK: Auto-generate challenges from words (legacy lessons)
     const challenges = [];
     const words = lesson.words || [];
     const sentences = lesson.sentences || [];
