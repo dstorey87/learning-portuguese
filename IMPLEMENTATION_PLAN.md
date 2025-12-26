@@ -224,7 +224,7 @@ learning_portuguese/
 | F1-024 | Create `LessonService.js` for lesson logic | [x] | P0 | 4 |
 | F1-025 | Create `ProgressTracker.js` for progress | [x] | P0 | 3 |
 | F1-026 | Create `Logger.js` for logging | [x] | P0 | 2 |
-| F1-027 | Create `HealthChecker.js` for monitoring | [ ] | P0 | 3 |
+| F1-027 | Create `HealthChecker.js` for monitoring | [x] | P0 | 3 |
 
 ### 1.4 Modularize CSS
 
