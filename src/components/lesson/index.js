@@ -32,6 +32,20 @@ export {
     default as ChallengeRendererDefault
 } from './ChallengeRenderer.js';
 
+export {
+    WORD_CARD_CONFIG,
+    escapeHtml as escapeHtmlWord,
+    wrapCharsInSpans,
+    wrapWordsInSpans,
+    clearKaraokeHighlights,
+    resolveWordForm as resolveWordFormCard,
+    getAlternateForm as getAlternateFormCard,
+    getWordIndexFromCharIndex,
+    WordCard,
+    createWordCard,
+    createSentenceCard,
+    default as WordCardDefault
+} from './WordCard.js';
+
 // Future exports
-// export { WordCard } from './WordCard.js';
 // export { OptionsPanel } from './OptionsPanel.js';
