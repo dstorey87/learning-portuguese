@@ -1,0 +1,291 @@
+/**
+ * Navigation Styles
+ * Sidebar (desktop) and Bottom Nav (mobile) styling
+ * 
+ * Import this in main styles or load separately
+ */
+
+/* ===== CSS VARIABLES ===== */
+:root {
+    --sidebar-width: 240px;
+    --sidebar-collapsed-width: 64px;
+    --sidebar-bg: #1a1a2e;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: rgba(255, 255, 255, 0.1);
+    --sidebar-active: #58cc02;
+    --sidebar-active-bg: rgba(88, 204, 2, 0.15);
+    --bottom-nav-height: 64px;
+    --nav-transition: 0.3s ease;
+}
+
+/* ===== SIDEBAR (Desktop) ===== */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: width var(--nav-transition);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logo-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background var(--nav-transition);
+}
+
+.logo-btn:hover {
+    background: var(--sidebar-hover);
+}
+
+.logo-icon {
+    font-size: 28px;
+}
+
+.logo-text {
+    font-size: 18px;
+    font-weight: bold;
+    white-space: nowrap;
+    transition: opacity var(--nav-transition);
+}
+
+.logo-text.hidden {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: background var(--nav-transition);
+}
+
+.sidebar-toggle:hover {
+    background: var(--sidebar-hover);
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: left;
+    transition: all var(--nav-transition);
+    width: 100%;
+}
+
+.sidebar-item:hover {
+    background: var(--sidebar-hover);
+}
+
+.sidebar-item.active {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active);
+    font-weight: 600;
+}
+
+.sidebar-item .nav-icon {
+    font-size: 20px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.sidebar-item .nav-label {
+    white-space: nowrap;
+    transition: opacity var(--nav-transition);
+}
+
+.sidebar-item .nav-label.hidden {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+.sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 8px;
+}
+
+.user-stats.compact {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-stats .stat {
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* ===== BOTTOM NAV (Mobile) ===== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-height);
+    background: var(--sidebar-bg);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all var(--nav-transition);
+    border-radius: 8px;
+}
+
+.nav-tab:hover {
+    color: var(--sidebar-text);
+    background: var(--sidebar-hover);
+}
+
+.nav-tab.active {
+    color: var(--sidebar-active);
+}
+
+.nav-tab .nav-icon {
+    font-size: 24px;
+}
+
+.nav-tab .nav-label {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ===== MAIN CONTENT ADJUSTMENT ===== */
+/* When sidebar is visible (desktop), shift main content */
+@media (min-width: 768px) {
+    body.has-sidebar main {
+        margin-left: var(--sidebar-width);
+        transition: margin-left var(--nav-transition);
+    }
+    
+    body.has-sidebar.sidebar-collapsed main {
+        margin-left: var(--sidebar-collapsed-width);
+    }
+    
+    /* Hide bottom nav on desktop */
+    .bottom-nav {
+        display: none;
+    }
+}
+
+/* ===== MOBILE STYLES ===== */
+@media (max-width: 767px) {
+    /* Hide sidebar on mobile */
+    .sidebar {
+        display: none;
+    }
+    
+    /* Show bottom nav */
+    .bottom-nav {
+        display: flex;
+    }
+    
+    /* Add padding at bottom for bottom nav */
+    main {
+        padding-bottom: calc(var(--bottom-nav-height) + 16px);
+    }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --sidebar-bg: #0d0d1a;
+    }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.sidebar {
+    animation: slideInLeft 0.3s ease-out;
+}
+
+.bottom-nav {
+    animation: slideInUp 0.3s ease-out;
+}
