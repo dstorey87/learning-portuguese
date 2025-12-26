@@ -231,7 +231,7 @@ learning_portuguese/
 | Task ID | Task | Status | Priority | Est. Hours |
 |---------|------|--------|----------|------------|
 | F1-030 | Create `variables.css` with CSS custom properties | [x] | P0 | 1 |
-| F1-031 | Create `reset.css` with normalizations | [ ] | P0 | 0.5 |
+| F1-031 | Create `reset.css` with normalizations | [x] | P0 | 0.5 |
 | F1-032 | Extract button styles to `buttons.css` | [ ] | P1 | 1 |
 | F1-033 | Extract card styles to `cards.css` | [ ] | P1 | 1 |
 | F1-034 | Extract modal styles to `modals.css` | [ ] | P1 | 1 |
