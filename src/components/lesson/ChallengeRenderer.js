@@ -11,9 +11,24 @@
  * - Lesson Complete (results screen)
  * 
  * @module components/lesson/ChallengeRenderer
+ * @updated Phase 14 - Enhanced with new speech services
  */
 
 import { AudioVisualizer, RECORDING_STATE } from './AudioVisualizer.js';
+import { 
+    getWebSpeechService, 
+    isWebSpeechAvailable,
+    RECOGNITION_EVENTS 
+} from '../../services/WebSpeechService.js';
+import { 
+    calculateScore as phoneticScore,
+    PHONETIC_CONFIG 
+} from '../../services/PhoneticScorer.js';
+import { createLogger } from '../../services/Logger.js';
+import eventStream from '../../services/eventStreaming.js';
+
+// Create logger for this module
+const logger = createLogger({ context: 'ChallengeRenderer' });
 
 // ============================================================================
 // CONFIGURATION
@@ -47,10 +62,13 @@ export const CHALLENGE_PHASES = {
 
 /**
  * Default configuration for challenges
+ * Uses PHONETIC_CONFIG for consistency with scoring service
  */
 export const CHALLENGE_CONFIG = {
     passThreshold: 85,
-    pronunciationPassScore: 65,
+    pronunciationPassScore: PHONETIC_CONFIG.fairScore, // 60 - synced with PhoneticScorer
+    pronunciationGoodScore: PHONETIC_CONFIG.goodScore, // 75
+    pronunciationExcellentScore: PHONETIC_CONFIG.excellentScore, // 90
     maxPronunciationAttempts: 3,
     animationDuration: 200,
     autoPlayDelay: 300
@@ -493,8 +511,8 @@ export class ChallengeRenderer {
         
         // Create AudioVisualizer instance
         const visualizer = new AudioVisualizer({
-            onStateChange: (state) => {
-                console.log('Visualizer state:', state);
+            onStateChange: (visualizerState) => {
+                logger.debug('Visualizer state:', visualizerState);
             }
         });
         
@@ -504,6 +522,15 @@ export class ChallengeRenderer {
             // Remove any existing feedback
             const existingFeedback = container.querySelector('.pronunciation-feedback');
             if (existingFeedback) existingFeedback.remove();
+            
+            // Check Web Speech availability first
+            if (!isWebSpeechAvailable()) {
+                this._showPronunciationFeedback(container, null, resolved, {
+                    message: 'not supported',
+                    code: 'not-supported'
+                });
+                return;
+            }
             
             // Show visualizer
             visualizerContainer.innerHTML = '';
@@ -515,24 +542,28 @@ export class ChallengeRenderer {
             btn.disabled = true;
             
             let stream = null;
+            const startTime = Date.now();
             
             try {
                 // Get microphone access for visualization
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
                         echoCancellation: true, 
-                        noiseSuppression: true 
+                        noiseSuppression: true,
+                        autoGainControl: true
                     } 
                 });
                 
                 // Start visualizer
                 await visualizer.start(stream);
                 
-                // Run pronunciation test
-                const result = await this.testPronunciation(resolved, {
-                    maxAttempts: 1,
-                    timeoutMs: 5000,
-                    wordKnowledge: knowledge
+                // Get the WebSpeechService
+                const speechService = getWebSpeechService();
+                
+                // Listen for speech
+                const recognitionResult = await speechService.listen(5000, {
+                    continuous: false,
+                    interimResults: false
                 });
                 
                 // Stop visualizer
@@ -543,17 +574,49 @@ export class ChallengeRenderer {
                     stream.getTracks().forEach(track => track.stop());
                 }
                 
-                if (result && result.bestScore) {
-                    visualizer.setState(RECORDING_STATE.COMPLETE, { 
-                        message: `Score: ${Math.round(result.bestScore.score)}%` 
+                // Score the result using PhoneticScorer
+                const transcribed = recognitionResult.text || '';
+                const scoreResult = phoneticScore(transcribed, resolved, {
+                    wordKnowledge: knowledge
+                });
+                
+                // Merge recognition result data into score result
+                scoreResult.transcribed = transcribed;
+                scoreResult.alternatives = recognitionResult.alternatives || [];
+                scoreResult.confidence = recognitionResult.confidence || 0;
+                
+                const responseTime = Date.now() - startTime;
+                
+                // Stream the pronunciation event to AI pipeline (MANDATORY per instructions)
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'pronunciation_score',
+                        wordId: getWordKey(word),
+                        word: resolved,
+                        timestamp: Date.now(),
+                        score: scoreResult.score,
+                        rating: scoreResult.rating,
+                        transcribed,
+                        expected: resolved,
+                        responseTime,
+                        phonemeIssues: scoreResult.phonemeIssues || [],
+                        confidence: scoreResult.confidence
                     });
-                    this._showPronunciationFeedback(container, result.bestScore, resolved);
+                } catch (streamErr) {
+                    logger.warn('Failed to stream pronunciation event', streamErr);
+                }
+                
+                if (scoreResult && scoreResult.score > 0) {
+                    visualizer.setState(RECORDING_STATE.COMPLETE, { 
+                        message: `Score: ${Math.round(scoreResult.score)}%` 
+                    });
+                    this._showPronunciationFeedback(container, scoreResult, resolved);
                 } else {
                     visualizer.setState(RECORDING_STATE.ERROR, { message: 'No speech detected' });
                     this._showPronunciationFeedback(container, null, resolved);
                 }
             } catch (err) {
-                console.error('Speech recognition error:', err);
+                logger.error('Speech recognition error:', err);
                 
                 // Stop stream tracks on error
                 if (stream) {
@@ -1105,14 +1168,53 @@ export class ChallengeRenderer {
             resultArea.classList.add('hidden');
             actionArea.classList.add('hidden');
             
+            const startTime = Date.now();
+            
             try {
-                const result = await this.testPronunciation(resolved, {
-                    maxAttempts: 1,
-                    timeoutMs: 5000,
+                // Check Web Speech availability
+                if (!isWebSpeechAvailable()) {
+                    throw new Error('Speech recognition not supported in this browser');
+                }
+                
+                // Get WebSpeechService and listen
+                const speechService = getWebSpeechService();
+                const recognitionResult = await speechService.listen(5000, {
+                    continuous: false,
+                    interimResults: false
+                });
+                
+                // Score with PhoneticScorer
+                const transcribed = recognitionResult.text || '';
+                const score = phoneticScore(transcribed, resolved, {
                     wordKnowledge: knowledge
                 });
                 
-                const score = result.bestScore;
+                // Merge recognition data into score
+                score.transcribed = transcribed;
+                score.alternatives = recognitionResult.alternatives || [];
+                score.confidence = recognitionResult.confidence || 0;
+                
+                const responseTime = Date.now() - startTime;
+                
+                // Stream to AI pipeline (MANDATORY)
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'pronunciation_score',
+                        wordId: getWordKey(word),
+                        word: resolved,
+                        timestamp: Date.now(),
+                        score: score.score,
+                        rating: score.rating,
+                        transcribed,
+                        expected: resolved,
+                        responseTime,
+                        attemptNumber: currentAttempt,
+                        phonemeIssues: score.phonemeIssues || [],
+                        confidence: score.confidence
+                    });
+                } catch (streamErr) {
+                    logger.warn('Failed to stream pronunciation event', streamErr);
+                }
                 
                 if (!bestScore || score.score > bestScore.score) {
                     bestScore = score;
@@ -1131,7 +1233,7 @@ export class ChallengeRenderer {
                 );
                 
             } catch (err) {
-                console.error('Pronunciation test error:', err);
+                logger.error('Pronunciation test error:', err);
                 recordingIndicator.classList.add('hidden');
                 recordBtn.classList.remove('hidden');
                 
@@ -1151,7 +1253,7 @@ export class ChallengeRenderer {
     }
 
     /**
-     * Display pronunciation result
+     * Display pronunciation result with enhanced phoneme feedback
      * @private
      */
     _displayPronunciationResult(score, expected, attempt, maxAttempts, hasPassed, passThreshold, state, word, bestScore) {
@@ -1162,12 +1264,15 @@ export class ChallengeRenderer {
         const recordBtn = document.getElementById('recordBtn');
         
         const scorePercent = Math.round(score.score);
-        const scoreClass = scorePercent >= 90 ? 'excellent' : 
-                          scorePercent >= 75 ? 'good' : 
-                          scorePercent >= 60 ? 'fair' : 
-                          scorePercent >= 40 ? 'needs-work' : 'poor';
+        const scoreClass = scorePercent >= PHONETIC_CONFIG.excellentScore ? 'excellent' : 
+                          scorePercent >= PHONETIC_CONFIG.goodScore ? 'good' : 
+                          scorePercent >= PHONETIC_CONFIG.fairScore ? 'fair' : 
+                          scorePercent >= PHONETIC_CONFIG.needsWorkScore ? 'needs-work' : 'poor';
         
-        const emoji = scorePercent >= 90 ? '🎉' : scorePercent >= 75 ? '👍' : scorePercent >= 60 ? '💪' : scorePercent >= 40 ? '🔄' : '😅';
+        // Use emoji from PhoneticScorer if available, otherwise fallback
+        const emoji = score.emoji || 
+                     (scorePercent >= 90 ? '🎉' : scorePercent >= 75 ? '👍' : 
+                      scorePercent >= 60 ? '💪' : scorePercent >= 40 ? '🔄' : '😅');
         
         scoreDisplay.innerHTML = `
             <div class="score-display ${scoreClass}">
@@ -1184,7 +1289,7 @@ export class ChallengeRenderer {
         `;
         
         const heard = score.transcribed || '(nothing detected)';
-        comparison.innerHTML = `
+        let comparisonHTML = `
             <div class="comparison-row">
                 <span class="comparison-label">Expected:</span>
                 <span class="comparison-value expected">${escapeHtml(expected)}</span>
@@ -1195,9 +1300,79 @@ export class ChallengeRenderer {
             </div>
         `;
         
-        feedback.innerHTML = `
-            <div class="feedback-message ${hasPassed ? 'passed' : ''}">${score.feedback || ''}</div>
+        // Add word match details if available
+        if (score.wordMatch) {
+            const wm = score.wordMatch;
+            if (wm.closeMatches && wm.closeMatches.length > 0) {
+                comparisonHTML += `
+                    <div class="comparison-details">
+                        <span class="details-label">Close matches:</span>
+                        ${wm.closeMatches.map(m => `
+                            <span class="close-match">"${escapeHtml(m.heard)}" → "${escapeHtml(m.expected)}"</span>
+                        `).join(', ')}
+                    </div>
+                `;
+            }
+            if (wm.missed && wm.missed.length > 0) {
+                comparisonHTML += `
+                    <div class="comparison-details missed">
+                        <span class="details-label">Missed:</span>
+                        ${wm.missed.map(w => `<span class="missed-word">${escapeHtml(w)}</span>`).join(', ')}
+                    </div>
+                `;
+            }
+        }
+        comparison.innerHTML = comparisonHTML;
+        
+        // Enhanced feedback with phoneme issues and tips
+        let feedbackHTML = `
+            <div class="feedback-message ${hasPassed ? 'passed' : ''}">${escapeHtml(score.feedback || '')}</div>
         `;
+        
+        // Add phoneme-level tips if available
+        if (score.phonemeIssues && score.phonemeIssues.length > 0) {
+            feedbackHTML += `
+                <div class="phoneme-tips">
+                    <div class="tips-header">🎯 Sound-specific tips:</div>
+                    <ul class="tips-list">
+                        ${score.phonemeIssues.slice(0, 3).map(issue => `
+                            <li class="tip-item">
+                                <span class="phoneme-pattern">${escapeHtml(issue.pattern)}</span>
+                                <span class="phoneme-tip">${escapeHtml(issue.tip)}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        } else if (score.tips && score.tips.length > 0) {
+            // Fallback to general tips
+            feedbackHTML += `
+                <div class="general-tips">
+                    <div class="tips-header">💡 Tips:</div>
+                    <ul class="tips-list">
+                        ${score.tips.slice(0, 2).map(tip => `
+                            <li class="tip-item">${escapeHtml(tip)}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Show progressive feedback based on attempt number
+        if (!hasPassed && attempt < maxAttempts) {
+            const progressiveHints = [
+                'Listen carefully to the pronunciation, then try again.',
+                'Focus on the difficult sounds. Take your time.',
+                'Almost there! Pay attention to the nasal sounds.'
+            ];
+            feedbackHTML += `
+                <div class="progressive-hint">
+                    ${progressiveHints[Math.min(attempt - 1, progressiveHints.length - 1)]}
+                </div>
+            `;
+        }
+        
+        feedback.innerHTML = feedbackHTML;
         
         actionArea.classList.remove('hidden');
         
@@ -1220,7 +1395,7 @@ export class ChallengeRenderer {
                 state.weakWords.push(word);
             }
         } else {
-            retryBtn.classList.remove('hidden');
+            retryBtn.classList.remove('hidden');;
             continueBtn.classList.add('hidden');
             recordBtn.classList.remove('hidden');
         }
