@@ -10,20 +10,24 @@
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Architecture & File Structure](#architecture--file-structure)
-3. [Phase 1: Foundation & Structure](#phase-1-foundation--structure)
-4. [Phase 2: Lesson Reordering](#phase-2-lesson-reordering)
-5. [Phase 3: Navigation Redesign](#phase-3-navigation-redesign)
-6. [Phase 4: Lesson Layout & Options Panel](#phase-4-lesson-layout--options-panel)
-7. [Phase 5: Real-Time AI Pipeline](#phase-5-real-time-ai-pipeline)
-8. [Phase 6: AI Governance Dashboard](#phase-6-ai-governance-dashboard)
-9. [Phase 7: Authentication System](#phase-7-authentication-system)
-10. [Phase 8: Voice System Fixes](#phase-8-voice-system-fixes)
-11. [Phase 9: Monitoring & Health Checks](#phase-9-monitoring--health-checks)
-12. [Phase 10: UI Polish & Animations](#phase-10-ui-polish--animations)
-13. [Phase 11: Practice & Flashcards](#phase-11-practice--flashcards)
-14. [Phase 12: Graceful Degradation](#phase-12-graceful-degradation)
-15. [Copilot Instructions Additions](#copilot-instructions-additions)
+2. [MANDATORY: Task Completion Workflow](#-mandatory-task-completion-workflow)
+3. [MANDATORY: Real-Time AI Data Logging](#-mandatory-real-time-ai-data-logging)
+4. [Lesson Data Architecture](#lesson-data-architecture)
+5. [Architecture & File Structure](#architecture--file-structure)
+6. [Phase 1: Foundation & Structure](#phase-1-foundation--structure)
+7. [Phase 1B: Integration & Cleanup](#phase-1b-integration--cleanup)
+8. [Phase 2: Lesson Reordering](#phase-2-lesson-reordering)
+9. [Phase 3: Navigation Redesign](#phase-3-navigation-redesign)
+10. [Phase 4: Lesson Layout & Options Panel](#phase-4-lesson-layout--options-panel)
+11. [Phase 5: Real-Time AI Pipeline](#phase-5-real-time-ai-pipeline)
+12. [Phase 6: AI Governance Dashboard](#phase-6-ai-governance-dashboard)
+13. [Phase 7: Authentication System](#phase-7-authentication-system)
+14. [Phase 8: Voice System Fixes](#phase-8-voice-system-fixes)
+15. [Phase 9: Monitoring & Health Checks](#phase-9-monitoring--health-checks)
+16. [Phase 10: UI Polish & Animations](#phase-10-ui-polish--animations)
+17. [Phase 11: Practice & Flashcards](#phase-11-practice--flashcards)
+18. [Phase 12: Graceful Degradation](#phase-12-graceful-degradation)
+19. [Copilot Instructions Additions](#copilot-instructions-additions)
 
 ---
 
@@ -37,6 +41,212 @@ This plan transforms PortuLingo into a professional language learning platform w
 - **Comprehensive monitoring** with health checks and status dashboards
 - **Robust authentication** with admin/user role separation
 - **Graceful degradation** when services are unavailable
+
+---
+
+## ⚠️ MANDATORY: Task Completion Workflow
+
+**EVERY task that involves code changes MUST follow this workflow:**
+
+### Task Completion Checklist
+
+| Step | Action | Required |
+|------|--------|----------|
+| 1 | Create feature branch | ✅ Yes |
+| 2 | Implement the feature/change | ✅ Yes |
+| 3 | **Write/update tests** for the new code | ✅ Yes |
+| 4 | **Run all tests** (`npm test`) | ✅ Yes |
+| 5 | **Integration test** - verify it works with existing code | ✅ Yes |
+| 6 | **Remove redundant code** from old files | ✅ Yes (or N/A) |
+| 7 | Commit with task ID | ✅ Yes |
+| 8 | Push and merge to main | ✅ Yes |
+| 9 | Delete feature branch | ✅ Yes |
+| 10 | Update plan status | ✅ Yes |
+
+### Task Table Format
+
+All task tables MUST include these columns:
+
+```markdown
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| XX-001  | Description | [ ] | [ ] | [ ] or N/A | P0 |
+```
+
+- **Status**: `[ ]` not started, `[x]` complete
+- **Tests**: `[ ]` tests not written, `[x]` tests pass
+- **Cleanup**: `[ ]` old code not removed, `[x]` old code removed, `N/A` no cleanup needed
+
+### Testing Requirements
+
+Every new service/component MUST have:
+
+1. **Unit tests** - Test individual functions work correctly
+2. **Integration tests** - Test it works with other modules
+3. **Playwright tests** - Test UI interactions if applicable
+
+Test files go in:
+- `tests/unit/` - Unit tests
+- `tests/integration/` - Integration tests  
+- `tests/` - E2E Playwright tests
+
+### Cleanup Requirements
+
+After integrating new code:
+
+1. **Identify redundant code** in old files (app.js, styles.css, etc.)
+2. **Remove the duplicate code** from old files
+3. **Verify app still works** after removal
+4. **Track line count reduction** in commit message
+
+---
+
+## ⚠️ MANDATORY: Real-Time AI Data Logging
+
+**ALL user interactions MUST be logged for AI consumption.**
+
+### Events That MUST Be Logged
+
+| Event | Data Required | Priority |
+|-------|---------------|----------|
+| `answer_correct` | wordId, timing, attemptNumber | P0 |
+| `answer_incorrect` | wordId, userAnswer, correctAnswer, timing | P0 |
+| `pronunciation_score` | wordId, score, phonemeBreakdown | P0 |
+| `pronunciation_attempt` | wordId, transcription, expected | P0 |
+| `audio_played` | wordId, playCount | P1 |
+| `hint_viewed` | wordId, hintType | P1 |
+| `word_skipped` | wordId, reason | P0 |
+| `lesson_started` | lessonId, timestamp | P0 |
+| `lesson_completed` | lessonId, score, duration, mistakes[] | P0 |
+| `session_started` | userId, timestamp | P0 |
+| `session_ended` | userId, duration, wordsStudied | P0 |
+
+### Logging Implementation
+
+Every component that handles user input MUST:
+
+```javascript
+import { Logger } from '../services/Logger.js';
+import { EventStreaming } from '../services/eventStreaming.js';
+
+// Log to console/file
+Logger.info('user_action', { eventType, data });
+
+// Stream to AI pipeline
+EventStreaming.emit('user_event', {
+    eventType,
+    userId: getCurrentUserId(),
+    timestamp: Date.now(),
+    ...data
+});
+```
+
+### Why This Matters
+
+Without this logging:
+- ❌ AI cannot learn user patterns
+- ❌ AI cannot generate personalized tips
+- ❌ AI cannot create custom lessons
+- ❌ Progress tracking is incomplete
+- ❌ The entire AI pipeline is **USELESS**
+
+---
+
+## Lesson Data Architecture
+
+### Current Problem
+
+Lessons are embedded in JavaScript files (data.js) making them:
+- Hard to edit without coding knowledge
+- Difficult to bulk import/export
+- Not suitable for database migration
+- Mixed with application logic
+
+### Target: Simple JSON + CSV Format
+
+**Lesson Definition (JSON):**
+
+```json
+{
+    "id": "BB-001",
+    "title": "Personal Pronouns",
+    "category": "building-blocks",
+    "tier": 1,
+    "order": 1,
+    "prerequisites": [],
+    "wordsFile": "lessons/building-blocks/pronouns.csv",
+    "metadata": {
+        "estimatedMinutes": 10,
+        "difficulty": "beginner",
+        "tags": ["grammar", "pronouns", "essential"]
+    }
+}
+```
+
+**Word Data (CSV):**
+
+```csv
+id,portuguese,english,ipa,audio,gender,plural,notes,examples
+eu,eu,I,/ˈew/,eu.mp3,neutral,nós,"First person singular","Eu sou português.|I am Portuguese."
+tu,tu,you (informal),/tu/,tu.mp3,neutral,vocês,"Informal singular","Tu és meu amigo.|You are my friend."
+```
+
+### File Structure
+
+```
+src/data/
+├── lessons.json              # All lesson definitions
+├── categories.json           # Category metadata
+└── content/
+    ├── building-blocks/
+    │   ├── pronouns.csv
+    │   ├── verbs-ser.csv
+    │   └── articles.csv
+    ├── fundamentals/
+    │   ├── greetings.csv
+    │   └── numbers.csv
+    └── topics/
+        ├── food.csv
+        └── travel.csv
+```
+
+### Benefits
+
+1. **Non-coders can edit** - CSV is spreadsheet-friendly
+2. **AI can generate** - Output new lessons as CSV
+3. **Database-ready** - Easy to migrate to SQLite/PostgreSQL
+4. **Version control friendly** - Small, focused changes
+5. **Bulk operations** - Import/export entire lesson sets
+
+### Lesson Loader Service
+
+```javascript
+// src/services/LessonLoader.js
+export async function loadLesson(lessonId) {
+    const lessons = await fetch('/src/data/lessons.json').then(r => r.json());
+    const lesson = lessons.find(l => l.id === lessonId);
+    const words = await loadCSV(lesson.wordsFile);
+    return { ...lesson, words };
+}
+
+export async function loadCSV(path) {
+    const text = await fetch(path).then(r => r.text());
+    return parseCSV(text);
+}
+```
+
+### Implementation Tasks
+
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| DATA-001 | Create `lessons.json` schema | [ ] | [ ] | N/A | P0 |
+| DATA-002 | Create CSV parser utility | [ ] | [ ] | N/A | P0 |
+| DATA-003 | Create `LessonLoader.js` service | [ ] | [ ] | N/A | P0 |
+| DATA-004 | Convert existing lessons to CSV | [ ] | [ ] | [ ] | P0 |
+| DATA-005 | Update app to use LessonLoader | [ ] | [ ] | [ ] | P0 |
+| DATA-006 | Remove old data.js content | [ ] | N/A | [ ] | P0 |
+| DATA-007 | Add lesson validation | [ ] | [ ] | N/A | P1 |
+| DATA-008 | Create lesson editor UI (admin) | [ ] | [ ] | N/A | P2 |
 
 ---
 
@@ -237,6 +447,83 @@ learning_portuguese/
 | F1-034 | Extract modal styles to `modals.css` | [x] | P1 | 1 |
 | F1-035 | Extract nav styles to `navigation.css` | [x] | P1 | 1 |
 | F1-036 | Create `animations.css` for all animations | [x] | P1 | 2 |
+
+---
+
+## Phase 1B: Integration & Cleanup
+
+**⚠️ CRITICAL: No new features until Phase 1B is complete!**
+
+Phase 1 created new modular code in `src/`. This phase:
+1. Wires new modules into the app
+2. Tests everything works
+3. Removes redundant code from old files
+4. Validates line count reductions
+
+### 1B.1 Service Integration
+
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| INT-001 | Wire AuthService into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-002 | Wire AIService into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-003 | Wire VoiceService into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-004 | Wire TTSService into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-005 | Wire LessonService into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-006 | Wire ProgressTracker into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-007 | Wire Logger into all services | [ ] | [ ] | N/A | P0 |
+| INT-008 | Wire HealthChecker startup | [ ] | [ ] | N/A | P0 |
+
+### 1B.2 Component Integration
+
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| INT-010 | Wire Modal.js into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-011 | Wire Toast.js into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-012 | Wire LessonCard.js into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-013 | Wire WordCard.js into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-014 | Wire ChallengeRenderer.js into app.js | [ ] | [ ] | [ ] | P0 |
+| INT-015 | Wire ProgressChart.js into app.js | [ ] | [ ] | [ ] | P1 |
+| INT-016 | Wire Navigation.js into app.js | [ ] | [ ] | [ ] | P0 |
+
+### 1B.3 CSS Integration
+
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| INT-020 | Add CSS imports to index.html | [ ] | [ ] | N/A | P0 |
+| INT-021 | Remove duplicate styles from styles.css | [ ] | N/A | [ ] | P0 |
+| INT-022 | Verify all styles still apply | [ ] | [ ] | N/A | P0 |
+
+### 1B.4 Old File Cleanup Tracking
+
+| File | Original Lines | After Cleanup | Reduction | Status |
+|------|----------------|---------------|-----------|--------|
+| app.js | 5,531 | TBD | TBD | [ ] |
+| styles.css | 4,553 | TBD | TBD | [ ] |
+| auth.js | TBD | DELETE | 100% | [ ] |
+| audio.js | TBD | DELETE | 100% | [ ] |
+| ai-tutor.js | TBD | DELETE | 100% | [ ] |
+| ai-tts.js | TBD | DELETE | 100% | [ ] |
+| ai-speech.js | TBD | DELETE | 100% | [ ] |
+| data.js | 566 | DELETE | 100% | [ ] |
+
+### 1B.5 Test Suite Creation
+
+| Task ID | Task | Status | Priority |
+|---------|------|--------|----------|
+| TEST-001 | Create unit tests for AuthService | [ ] | P0 |
+| TEST-002 | Create unit tests for AIService | [ ] | P0 |
+| TEST-003 | Create unit tests for VoiceService | [ ] | P0 |
+| TEST-004 | Create unit tests for TTSService | [ ] | P0 |
+| TEST-005 | Create unit tests for LessonService | [ ] | P0 |
+| TEST-006 | Create unit tests for ProgressTracker | [ ] | P0 |
+| TEST-007 | Create unit tests for Logger | [ ] | P0 |
+| TEST-008 | Create unit tests for HealthChecker | [ ] | P0 |
+| TEST-009 | Create integration test: full lesson flow | [ ] | P0 |
+| TEST-010 | Create integration test: auth flow | [ ] | P0 |
+| TEST-011 | Create integration test: voice playback | [ ] | P0 |
+| TEST-012 | Create Playwright test: lesson completion | [ ] | P0 |
+| TEST-013 | Create Playwright test: quiz answering | [ ] | P0 |
+| TEST-014 | Create Playwright test: navigation | [ ] | P0 |
 
 ---
 

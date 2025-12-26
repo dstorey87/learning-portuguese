@@ -88,6 +88,101 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
 - Re-test the original change once fixes pass to confirm it still holds.
 - No bugs allowed: continue the fix/test loop until zero failures.
 
+---
+
+## ⚠️ MANDATORY: Testing & Cleanup (NON-OPTIONAL)
+
+**Every code change MUST include testing and cleanup. NO EXCEPTIONS.**
+
+### Testing Requirements
+
+For EVERY new file or significant change:
+
+1. **Unit Tests** - Test functions in isolation
+   - Location: `tests/unit/<service-name>.test.js`
+   - Must test: normal cases, edge cases, error handling
+   
+2. **Integration Tests** - Test modules work together
+   - Location: `tests/integration/`
+   - Must verify: data flows correctly between services
+
+3. **E2E Tests** - Test user-facing functionality
+   - Location: `tests/` (Playwright)
+   - Must verify: UI works as expected
+
+### After Every Feature Task
+
+```markdown
+| Task | Tests Written | Tests Pass | Cleanup Done |
+|------|---------------|------------|--------------|
+| XXX  | [ ]           | [ ]        | [ ] or N/A   |
+```
+
+- If `Tests Written = [ ]`, task is NOT complete
+- If `Tests Pass = [ ]`, task is NOT complete  
+- If `Cleanup Done = [ ]` (and cleanup is required), task is NOT complete
+
+### Cleanup Requirements
+
+After integrating new code:
+
+1. **Identify** redundant code in old files
+2. **Remove** duplicate code from old files
+3. **Verify** app still works after removal
+4. **Document** line count reduction
+
+---
+
+## ⚠️ MANDATORY: Real-Time AI Logging (NON-OPTIONAL)
+
+**ALL user interactions MUST be logged for AI consumption.**
+
+### Required Logging
+
+Every user action that affects learning MUST emit an event:
+
+```javascript
+import { Logger } from '../services/Logger.js';
+import { EventStreaming } from '../services/eventStreaming.js';
+
+// 1. Log to console/history
+Logger.info('user_action', { eventType, wordId, result });
+
+// 2. Stream to AI pipeline
+EventStreaming.emit('learning_event', {
+    eventType: 'answer_attempt',
+    userId,
+    timestamp: Date.now(),
+    wordId,
+    wasCorrect,
+    userAnswer,
+    correctAnswer,
+    responseTime,
+    attemptNumber
+});
+```
+
+### Events That MUST Be Logged
+
+| Event | Required Data | Consequence if Missing |
+|-------|---------------|------------------------|
+| `answer_correct` | wordId, timing | AI can't track progress |
+| `answer_incorrect` | wordId, userAnswer, correctAnswer | AI can't identify weaknesses |
+| `pronunciation_score` | wordId, score, phonemes | AI can't help pronunciation |
+| `lesson_complete` | lessonId, score, duration | AI can't recommend next steps |
+| `word_skipped` | wordId | AI can't detect frustration |
+
+### Why This Is Critical
+
+Without logging:
+- ❌ AI is blind to user behavior
+- ❌ No personalized tips possible
+- ❌ No custom lesson generation
+- ❌ Progress tracking incomplete
+- ❌ **THE ENTIRE AI PIPELINE IS USELESS**
+
+---
+
 ## Documentation & Planning
 - Update documentation (README.md and relevant docs) after successful changes.
 - Update the plan (initial_plan.md and IMPLEMENTATION_PLAN.md) to reflect scope, status, and decisions for each change.
