@@ -191,15 +191,15 @@ learning_portuguese/
 
 | Task ID | Task | Status | Priority |
 |---------|------|--------|----------|
-| F1-001 | Create `src/` directory | [ ] | P0 |
-| F1-002 | Create `src/components/` subdirectories | [ ] | P0 |
-| F1-003 | Create `src/services/` subdirectories | [ ] | P0 |
-| F1-004 | Create `src/pages/` directory | [ ] | P0 |
-| F1-005 | Create `src/stores/` directory | [ ] | P0 |
-| F1-006 | Create `src/utils/` directory | [ ] | P0 |
-| F1-007 | Create `src/data/` subdirectories | [ ] | P0 |
-| F1-008 | Create `src/styles/` subdirectories | [ ] | P0 |
-| F1-009 | Create `src/config/` directory | [ ] | P0 |
+| F1-001 | Create `src/` directory | [x] | P0 |
+| F1-002 | Create `src/components/` subdirectories | [x] | P0 |
+| F1-003 | Create `src/services/` subdirectories | [x] | P0 |
+| F1-004 | Create `src/pages/` directory | [x] | P0 |
+| F1-005 | Create `src/stores/` directory | [x] | P0 |
+| F1-006 | Create `src/utils/` directory | [x] | P0 |
+| F1-007 | Create `src/data/` subdirectories | [x] | P0 |
+| F1-008 | Create `src/styles/` subdirectories | [x] | P0 |
+| F1-009 | Create `src/config/` directory | [x] | P0 |
 
 ### 1.2 Extract Components from app.js
 
