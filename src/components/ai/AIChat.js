@@ -16,7 +16,7 @@
 import { getAIAgent } from '../../services/ai/AIAgent.js';
 import { ensureToolHandlersInitialized } from '../../services/ai/ToolHandlers.js';
 import { getWebSpeechService, isWebSpeechAvailable, RECOGNITION_EVENTS } from '../../services/WebSpeechService.js';
-import { speak, speakPortuguese, stop as stopTTS, isSpeaking } from '../../services/TTSService.js';
+import { speak, speakPortuguese, speakEnglish, stop as stopTTS, isSpeaking } from '../../services/TTSService.js';
 import { getPronunciationAssessor } from '../../services/PronunciationAssessor.js';
 import * as Logger from '../../services/Logger.js';
 import { eventStream } from '../../services/eventStreaming.js';
@@ -1278,8 +1278,8 @@ class AIChatComponent {
             voiceToggle?.classList.remove('listening');
             if (status) status.textContent = 'Speaking...';
             
-            // Use Edge-TTS with European Portuguese voice
-            await speakPortuguese(text, {
+            // Use English voice for AI explanations (responses are in English)
+            await speakEnglish(text, {
                 onStart: () => Logger.debug('ai_chat', 'TTS started'),
                 onEnd: () => Logger.debug('ai_chat', 'TTS ended')
             });
@@ -1340,8 +1340,8 @@ class AIChatComponent {
         if (status) status.textContent = 'Your turn - speak now...';
         
         try {
-            // Listen for user attempt
-            const result = await this.webSpeechService.listen(8000);
+            // Listen for user attempt - use Portuguese recognition for pronunciation assessment
+            const result = await this.webSpeechService.listen(8000, { language: 'pt-PT' });
             this.hideInterimTranscript();
             
             if (!result.text || !result.text.trim()) {

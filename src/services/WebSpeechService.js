@@ -23,11 +23,12 @@ import { createLogger } from './Logger.js';
  * Web Speech API configuration optimized for Portuguese
  */
 export const WEBSPEECH_CONFIG = {
-    // Primary language - European Portuguese
-    language: 'pt-PT',
+    // Primary language - English (user speaks English to the AI tutor)
+    // For pronunciation practice, use pt-PT override
+    language: 'en-US',
     
     // Fallback languages in priority order
-    fallbackLanguages: ['pt-BR', 'pt'],
+    fallbackLanguages: ['en-GB', 'en'],
     
     // Recognition settings
     continuous: false,

@@ -53,6 +53,26 @@ export const TTS_LOCALES = {
  * Edge-TTS Voice catalog
  */
 export const EDGE_VOICES = {
+    // English voices (for AI responses in English)
+    'en-GB-SoniaNeural': {
+        id: 'en-GB-SoniaNeural',
+        name: 'Sonia',
+        gender: 'female',
+        locale: 'en-GB',
+        region: 'UK',
+        quality: 'neural',
+        recommended: true,
+        description: 'Clear British English voice for explanations'
+    },
+    'en-US-JennyNeural': {
+        id: 'en-US-JennyNeural',
+        name: 'Jenny',
+        gender: 'female',
+        locale: 'en-US',
+        region: 'US',
+        quality: 'neural',
+        description: 'American English voice'
+    },
     // European Portuguese (preferred)
     'pt-PT-DuarteNeural': {
         id: 'pt-PT-DuarteNeural',
@@ -445,7 +465,7 @@ export async function speakWithVoice(text, voiceId, options = {}) {
 }
 
 /**
- * Speak Portuguese (EU-PT) text
+ * Speak Portuguese (EU-PT) text - SLOW for learning
  * @param {string} text - Text to speak
  * @param {Object} options - Options
  * @returns {Promise<Object>} Result
@@ -454,7 +474,20 @@ export async function speakPortuguese(text, options = {}) {
     const voice = options.gender === 'male' 
         ? 'pt-PT-DuarteNeural' 
         : 'pt-PT-RaquelNeural';
-    return speak(text, { ...options, voice });
+    // Use VERY slow rate (0.7) for clear pronunciation learning
+    return speak(text, { rate: 0.7, ...options, voice });
+}
+
+/**
+ * Speak English text (for AI explanations) - clear American accent
+ * @param {string} text - Text to speak
+ * @param {Object} options - Options
+ * @returns {Promise<Object>} Result
+ */
+export async function speakEnglish(text, options = {}) {
+    // Use American English - clearer for most learners
+    const voice = 'en-US-JennyNeural';
+    return speak(text, { rate: 1.0, ...options, voice });
 }
 
 // ============================================================================

@@ -33,6 +33,33 @@ const PORT = process.env.TTS_PORT || 3001;
 
 // Voice catalog with metadata
 const VOICE_CATALOG = {
+    // English voices (for AI responses - must be clearly understandable)
+    'en-GB-SoniaNeural': {
+        name: 'Sonia',
+        gender: 'female',
+        locale: 'en-GB',
+        region: 'United Kingdom',
+        quality: 'neural',
+        recommended: true,
+        description: 'Clear British English female voice'
+    },
+    'en-US-JennyNeural': {
+        name: 'Jenny',
+        gender: 'female',
+        locale: 'en-US',
+        region: 'United States',
+        quality: 'neural',
+        recommended: true,
+        description: 'Clear American English female voice'
+    },
+    'en-US-GuyNeural': {
+        name: 'Guy',
+        gender: 'male',
+        locale: 'en-US',
+        region: 'United States',
+        quality: 'neural',
+        description: 'Clear American English male voice'
+    },
     // European Portuguese (preferred for EU-PT learning)
     'pt-PT-DuarteNeural': {
         name: 'Duarte',
@@ -248,7 +275,11 @@ app.listen(PORT, () => {
 ║  Voices: http://localhost:${PORT}/voices                        ║
 ║  TTS:    POST http://localhost:${PORT}/tts                      ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Portuguese Voices Available:                                ║
+║  English Voices (for explanations):                          ║
+║  🇬🇧 UK:      Sonia (F) ← Recommended                          ║
+║  🇺🇸 US:      Jenny (F), Guy (M)                               ║
+╠══════════════════════════════════════════════════════════════╣
+║  Portuguese Voices (for examples):                           ║
 ║  🇵🇹 Portugal: Duarte (M), Raquel (F) ← Recommended           ║
 ║  🇧🇷 Brazil:   António (M), Francisca (F),                    ║
 ║               Macério (M), Thalita (F)                       ║
