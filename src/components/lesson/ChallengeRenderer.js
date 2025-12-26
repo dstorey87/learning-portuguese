@@ -48,7 +48,11 @@ export const CHALLENGE_TYPES = {
     MCQ: 'mcq',
     TYPE_ANSWER: 'type-answer',
     LISTEN_TYPE: 'listen-type',
-    SENTENCE: 'sentence'
+    SENTENCE: 'sentence',
+    // Rich challenge types from building-blocks
+    MULTIPLE_CHOICE: 'multiple-choice',
+    TRANSLATE: 'translate',
+    FILL_BLANK: 'fill-blank'
 };
 
 /**
@@ -378,8 +382,19 @@ export class ChallengeRenderer {
                 case CHALLENGE_TYPES.SENTENCE:
                     this.renderSentence(container, challenge, state);
                     break;
+                // Rich challenge types from building-blocks
+                case CHALLENGE_TYPES.MULTIPLE_CHOICE:
+                    this.renderMultipleChoice(container, challenge, state);
+                    break;
+                case CHALLENGE_TYPES.TRANSLATE:
+                    this.renderTranslate(container, challenge, state);
+                    break;
+                case CHALLENGE_TYPES.FILL_BLANK:
+                    this.renderFillBlank(container, challenge, state);
+                    break;
                 default:
                     console.warn(`Unknown challenge type: ${challenge.type}`);
+                    this._renderUnknownChallenge(container, challenge, state);
             }
             
             setTimeout(() => container.classList.remove('challenge-enter'), CHALLENGE_CONFIG.animationDuration + 100);
@@ -1815,6 +1830,373 @@ export class ChallengeRenderer {
             }
             this.onChallengeComplete(state);
         };
+    }
+
+    // ============================================================================
+    // RICH CHALLENGE TYPE RENDERERS (Building Blocks)
+    // ============================================================================
+
+    /**
+     * Render Multiple Choice challenge (rich format from building-blocks)
+     * Different from MCQ - uses question/options/correct structure
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data: { type, question, options, correct, explanation }
+     * @param {Object} state - Lesson state
+     */
+    renderMultipleChoice(container, challenge, state) {
+        const { question, options, correct, explanation } = challenge;
+        
+        container.innerHTML = `
+            <div class="challenge-card multiple-choice-card">
+                <div class="challenge-instruction">📝 Multiple Choice</div>
+                <div class="mc-question">${escapeHtml(question)}</div>
+                <div class="mc-options" id="mcOptions">
+                    ${options.map((opt, i) => `
+                        <button class="mc-option" data-index="${i}">
+                            <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+                            <span class="option-text">${escapeHtml(opt)}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="challenge-feedback" id="feedback"></div>
+                <div class="challenge-explanation hidden" id="explanation">
+                    ${explanation ? `<div class="explanation-text">💡 ${escapeHtml(explanation)}</div>` : ''}
+                </div>
+                <div class="challenge-footer hidden" id="footerActions">
+                    <button class="btn-continue" id="continueBtn">Continue →</button>
+                </div>
+            </div>
+        `;
+        
+        const optionsContainer = document.getElementById('mcOptions');
+        const buttons = optionsContainer.querySelectorAll('.mc-option');
+        
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selectedIdx = parseInt(btn.dataset.index, 10);
+                const isCorrect = selectedIdx === correct;
+                
+                // Disable all buttons
+                buttons.forEach(b => b.disabled = true);
+                
+                // Mark selected and correct
+                btn.classList.add(isCorrect ? 'correct' : 'incorrect');
+                if (!isCorrect) {
+                    buttons[correct].classList.add('correct');
+                }
+                
+                // Show feedback
+                this._showFeedback(isCorrect, options[correct]);
+                
+                // Show explanation
+                if (explanation) {
+                    document.getElementById('explanation').classList.remove('hidden');
+                }
+                
+                // Update state
+                if (isCorrect) {
+                    state.correct++;
+                    this.onCorrect(challenge, state);
+                    
+                    // Stream event
+                    try {
+                        eventStream.emit('learning_event', {
+                            eventType: 'answer_correct',
+                            challengeType: 'multiple-choice',
+                            question: question.substring(0, 50),
+                            timestamp: Date.now()
+                        });
+                    } catch (e) { /* ignore */ }
+                } else {
+                    state.mistakes++;
+                    state.wrongAnswers.push({ 
+                        question, 
+                        selected: options[selectedIdx],
+                        correct: options[correct],
+                        type: 'multiple-choice' 
+                    });
+                    this._handleMistake(state);
+                    
+                    // Stream event
+                    try {
+                        eventStream.emit('learning_event', {
+                            eventType: 'answer_incorrect',
+                            challengeType: 'multiple-choice',
+                            question: question.substring(0, 50),
+                            userAnswer: options[selectedIdx],
+                            correctAnswer: options[correct],
+                            timestamp: Date.now()
+                        });
+                    } catch (e) { /* ignore */ }
+                }
+                
+                // Show continue button
+                document.getElementById('footerActions').classList.remove('hidden');
+                document.getElementById('continueBtn').addEventListener('click', () => {
+                    this.onChallengeComplete(state);
+                });
+            });
+        });
+    }
+
+    /**
+     * Render Translate challenge
+     * User types translation from English to Portuguese (or vice versa)
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data: { type, prompt, answer, hints, direction }
+     * @param {Object} state - Lesson state
+     */
+    renderTranslate(container, challenge, state) {
+        const { prompt, answer, hints = [], direction = 'en-to-pt' } = challenge;
+        const directionLabel = direction === 'en-to-pt' 
+            ? 'Translate to Portuguese' 
+            : 'Translate to English';
+        
+        container.innerHTML = `
+            <div class="challenge-card translate-card">
+                <div class="challenge-instruction">✍️ ${directionLabel}</div>
+                <div class="translate-prompt">"${escapeHtml(prompt)}"</div>
+                ${hints.length > 0 ? `
+                    <details class="translate-hints">
+                        <summary>💡 Show hints</summary>
+                        <ul class="hints-list">
+                            ${hints.map(hint => `<li>${escapeHtml(hint)}</li>`).join('')}
+                        </ul>
+                    </details>
+                ` : ''}
+                <input type="text" class="translate-input" id="translateInput" 
+                       placeholder="Type your translation..." 
+                       autocomplete="off" autocapitalize="off">
+                <div class="challenge-feedback" id="feedback"></div>
+                <div class="challenge-footer">
+                    <button class="btn-skip" id="skipBtn">Skip</button>
+                    <button class="btn-check" id="checkBtn">Check Answer</button>
+                </div>
+            </div>
+        `;
+        
+        const input = document.getElementById('translateInput');
+        const checkBtn = document.getElementById('checkBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        
+        // Focus input
+        setTimeout(() => input.focus(), 100);
+        
+        // Check answer
+        const checkAnswer = () => {
+            const userAnswer = input.value.trim();
+            if (!userAnswer) return;
+            
+            // Normalize both for comparison
+            const normalizedUser = normalizeText(userAnswer);
+            const normalizedCorrect = normalizeText(answer);
+            
+            // Allow for some flexibility - also check if it starts/ends correctly
+            const isExactMatch = normalizedUser === normalizedCorrect;
+            const isCloseMatch = normalizedCorrect.includes(normalizedUser) || 
+                                 normalizedUser.includes(normalizedCorrect);
+            const isCorrect = isExactMatch || (isCloseMatch && normalizedUser.length > normalizedCorrect.length * 0.7);
+            
+            input.disabled = true;
+            checkBtn.disabled = true;
+            skipBtn.disabled = true;
+            
+            if (isCorrect) {
+                input.classList.add('correct');
+                this._showFeedback(true);
+                state.correct++;
+                this.onCorrect(challenge, state);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_correct',
+                        challengeType: 'translate',
+                        prompt: prompt.substring(0, 50),
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            } else {
+                input.classList.add('incorrect');
+                this._showFeedback(false, answer);
+                state.mistakes++;
+                state.wrongAnswers.push({
+                    prompt,
+                    userAnswer,
+                    correct: answer,
+                    type: 'translate'
+                });
+                this._handleMistake(state);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_incorrect',
+                        challengeType: 'translate',
+                        prompt: prompt.substring(0, 50),
+                        userAnswer,
+                        correctAnswer: answer,
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            }
+            
+            // Replace buttons with continue
+            const footer = container.querySelector('.challenge-footer');
+            footer.innerHTML = '<button class="btn-continue" id="continueBtn">Continue →</button>';
+            document.getElementById('continueBtn').addEventListener('click', () => {
+                this.onChallengeComplete(state);
+            });
+        };
+        
+        checkBtn.addEventListener('click', checkAnswer);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') checkAnswer();
+        });
+        
+        skipBtn.addEventListener('click', () => {
+            this._showFeedback(false, answer);
+            state.skipped = (state.skipped || 0) + 1;
+            
+            const footer = container.querySelector('.challenge-footer');
+            footer.innerHTML = '<button class="btn-continue" id="continueBtn">Continue →</button>';
+            document.getElementById('continueBtn').addEventListener('click', () => {
+                this.onChallengeComplete(state);
+            });
+        });
+    }
+
+    /**
+     * Render Fill-in-the-Blank challenge
+     * User selects the correct option to fill the blank in a sentence
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data: { type, sentence, options, correct, context, explanation }
+     * @param {Object} state - Lesson state
+     */
+    renderFillBlank(container, challenge, state) {
+        const { sentence, options, correct, context, explanation } = challenge;
+        
+        // Replace ___ with styled blank
+        const displaySentence = sentence.replace(/_{2,}/g, '<span class="fill-blank">______</span>');
+        
+        container.innerHTML = `
+            <div class="challenge-card fill-blank-card">
+                <div class="challenge-instruction">🔤 Fill in the Blank</div>
+                ${context ? `<div class="fill-context">${escapeHtml(context)}</div>` : ''}
+                <div class="fill-sentence">${displaySentence}</div>
+                <div class="fill-options" id="fillOptions">
+                    ${options.map((opt, i) => `
+                        <button class="fill-option" data-index="${i}">${escapeHtml(opt)}</button>
+                    `).join('')}
+                </div>
+                <div class="challenge-feedback" id="feedback"></div>
+                <div class="challenge-explanation hidden" id="explanation">
+                    ${explanation ? `<div class="explanation-text">💡 ${escapeHtml(explanation)}</div>` : ''}
+                </div>
+                <div class="challenge-footer hidden" id="footerActions">
+                    <button class="btn-continue" id="continueBtn">Continue →</button>
+                </div>
+            </div>
+        `;
+        
+        const optionsContainer = document.getElementById('fillOptions');
+        const buttons = optionsContainer.querySelectorAll('.fill-option');
+        const blankSpan = container.querySelector('.fill-blank');
+        
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selectedIdx = parseInt(btn.dataset.index, 10);
+                const isCorrect = selectedIdx === correct;
+                
+                // Disable all buttons
+                buttons.forEach(b => b.disabled = true);
+                
+                // Mark selected and correct
+                btn.classList.add(isCorrect ? 'correct' : 'incorrect');
+                if (!isCorrect) {
+                    buttons[correct].classList.add('correct');
+                }
+                
+                // Fill in the blank with the selected answer
+                if (blankSpan) {
+                    blankSpan.textContent = options[selectedIdx];
+                    blankSpan.classList.add(isCorrect ? 'filled-correct' : 'filled-incorrect');
+                }
+                
+                // Show feedback
+                this._showFeedback(isCorrect, options[correct]);
+                
+                // Show explanation
+                if (explanation) {
+                    document.getElementById('explanation').classList.remove('hidden');
+                }
+                
+                // Update state
+                if (isCorrect) {
+                    state.correct++;
+                    this.onCorrect(challenge, state);
+                    
+                    try {
+                        eventStream.emit('learning_event', {
+                            eventType: 'answer_correct',
+                            challengeType: 'fill-blank',
+                            sentence: sentence.substring(0, 50),
+                            timestamp: Date.now()
+                        });
+                    } catch (e) { /* ignore */ }
+                } else {
+                    state.mistakes++;
+                    state.wrongAnswers.push({
+                        sentence,
+                        selected: options[selectedIdx],
+                        correct: options[correct],
+                        type: 'fill-blank'
+                    });
+                    this._handleMistake(state);
+                    
+                    try {
+                        eventStream.emit('learning_event', {
+                            eventType: 'answer_incorrect',
+                            challengeType: 'fill-blank',
+                            sentence: sentence.substring(0, 50),
+                            userAnswer: options[selectedIdx],
+                            correctAnswer: options[correct],
+                            timestamp: Date.now()
+                        });
+                    } catch (e) { /* ignore */ }
+                }
+                
+                // Show continue button
+                document.getElementById('footerActions').classList.remove('hidden');
+                document.getElementById('continueBtn').addEventListener('click', () => {
+                    this.onChallengeComplete(state);
+                });
+            });
+        });
+    }
+
+    /**
+     * Render fallback for unknown challenge types
+     * @private
+     */
+    _renderUnknownChallenge(container, challenge, state) {
+        container.innerHTML = `
+            <div class="challenge-card unknown-card">
+                <div class="challenge-instruction">⚠️ Unknown Challenge Type</div>
+                <div class="unknown-info">
+                    <p>Challenge type "${escapeHtml(challenge.type)}" is not yet supported.</p>
+                    <pre>${escapeHtml(JSON.stringify(challenge, null, 2).substring(0, 500))}</pre>
+                </div>
+                <div class="challenge-footer">
+                    <button class="btn-continue" id="continueBtn">Skip & Continue →</button>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            this.onChallengeComplete(state);
+        });
     }
 
     /**
