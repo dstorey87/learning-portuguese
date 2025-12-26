@@ -88,7 +88,7 @@ test.describe('AI Chat Voice Features', () => {
                 await page.waitForTimeout(300);
                 
                 // Should show listening state or error
-                const status = page.locator('#aiStatus, .ai-status, .voice-status');
+                const status = page.locator('#aiStatus, .ai-status, .voice-status').first();
                 if (await status.count() > 0) {
                     const statusText = await status.textContent();
                     // Status should change to indicate voice mode
@@ -309,6 +309,56 @@ test.describe('AI Chat Voice Features', () => {
                     expect(box.height).toBeGreaterThan(100);
                 } else {
                     test.skip();
+                }
+            } else {
+                test.skip();
+            }
+        });
+
+        test('AICHAT-VOICE-E013: Auto-speak toggle exists and persists preference', async ({ page }) => {
+            await openAIChat(page);
+
+            const autoSpeakToggle = page.locator('#aiAutoSpeakToggle, .ai-auto-speak-toggle').first();
+
+            if (await autoSpeakToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+                await expect(autoSpeakToggle).toBeEnabled();
+
+                // Toggle
+                await autoSpeakToggle.click();
+                await page.waitForTimeout(200);
+
+                const stored = await page.evaluate(() => {
+                    // Default userId in AIChat is 'default'
+                    return localStorage.getItem('default_ai_autoSpeakReplies');
+                });
+
+                // Should be present and boolean-ish
+                expect(stored === 'true' || stored === 'false').toBeTruthy();
+            } else {
+                test.skip();
+            }
+        });
+
+        test('AICHAT-VOICE-E014: Hands-free toggle is clickable (active or graceful warning)', async ({ page }) => {
+            await openAIChat(page);
+
+            const handsFreeToggle = page.locator('#aiHandsFreeToggle, .ai-handsfree-toggle').first();
+
+            if (await handsFreeToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+                await expect(handsFreeToggle).toBeEnabled();
+                await handsFreeToggle.click();
+                await page.waitForTimeout(400);
+
+                // In browsers without Web Speech API, we expect a warning message instead of activation.
+                const isActive = await handsFreeToggle.evaluate(el => el.classList.contains('active')).catch(() => false);
+                const warningText = await page.locator('.ai-message.assistant').last().textContent().catch(() => '');
+
+                expect(isActive || (warningText || '').includes('Hands-free voice')).toBeTruthy();
+
+                // If it became active, clicking again should stop.
+                if (isActive) {
+                    await handsFreeToggle.click();
+                    await page.waitForTimeout(200);
                 }
             } else {
                 test.skip();

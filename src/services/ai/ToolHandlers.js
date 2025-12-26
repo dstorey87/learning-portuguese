@@ -128,15 +128,13 @@ export function initializeToolHandlers() {
     registry.setHandler('speak_portuguese', async ({ text, voice = 'duarte', speed = 1.0 }) => {
         try {
             const voiceId = voice === 'raquel' ? 'pt-PT-RaquelNeural' : 'pt-PT-DuarteNeural';
-            
-            // Try TTS service first, fall back to VoiceService
-            const serverStatus = TTSService.getTTSServerStatus?.();
-            
-            if (serverStatus?.available) {
-                await TTSService.speakPortuguese(text, { voice: voiceId, rate: speed });
-            } else {
-                await VoiceService.speakWord(text, { speed });
-            }
+
+            // Prefer TTSService (handles server health + Web Speech fallback internally)
+            await TTSService.speak(text, {
+                voice: voiceId,
+                rate: speed,
+                fallbackToWebSpeech: true
+            });
             
             Logger.info('tool_handlers', 'Spoke Portuguese', { text: text.substring(0, 30), voice });
             

@@ -5,7 +5,7 @@
  * clicked to open the chat panel. This integrates with the existing app.
  */
 
-import { getAIChat, initAIChat } from './src/components/ai/AIChat.js';
+import { initAIChat } from './src/components/ai/AIChat.js';
 import * as Logger from './src/services/Logger.js';
 import { eventStream } from './src/services/eventStreaming.js';
 

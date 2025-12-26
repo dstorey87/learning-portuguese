@@ -40,10 +40,15 @@ class AIChatComponent {
         this.webSpeechService = null;
         this.pronunciationAssessor = null;
         this.messages = [];
+        this.pendingMessages = [];
         this.isInitialized = false;
         this.isProcessing = false;
         this.isVoiceMode = false;
         this.isListening = false;
+        this.isHandsFreeMode = false;
+        this.autoSpeakReplies = true;
+        this.audioUnlocked = false;
+        this.handsFreeSessionId = null;
         this.isAssessingPronunciation = false;
         this.container = null;
         this.userId = null;
@@ -53,6 +58,14 @@ class AIChatComponent {
 
     async initialize(userId = 'default') {
         this.userId = userId;
+
+        // Load preferences (must be user-isolated)
+        try {
+            const autoSpeakRaw = localStorage.getItem(`${this.userId}_ai_autoSpeakReplies`);
+            this.autoSpeakReplies = autoSpeakRaw == null ? true : autoSpeakRaw === 'true';
+        } catch {
+            // ignore
+        }
         
         // Initialize tool handlers first
         ensureToolHandlersInitialized();
@@ -101,6 +114,8 @@ class AIChatComponent {
                         <span class="ai-status" id="aiStatus">Ready to help</span>
                     </div>
                     <div class="ai-header-actions">
+                        <button class="ai-auto-speak-toggle" id="aiAutoSpeakToggle" title="Auto-speak assistant replies">🔊</button>
+                        <button class="ai-handsfree-toggle" id="aiHandsFreeToggle" title="Hands-free voice call (listen ↔ speak)">📞</button>
                         <button class="ai-voice-toggle" id="aiVoiceToggle" title="Toggle voice mode">🎤</button>
                         <button class="ai-minimize" id="aiMinimize" title="Minimize">−</button>
                     </div>
@@ -143,9 +158,20 @@ class AIChatComponent {
         
         this.attachStyles();
         this.attachEventListeners();
+        this.syncSettingsUI();
         this.addWelcomeMessage();
         
         return this.container;
+    }
+
+    syncSettingsUI() {
+        const autoSpeakToggle = document.getElementById('aiAutoSpeakToggle');
+        if (this.autoSpeakReplies) autoSpeakToggle?.classList.add('active');
+        else autoSpeakToggle?.classList.remove('active');
+
+        const handsFreeToggle = document.getElementById('aiHandsFreeToggle');
+        if (this.isHandsFreeMode) handsFreeToggle?.classList.add('active');
+        else handsFreeToggle?.classList.remove('active');
     }
 
     attachStyles() {
@@ -228,6 +254,20 @@ class AIChatComponent {
             
             .ai-voice-toggle.active {
                 background: #22c55e !important;
+            }
+
+            .ai-auto-speak-toggle.active {
+                background: #0ea5e9 !important;
+            }
+
+            .ai-handsfree-toggle.active {
+                background: #ef4444 !important;
+                animation: pulse-red 1.5s infinite;
+            }
+
+            @keyframes pulse-red {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+                50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
             }
             
             .ai-chat-messages {
@@ -604,6 +644,8 @@ class AIChatComponent {
     attachEventListeners() {
         const sendBtn = document.getElementById('aiSendBtn');
         const input = document.getElementById('aiInput');
+        const autoSpeakToggle = document.getElementById('aiAutoSpeakToggle');
+        const handsFreeToggle = document.getElementById('aiHandsFreeToggle');
         const voiceToggle = document.getElementById('aiVoiceToggle');
         const minimizeBtn = document.getElementById('aiMinimize');
         const header = document.querySelector('.ai-chat-header');
@@ -628,6 +670,18 @@ class AIChatComponent {
         
         // Voice toggle
         voiceToggle?.addEventListener('click', () => this.toggleVoiceMode());
+
+        // Auto-speak toggle
+        autoSpeakToggle?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleAutoSpeak();
+        });
+
+        // Hands-free voice call toggle
+        handsFreeToggle?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleHandsFreeMode();
+        });
         
         // Minimize
         minimizeBtn?.addEventListener('click', (e) => {
@@ -657,32 +711,48 @@ class AIChatComponent {
         // Already in the HTML template
     }
 
-    async sendMessage() {
+    async sendMessage(messageText = null, options = {}) {
+        const { source = 'text' } = options;
+
         const input = document.getElementById('aiInput');
-        const message = input?.value.trim();
-        
-        if (!message || this.isProcessing) return;
-        
-        input.value = '';
-        input.style.height = 'auto';
-        
-        // Add user message to UI
+        const message = (typeof messageText === 'string' ? messageText : input?.value)?.trim();
+
+        if (!message) return;
+
+        // Clear input only for typed messages
+        if (source === 'text' && input) {
+            input.value = '';
+            input.style.height = 'auto';
+        }
+
+        // Add user message to UI immediately
         this.addMessageToUI('user', message);
-        
+
         // Track event (non-blocking)
         try {
-            eventStream.track('ai_chat_message', { 
+            eventStream.track('ai_chat_message', {
                 messageLength: message.length,
-                source: 'text'
+                source
             });
-        } catch (e) {
-            // Event tracking failed - continue anyway
+        } catch {
+            // ignore
         }
-        
+
+        // If we're already processing, queue this message for later
+        if (this.isProcessing) {
+            this.pendingMessages.push({ message, source });
+            return;
+        }
+
+        await this.processMessage(message, { source });
+    }
+
+    async processMessage(message, options = {}) {
+        const { source = 'text' } = options;
         // Show typing indicator
         this.setProcessing(true);
         this.showTypingIndicator();
-        
+
         try {
             // Process with AI agent
             const result = await this.agent.processInput(message, {
@@ -694,10 +764,19 @@ class AIChatComponent {
             
             if (result.success) {
                 this.addMessageToUI('assistant', result.response);
-                
-                // Speak response if in voice mode
-                if (this.isVoiceMode && this.voiceConversation) {
-                    await this.voiceConversation.speakText(result.response);
+
+                const shouldSpeak = this.autoSpeakReplies && (source === 'voice' || this.isVoiceMode || this.isHandsFreeMode);
+                if (shouldSpeak) {
+                    await this.speakAIResponse(result.response);
+                }
+
+                try {
+                    eventStream.track('ai_chat_reply', {
+                        messageLength: result.response?.length || 0,
+                        spoke: shouldSpeak
+                    });
+                } catch {
+                    // ignore
                 }
             } else {
                 this.addMessageToUI('assistant', 
@@ -712,7 +791,20 @@ class AIChatComponent {
             );
         } finally {
             this.setProcessing(false);
+            await this.drainQueuedMessages();
         }
+    }
+
+    async drainQueuedMessages() {
+        if (this.isProcessing) return;
+        if (!this.pendingMessages.length) return;
+
+        const next = this.pendingMessages.shift();
+        if (!next) return;
+
+        const message = typeof next === 'string' ? next : next.message;
+        const source = typeof next === 'string' ? 'text' : (next.source || 'text');
+        await this.processMessage(message, { source });
     }
 
     addMessageToUI(role, content) {
@@ -818,6 +910,12 @@ class AIChatComponent {
         const voiceIndicator = document.getElementById('aiVoiceIndicator');
         const input = document.getElementById('aiInput');
         const status = document.getElementById('aiStatus');
+
+        // If hands-free is running, the mic button acts like stop.
+        if (this.isHandsFreeMode) {
+            this.stopHandsFreeMode();
+            return;
+        }
         
         // If already in voice mode, stop it
         if (this.isVoiceMode || this.isListening) {
@@ -841,6 +939,15 @@ class AIChatComponent {
         
         // Show interim transcript element
         this.showInterimTranscript();
+
+        // Attempt to unlock audio playback on the user gesture
+        await this.unlockAudioPlayback();
+
+        try {
+            eventStream.track('ai_voice_start', { mode: 'push_to_talk' });
+        } catch {
+            // ignore
+        }
         
         // Set up interim result listener
         const interimUnsub = this.webSpeechService.on(RECOGNITION_EVENTS.INTERIM_RESULT, (interim) => {
@@ -859,20 +966,18 @@ class AIChatComponent {
             
             if (result.text && result.text.trim()) {
                 Logger.info('ai_chat', 'Voice input received', { text: result.text, confidence: result.confidence });
-                
-                // Show what user said
-                this.addMessageToUI('user', result.text);
+
+                try {
+                    eventStream.track('ai_voice_final', { textLength: result.text.length, confidence: result.confidence });
+                } catch {
+                    // ignore
+                }
                 
                 // Update status
                 if (status) status.textContent = 'Processing...';
                 
                 // Send to AI
-                await this.sendMessage(result.text);
-                
-                // Speak the AI response if we got one
-                if (this.lastAIResponse && this.isVoiceMode) {
-                    await this.speakAIResponse(this.lastAIResponse);
-                }
+                await this.sendMessage(result.text, { source: 'voice' });
             } else {
                 Logger.info('ai_chat', 'No speech detected');
                 if (result.noSpeech) {
@@ -894,6 +999,196 @@ class AIChatComponent {
             }
         } finally {
             this.stopVoiceMode();
+        }
+    }
+
+    toggleAutoSpeak() {
+        this.autoSpeakReplies = !this.autoSpeakReplies;
+
+        const btn = document.getElementById('aiAutoSpeakToggle');
+        if (this.autoSpeakReplies) btn?.classList.add('active');
+        else btn?.classList.remove('active');
+
+        try {
+            localStorage.setItem(`${this.userId}_ai_autoSpeakReplies`, String(this.autoSpeakReplies));
+        } catch {
+            // ignore
+        }
+
+        try {
+            eventStream.track('ai_chat_setting', { setting: 'autoSpeakReplies', value: this.autoSpeakReplies });
+        } catch {
+            // ignore
+        }
+    }
+
+    async toggleHandsFreeMode() {
+        if (this.isHandsFreeMode) {
+            this.stopHandsFreeMode();
+            return;
+        }
+
+        if (!isWebSpeechAvailable()) {
+            this.addMessageToUI('assistant', '⚠️ Hands-free voice needs Web Speech API. Please try Chrome or Edge.');
+            return;
+        }
+
+        await this.startHandsFreeMode();
+    }
+
+    async startHandsFreeMode() {
+        const handsFreeToggle = document.getElementById('aiHandsFreeToggle');
+        const voiceToggle = document.getElementById('aiVoiceToggle');
+        const voiceIndicator = document.getElementById('aiVoiceIndicator');
+        const input = document.getElementById('aiInput');
+        const status = document.getElementById('aiStatus');
+
+        // Stop any single-turn voice mode first
+        this.stopVoiceMode();
+
+        this.isHandsFreeMode = true;
+        this.isVoiceMode = true;
+        this.handsFreeSessionId = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+        handsFreeToggle?.classList.add('active');
+        voiceToggle?.classList.add('active');
+        voiceToggle?.classList.remove('listening', 'speaking');
+        if (voiceIndicator) voiceIndicator.style.display = 'flex';
+        if (input) input.style.display = 'none';
+        if (status) status.textContent = 'Voice call: Listening...';
+
+        // Ensure replies are spoken in call mode
+        if (!this.autoSpeakReplies) {
+            this.autoSpeakReplies = true;
+            document.getElementById('aiAutoSpeakToggle')?.classList.add('active');
+        }
+
+        this.syncSettingsUI();
+
+        await this.unlockAudioPlayback();
+
+        this.addMessageToUI('system', '📞 Voice call started. Speak naturally — I’ll listen, reply, and keep listening. Click 📞 again to stop.');
+
+        try {
+            eventStream.track('ai_voice_start', { mode: 'hands_free' });
+        } catch {
+            // ignore
+        }
+
+        // Run loop without blocking UI
+        this.runHandsFreeLoop(this.handsFreeSessionId);
+    }
+
+    stopHandsFreeMode() {
+        const handsFreeToggle = document.getElementById('aiHandsFreeToggle');
+        const voiceToggle = document.getElementById('aiVoiceToggle');
+        const voiceIndicator = document.getElementById('aiVoiceIndicator');
+        const input = document.getElementById('aiInput');
+        const status = document.getElementById('aiStatus');
+
+        this.isHandsFreeMode = false;
+        this.isVoiceMode = false;
+        this.isListening = false;
+        this.handsFreeSessionId = null;
+
+        try {
+            eventStream.track('ai_voice_stop', { mode: 'hands_free' });
+        } catch {
+            // ignore
+        }
+
+        if (this.webSpeechService) {
+            this.webSpeechService.stop();
+        }
+        stopTTS();
+
+        handsFreeToggle?.classList.remove('active');
+        voiceToggle?.classList.remove('active', 'listening', 'speaking');
+        if (voiceIndicator) voiceIndicator.style.display = 'none';
+        if (input) input.style.display = 'block';
+        if (status) status.textContent = 'Ready to help';
+
+        this.hideInterimTranscript();
+    }
+
+    async runHandsFreeLoop(sessionId) {
+        const status = document.getElementById('aiStatus');
+        const voiceToggle = document.getElementById('aiVoiceToggle');
+
+        while (this.isHandsFreeMode && this.handsFreeSessionId === sessionId) {
+            try {
+                // Don’t listen while still processing a previous turn.
+                if (this.isProcessing) {
+                    await new Promise(r => setTimeout(r, 150));
+                    continue;
+                }
+
+                // Stop any TTS before starting recognition
+                stopTTS();
+
+                this.isListening = true;
+                voiceToggle?.classList.add('listening');
+                voiceToggle?.classList.remove('speaking');
+                if (status) status.textContent = 'Voice call: Listening...';
+
+                this.showInterimTranscript();
+
+                const interimUnsub = this.webSpeechService.on(RECOGNITION_EVENTS.INTERIM_RESULT, (interim) => {
+                    this.updateInterimTranscript(interim.text);
+                    try {
+                        eventStream.track('ai_voice_interim', { textLength: (interim.text || '').length });
+                    } catch {
+                        // ignore
+                    }
+                });
+
+                const result = await this.webSpeechService.listen(9000);
+                interimUnsub();
+                this.hideInterimTranscript();
+
+                this.isListening = false;
+
+                if (!this.isHandsFreeMode || this.handsFreeSessionId !== sessionId) break;
+
+                if (!result?.text || !result.text.trim()) {
+                    // No speech detected; loop continues.
+                    await new Promise(r => setTimeout(r, 120));
+                    continue;
+                }
+
+                // One turn
+                await this.sendMessage(result.text, { source: 'voice' });
+            } catch (error) {
+                Logger.error('ai_chat', 'Hands-free voice loop error', { error: error.message });
+                this.hideInterimTranscript();
+
+                // Non-recoverable errors stop the call
+                this.addMessageToUI('assistant', `🎤 Voice call stopped: ${error.message || 'Unknown error'}`);
+                this.stopHandsFreeMode();
+                break;
+            }
+        }
+    }
+
+    async unlockAudioPlayback() {
+        if (this.audioUnlocked) return true;
+
+        // Attempt a short silent playback; many browsers treat this as “user initiated”
+        // when called directly in a click handler (mic/phone button).
+        const silentWav =
+            'data:audio/wav;base64,' +
+            'UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=';
+
+        try {
+            const audio = new Audio(silentWav);
+            audio.volume = 0;
+            await audio.play();
+            audio.pause();
+            this.audioUnlocked = true;
+            return true;
+        } catch {
+            // Some browsers may still block; we’ll rely on Web Speech fallback or user interaction.
+            return false;
         }
     }
     

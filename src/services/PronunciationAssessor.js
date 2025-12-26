@@ -243,6 +243,9 @@ export class PronunciationAssessor {
         return text
             .toLowerCase()
             .trim()
+            // Remove diacritics (á/ã/ç/etc.) so accent marks don't overly penalize pronunciation matching
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
             // Normalize whitespace
             .replace(/\s+/g, ' ')
             // Remove punctuation

@@ -1515,6 +1515,43 @@ The lesson system had two incompatible data formats (legacy data.js vs rich buil
 
 ### 5.1 Core Principle: Continuous Learning Intelligence
 
+### 5.1A Current Implementation Status (Single Source of Truth)
+
+This section describes the **current AI system as implemented in code** (not aspirational). It is the canonical reference for what exists today and what is still missing.
+
+**Implemented (now):**
+- **AI Chat UI:** [src/components/ai/AIChat.js](src/components/ai/AIChat.js) (chat widget, voice input/output, interim transcription, inline audio, pronunciation assessment hooks)
+- **Chat launcher/FAB:** [ai-chat.js](ai-chat.js)
+- **AI Agent orchestration:** [src/services/ai/AIAgent.js](src/services/ai/AIAgent.js) (Ollama chat + tool calling integration)
+- **Tool schemas + validation:** [src/services/ai/ToolRegistry.js](src/services/ai/ToolRegistry.js)
+- **Tool execution wiring:** [src/services/ai/ToolHandlers.js](src/services/ai/ToolHandlers.js)
+- **Real-time event collection (debounced/batched):** [src/services/eventStreaming.js](src/services/eventStreaming.js)
+- **Voice input (STT):** [src/services/WebSpeechService.js](src/services/WebSpeechService.js) (pt-PT primary, interim results)
+- **Voice output (TTS):** [src/services/TTSService.js](src/services/TTSService.js) (Edge-TTS server `/tts` + Web Speech fallback)
+- **Pronunciation scoring:** [src/services/PronunciationAssessor.js](src/services/PronunciationAssessor.js)
+
+**AI Chat feature checklist (must not regress):**
+| Feature | Status | Notes |
+|---|---:|---|
+| Text chat | [x] | Uses `AIAgent.processInput()` |
+| Voice push-to-talk | [x] | One turn: listen → send → speak |
+| Hands-free “phone-style” voice | [x] | Loop: listen → send → speak → listen (turn-based, not streaming) |
+| Live transcription display | [x] | Uses Web Speech interim results |
+| Auto-speak replies toggle | [x] | Stored as `${userId}_ai_autoSpeakReplies` |
+| Inline 🔊 for **Portuguese** words | [x] | Buttons call `window.playPortugueseWord()` |
+| Pronunciation assessment in chat | [x] | `window.assessPronunciation()` hook + scorer |
+| Tool calling available to AI | [x] | Includes `speak_portuguese` tool handler |
+| Real-time AI logging of interactions | [~] | Event streaming exists; expand coverage to ALL required learning events |
+
+**Current limitations (explicit):**
+- The hands-free mode is **turn-based** (end-of-speech → send → full response → speak). It is not yet the <300ms **streaming** voice mode.
+- No true **barge-in** (interrupt assistant while speaking) beyond manual stop (future work: VAD + streaming pipeline).
+
+**Next engineering steps to reach “ChatGPT Voice Mode” feel:**
+1. **Streaming LLM output** from Ollama (tokens) → incremental TTS chunking (first-audio latency target: <300ms).
+2. **VAD-driven turn-taking + barge-in** (detect user speech start during TTS → stop TTS, start capture).
+3. **Latency instrumentation** (measure: STT start→final, LLM first token, TTS first audio, total turn time) and show in admin-only diagnostics.
+
 The AI is NOT a passive tool. It is an **active learning companion** that:
 1. **Ingests data in real-time** as the user interacts with the app
 2. **Detects patterns** in what the user struggles with
@@ -2154,7 +2191,7 @@ Check localStorage for session
 | VOICE-002 | Speed setting not applied (always 100%) | Critical |
 | VOICE-003 | No refresh/check for new voices | High |
 | VOICE-004 | Installed voices still shown in download list | Medium |
-| VOICE-005 | AI chat cannot speak with Portuguese accent | High |
+| VOICE-005 | AI chat cannot speak with Portuguese accent | Resolved |
 
 ### 8.2 Fixes Required
 
@@ -2200,7 +2237,7 @@ function getDownloadableVoices(catalog, installed) {
 | VOICE-004 | Filter installed from download list | [ ] | [ ] | N/A | P1 |
 | VOICE-005 | Add download verification | [ ] | [ ] | N/A | P1 |
 | VOICE-006 | Create voice test suite | [ ] | [ ] | N/A | P1 |
-| VOICE-007 | Add Portuguese accent to AI chat | [ ] | [ ] | N/A | P0 |
+| VOICE-007 | Add Portuguese accent to AI chat | [x] | [x] | N/A | P0 |
 | VOICE-008 | Create `VoiceDownloader.js` service | [ ] | [ ] | [ ] | P0 |
 
 ---
@@ -2314,10 +2351,26 @@ const componentRegistry = {
     },
     'ai-voice-input-btn': {
         name: 'AI Voice Input Button',
-        selector: '#aiVoiceBtn, .voice-input',
+        selector: '#aiVoiceToggle, .ai-voice-toggle',
         type: 'action',
         expectedBehavior: 'Starts voice recording',
         tests: ['exists', 'visible', 'clickable', 'starts-recording']
+    },
+
+    'ai-handsfree-btn': {
+        name: 'AI Hands-free Voice Call Button',
+        selector: '#aiHandsFreeToggle, .ai-handsfree-toggle',
+        type: 'action',
+        expectedBehavior: 'Starts/stops hands-free voice conversation loop',
+        tests: ['exists', 'visible', 'clickable', 'starts-voice-call', 'stops-voice-call']
+    },
+
+    'ai-auto-speak-btn': {
+        name: 'AI Auto-speak Replies Button',
+        selector: '#aiAutoSpeakToggle, .ai-auto-speak-toggle',
+        type: 'control',
+        expectedBehavior: 'Toggles whether assistant replies are spoken',
+        tests: ['exists', 'visible', 'clickable', 'state-persists']
     },
     
     // ACCORDION PANELS
