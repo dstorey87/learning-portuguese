@@ -829,6 +829,251 @@ export async function testPronunciation(expected, options = {}) {
     };
 }
 
+/**
+ * Run comprehensive speech recognition diagnostics
+ * Tests all components needed for speech recognition to work
+ * @returns {Promise<Object>} Diagnostic results with status and recommendations
+ */
+export async function runSpeechDiagnostics() {
+    const results = {
+        timestamp: new Date().toISOString(),
+        overall: 'unknown',
+        checks: [],
+        recommendations: [],
+        canUseSpeech: false
+    };
+    
+    // 1. Check browser support for SpeechRecognition API
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    results.checks.push({
+        name: 'Web Speech API',
+        status: SpeechRecognition ? 'pass' : 'fail',
+        detail: SpeechRecognition 
+            ? 'SpeechRecognition API is available' 
+            : 'SpeechRecognition API not supported',
+        critical: true
+    });
+    
+    if (!SpeechRecognition) {
+        results.recommendations.push('Your browser does not support speech recognition. Please use Chrome, Edge, or Safari.');
+    }
+    
+    // 2. Check MediaDevices API (for microphone access)
+    const hasMediaDevices = navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
+    results.checks.push({
+        name: 'MediaDevices API',
+        status: hasMediaDevices ? 'pass' : 'fail',
+        detail: hasMediaDevices 
+            ? 'MediaDevices API is available' 
+            : 'MediaDevices API not supported',
+        critical: true
+    });
+    
+    // 3. Check if running on HTTPS or localhost (required for getUserMedia)
+    const isSecureContext = window.isSecureContext;
+    const isLocalhost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    results.checks.push({
+        name: 'Secure Context',
+        status: (isSecureContext || isLocalhost) ? 'pass' : 'fail',
+        detail: isSecureContext 
+            ? 'Running in secure context (HTTPS)' 
+            : isLocalhost 
+                ? 'Running on localhost (microphone access allowed)' 
+                : 'Not running in secure context',
+        critical: true
+    });
+    
+    if (!isSecureContext && !isLocalhost) {
+        results.recommendations.push('Microphone access requires HTTPS. Please access this site via https://');
+    }
+    
+    // 4. Check AudioContext support
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    results.checks.push({
+        name: 'AudioContext',
+        status: AudioContextClass ? 'pass' : 'fail',
+        detail: AudioContextClass 
+            ? 'AudioContext is available' 
+            : 'AudioContext not supported',
+        critical: false
+    });
+    
+    // 5. Check microphone permission
+    let micPermission = 'unknown';
+    try {
+        if (navigator.permissions && navigator.permissions.query) {
+            const permission = await navigator.permissions.query({ name: 'microphone' });
+            micPermission = permission.state; // 'granted', 'denied', 'prompt'
+        }
+    } catch (e) {
+        // Some browsers don't support permission query for microphone
+        micPermission = 'unknown';
+    }
+    
+    results.checks.push({
+        name: 'Microphone Permission',
+        status: micPermission === 'granted' ? 'pass' : micPermission === 'denied' ? 'fail' : 'warning',
+        detail: micPermission === 'granted' 
+            ? 'Microphone access granted' 
+            : micPermission === 'denied' 
+                ? 'Microphone access denied' 
+                : 'Microphone permission not yet requested',
+        critical: true
+    });
+    
+    if (micPermission === 'denied') {
+        results.recommendations.push('Microphone access is denied. Click the lock/site settings icon in your browser\'s address bar and allow microphone access.');
+    } else if (micPermission === 'prompt' || micPermission === 'unknown') {
+        results.recommendations.push('Click the "Practice Saying It" button and allow microphone access when prompted.');
+    }
+    
+    // 6. Test microphone access directly
+    if (hasMediaDevices && (isSecureContext || isLocalhost)) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Get audio track info
+            const audioTrack = stream.getAudioTracks()[0];
+            const trackSettings = audioTrack.getSettings();
+            
+            results.checks.push({
+                name: 'Microphone Access',
+                status: 'pass',
+                detail: `Microphone connected: ${audioTrack.label || 'Default microphone'}`,
+                extra: {
+                    deviceId: trackSettings.deviceId,
+                    sampleRate: trackSettings.sampleRate,
+                    channelCount: trackSettings.channelCount
+                },
+                critical: true
+            });
+            
+            // Stop the stream
+            stream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+            results.checks.push({
+                name: 'Microphone Access',
+                status: 'fail',
+                detail: `Microphone test failed: ${err.message}`,
+                error: err.name,
+                critical: true
+            });
+            
+            if (err.name === 'NotAllowedError') {
+                results.recommendations.push('Please grant microphone permission when prompted, or check your browser settings.');
+            } else if (err.name === 'NotFoundError') {
+                results.recommendations.push('No microphone found. Please connect a microphone and try again.');
+            } else if (err.name === 'NotReadableError') {
+                results.recommendations.push('Microphone is in use by another application. Please close other apps using your microphone.');
+            } else {
+                results.recommendations.push(`Microphone error: ${err.message}`);
+            }
+        }
+    }
+    
+    // 7. Test Speech Recognition instantiation
+    if (SpeechRecognition) {
+        try {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-PT';
+            
+            // Test if Portuguese is supported
+            results.checks.push({
+                name: 'Portuguese (pt-PT) Support',
+                status: 'pass',
+                detail: 'Portuguese language configured',
+                critical: false
+            });
+            
+            // Clean up
+            recognition.abort();
+        } catch (err) {
+            results.checks.push({
+                name: 'Speech Recognition Init',
+                status: 'fail',
+                detail: `Failed to initialize: ${err.message}`,
+                critical: true
+            });
+        }
+    }
+    
+    // 8. Check network connectivity (speech recognition needs internet)
+    const isOnline = navigator.onLine;
+    results.checks.push({
+        name: 'Network Connection',
+        status: isOnline ? 'pass' : 'fail',
+        detail: isOnline 
+            ? 'Internet connection available' 
+            : 'No internet connection detected',
+        critical: true
+    });
+    
+    if (!isOnline) {
+        results.recommendations.push('Speech recognition requires an internet connection. Please check your network.');
+    }
+    
+    // 9. Check Web Workers (needed for Whisper)
+    const hasWebWorkers = typeof Worker !== 'undefined';
+    results.checks.push({
+        name: 'Web Workers',
+        status: hasWebWorkers ? 'pass' : 'warning',
+        detail: hasWebWorkers 
+            ? 'Web Workers available (needed for advanced features)' 
+            : 'Web Workers not available',
+        critical: false
+    });
+    
+    // Calculate overall status
+    const criticalChecks = results.checks.filter(c => c.critical);
+    const criticalPasses = criticalChecks.filter(c => c.status === 'pass').length;
+    const criticalFails = criticalChecks.filter(c => c.status === 'fail').length;
+    
+    if (criticalFails === 0) {
+        results.overall = 'ready';
+        results.canUseSpeech = true;
+    } else if (criticalPasses > criticalFails) {
+        results.overall = 'partial';
+        results.canUseSpeech = false;
+    } else {
+        results.overall = 'not-ready';
+        results.canUseSpeech = false;
+    }
+    
+    // Add summary recommendation
+    if (results.overall === 'ready') {
+        results.summary = '✅ Speech recognition is ready to use!';
+    } else if (results.overall === 'partial') {
+        results.summary = '⚠️ Some issues detected. Speech recognition may not work properly.';
+    } else {
+        results.summary = '❌ Speech recognition is not available. See recommendations below.';
+    }
+    
+    console.log('🎤 Speech Diagnostics:', results);
+    return results;
+}
+
+/**
+ * Quick check if speech recognition is available
+ * @returns {Object} Quick status check
+ */
+export function quickSpeechCheck() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const hasMediaDevices = navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
+    const isSecureContext = window.isSecureContext || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    const isOnline = navigator.onLine;
+    
+    const canUse = SpeechRecognition && hasMediaDevices && isSecureContext && isOnline;
+    
+    return {
+        available: canUse,
+        reasons: [
+            !SpeechRecognition && 'Browser does not support speech recognition',
+            !hasMediaDevices && 'Microphone access not available',
+            !isSecureContext && 'Must be on HTTPS or localhost',
+            !isOnline && 'No internet connection'
+        ].filter(Boolean)
+    };
+}
+
 // Export for use in other modules
 export default {
     initializeWhisper,
@@ -845,5 +1090,7 @@ export default {
     useWebSpeechRecognition,
     listenAndTranscribe,
     testPronunciation,
+    runSpeechDiagnostics,
+    quickSpeechCheck,
     WHISPER_MODELS
 };

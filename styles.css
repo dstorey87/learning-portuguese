@@ -3596,12 +3596,98 @@ body {
 
 .feedback-error {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
     padding: 1rem;
     background: rgba(245, 158, 11, 0.1);
     border-radius: 8px;
     color: var(--text);
+}
+
+.feedback-error.speech-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.feedback-error .error-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #dc2626;
+}
+
+.dark-theme .feedback-error .error-title {
+    color: #f87171;
+}
+
+.feedback-error .error-help {
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.feedback-error .error-help p {
+    margin: 0 0 0.5rem 0;
+}
+
+.feedback-error .error-help ol,
+.feedback-error .error-help ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.feedback-error .error-help li {
+    margin: 0.25rem 0;
+}
+
+.feedback-error .error-tips {
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.feedback-error .error-tips p {
+    margin: 0 0 0.25rem 0;
+    font-weight: 600;
+}
+
+.feedback-error .error-tips ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.85rem;
+}
+
+.feedback-error .error-tips li {
+    margin: 0.2rem 0;
+}
+
+/* Enhanced feedback result with transcription comparison */
+.feedback-result .heard-text {
+    margin-top: 0.5rem;
+    opacity: 0.8;
+}
+
+.feedback-result .feedback-tips {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
+}
+
+.feedback-result .tips-label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.feedback-result .feedback-tips ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.feedback-result .feedback-tips li {
+    margin: 0.2rem 0;
 }
 
 /* Listen buttons */

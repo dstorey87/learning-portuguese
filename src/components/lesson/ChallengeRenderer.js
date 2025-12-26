@@ -493,10 +493,12 @@ export class ChallengeRenderer {
                 });
                 if (result && result.bestScore) {
                     this._showPronunciationFeedback(container, result.bestScore, resolved);
+                } else {
+                    this._showPronunciationFeedback(container, null, resolved);
                 }
             } catch (err) {
                 console.error('Speech recognition error:', err);
-                this._showPronunciationFeedback(container, null, resolved);
+                this._showPronunciationFeedback(container, null, resolved, err);
             }
             
             btn.textContent = '🎤 Try Again';
@@ -517,18 +519,91 @@ export class ChallengeRenderer {
      * Show pronunciation feedback overlay
      * @private
      */
-    _showPronunciationFeedback(container, scoreResult, expected) {
+    _showPronunciationFeedback(container, scoreResult, expected, error = null) {
         const existingFeedback = container.querySelector('.pronunciation-feedback');
         if (existingFeedback) existingFeedback.remove();
         
         const feedbackDiv = document.createElement('div');
         feedbackDiv.className = 'pronunciation-feedback';
         
-        if (!scoreResult || scoreResult.score === null) {
+        if (error) {
+            // Handle specific error types with helpful guidance
+            let errorMessage = '';
+            let errorHelp = '';
+            
+            if (error.message?.includes('not-allowed') || error.message?.includes('denied')) {
+                errorMessage = '🎤 Microphone Access Denied';
+                errorHelp = `
+                    <div class="error-help">
+                        <p>To practice pronunciation, please allow microphone access:</p>
+                        <ol>
+                            <li>Click the lock/site settings icon in your browser's address bar</li>
+                            <li>Find "Microphone" and set it to "Allow"</li>
+                            <li>Refresh the page and try again</li>
+                        </ol>
+                    </div>
+                `;
+            } else if (error.message?.includes('NotFoundError') || error.message?.includes('no microphone')) {
+                errorMessage = '🔌 No Microphone Found';
+                errorHelp = `
+                    <div class="error-help">
+                        <p>Please connect a microphone to practice pronunciation:</p>
+                        <ul>
+                            <li>Check if your microphone is plugged in</li>
+                            <li>Try using a headset with a built-in mic</li>
+                            <li>Check your system sound settings</li>
+                        </ul>
+                    </div>
+                `;
+            } else if (error.message?.includes('network') || !navigator.onLine) {
+                errorMessage = '📡 Network Error';
+                errorHelp = `
+                    <div class="error-help">
+                        <p>Speech recognition requires an internet connection.</p>
+                        <p>Please check your network and try again.</p>
+                    </div>
+                `;
+            } else if (error.message?.includes('not supported')) {
+                errorMessage = '🌐 Browser Not Supported';
+                errorHelp = `
+                    <div class="error-help">
+                        <p>Your browser doesn't support speech recognition.</p>
+                        <p>Please try using:</p>
+                        <ul>
+                            <li>Google Chrome (recommended)</li>
+                            <li>Microsoft Edge</li>
+                            <li>Safari (on Mac/iOS)</li>
+                        </ul>
+                    </div>
+                `;
+            } else {
+                errorMessage = '❓ Something Went Wrong';
+                errorHelp = `
+                    <div class="error-help">
+                        <p>${escapeHtml(error.message || 'Please try again.')}</p>
+                    </div>
+                `;
+            }
+            
+            feedbackDiv.innerHTML = `
+                <div class="feedback-error speech-error">
+                    <div class="error-title">${errorMessage}</div>
+                    ${errorHelp}
+                </div>
+            `;
+        } else if (!scoreResult || scoreResult.score === null || scoreResult.rating === 'no-speech') {
             feedbackDiv.innerHTML = `
                 <div class="feedback-error">
                     <span class="feedback-icon">❓</span>
-                    <span>Couldn't hear you clearly. Try again.</span>
+                    <span>Couldn't hear you clearly. Make sure your microphone is working and try again.</span>
+                    <div class="error-tips">
+                        <p>💡 Tips:</p>
+                        <ul>
+                            <li>Speak clearly and close to your microphone</li>
+                            <li>Wait for the "Listening..." indicator before speaking</li>
+                            <li>Try in a quieter environment</li>
+                        </ul>
+                    </div>
                 </div>
             `;
         } else {
@@ -553,7 +628,21 @@ export class ChallengeRenderer {
                             <span class="comparison-label">Expected:</span>
                             <span class="comparison-value">${escapeHtml(expected)}</span>
                         </div>
+                        ${scoreResult.transcribed ? `
+                        <div class="heard-text">
+                            <span class="comparison-label">We heard:</span>
+                            <span class="comparison-value">${escapeHtml(scoreResult.transcribed)}</span>
+                        </div>
+                        ` : ''}
                     </div>
+                    ${scoreResult.tips && scoreResult.tips.length > 0 ? `
+                    <div class="feedback-tips">
+                        <span class="tips-label">💡 Tips:</span>
+                        <ul>
+                            ${scoreResult.tips.slice(0, 2).map(tip => `<li>${escapeHtml(tip)}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
                 </div>
             `;
         }
