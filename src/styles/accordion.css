@@ -1,0 +1,618 @@
+/**
+ * Accordion Styles
+ * 
+ * Expandable/collapsible panel styles with:
+ * - Smooth height animations (300ms)
+ * - Icon rotation
+ * - Mobile-responsive touch targets
+ * - Focus states for accessibility
+ * 
+ * @phase Phase 4 - Lesson Layout & Options Panel
+ */
+
+/* ============================================================================
+   ACCORDION CONTAINER
+   ============================================================================ */
+
+.accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-radius: var(--border-radius-md, 8px);
+    overflow: hidden;
+    background: var(--surface-color, #ffffff);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+}
+
+/* ============================================================================
+   ACCORDION PANEL
+   ============================================================================ */
+
+.accordion-panel {
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.accordion-panel:last-child {
+    border-bottom: none;
+}
+
+.accordion-panel.open {
+    background: var(--surface-highlight, #f9fafb);
+}
+
+/* ============================================================================
+   ACCORDION HEADER (Clickable)
+   ============================================================================ */
+
+.accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 16px 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    text-align: left;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-height: 56px; /* Touch-friendly target */
+}
+
+.accordion-header:hover {
+    background: var(--surface-hover, #f3f4f6);
+}
+
+.accordion-header:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--primary-color, #3b82f6);
+}
+
+.accordion-header:focus-visible {
+    outline: 2px solid var(--primary-color, #3b82f6);
+    outline-offset: -2px;
+}
+
+.accordion-panel.open .accordion-header {
+    color: var(--primary-color, #3b82f6);
+    background: var(--surface-highlight, #f0f9ff);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* Icon wrapper */
+.accordion-icon-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.accordion-section-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.accordion-title {
+    font-weight: 600;
+}
+
+/* Toggle icon (arrow) */
+.accordion-toggle-icon {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.accordion-panel.open .accordion-toggle-icon {
+    color: var(--primary-color, #3b82f6);
+}
+
+/* ============================================================================
+   ACCORDION CONTENT
+   ============================================================================ */
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.accordion-panel.open .accordion-content {
+    /* max-height is dynamically set by JavaScript based on content */
+    visibility: visible;
+}
+
+.accordion-panel.animating .accordion-content {
+    overflow: hidden;
+}
+
+.accordion-content-inner {
+    padding: 16px 20px;
+    color: var(--text-secondary, #4b5563);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* ============================================================================
+   CONTENT SECTION STYLES
+   ============================================================================ */
+
+/* Pronunciation */
+.accordion-content .pronunciation-guide {
+    font-size: 1.1rem;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 8px;
+}
+
+.accordion-content .ipa {
+    font-family: 'Doulos SIL', 'Charis SIL', serif;
+    font-size: 1.2rem;
+    color: var(--primary-color, #3b82f6);
+    margin-bottom: 12px;
+}
+
+.accordion-content .tip {
+    background: var(--warning-bg, #fef3c7);
+    border-left: 3px solid var(--warning-color, #f59e0b);
+    padding: 12px 16px;
+    border-radius: 0 var(--border-radius-sm, 4px) var(--border-radius-sm, 4px) 0;
+    font-size: 0.9rem;
+}
+
+/* Memory tricks */
+.accordion-content .etymology {
+    margin-bottom: 12px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.accordion-content .memory-trick {
+    background: var(--info-bg, #dbeafe);
+    padding: 12px 16px;
+    border-radius: var(--border-radius-sm, 4px);
+    font-style: italic;
+}
+
+/* Examples */
+.accordion-content .examples-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.accordion-content .example-item {
+    padding: 12px;
+    background: var(--surface-secondary, #f9fafb);
+    border-radius: var(--border-radius-sm, 4px);
+    border-left: 3px solid var(--primary-color, #3b82f6);
+}
+
+.accordion-content .example-pt {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 4px;
+}
+
+.accordion-content .example-en {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9rem;
+}
+
+/* Grammar notes */
+.accordion-content .grammar-note {
+    padding: 12px 16px;
+    background: var(--surface-secondary, #f9fafb);
+    border-radius: var(--border-radius-sm, 4px);
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* Usage context */
+.accordion-content .usage-formality {
+    margin-bottom: 12px;
+}
+
+.accordion-content .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.accordion-content .usage-context {
+    margin-bottom: 8px;
+}
+
+.accordion-content .usage-alt {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #6b7280);
+    font-style: italic;
+}
+
+/* Cultural insight */
+.accordion-content .cultural-note {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #006600 0%, #ff0000 100%);
+    background-size: 200% 200%;
+    color: white;
+    border-radius: var(--border-radius-sm, 4px);
+    position: relative;
+}
+
+.accordion-content .cultural-note::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: var(--surface-color, #ffffff);
+    border-radius: calc(var(--border-radius-sm, 4px) - 2px);
+    z-index: 0;
+}
+
+.accordion-content .cultural-note > * {
+    position: relative;
+    z-index: 1;
+    color: var(--text-primary, #1f2937);
+}
+
+/* AI Tips */
+.accordion-content .ai-tips-content {
+    min-height: 60px;
+}
+
+.accordion-content .ai-loading {
+    color: var(--text-secondary, #6b7280);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.accordion-content .ai-loading::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color, #e5e7eb);
+    border-top-color: var(--primary-color, #3b82f6);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.accordion-content .ai-tip-item {
+    padding: 12px;
+    background: linear-gradient(135deg, var(--info-bg, #dbeafe) 0%, var(--surface-color, #ffffff) 100%);
+    border-radius: var(--border-radius-sm, 4px);
+    margin-bottom: 8px;
+    border-left: 3px solid var(--info-color, #3b82f6);
+}
+
+.accordion-content .ai-tip-item:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================================================
+   LESSON OPTIONS PANEL (Right Side)
+   ============================================================================ */
+
+.lesson-options-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--surface-color, #ffffff);
+    border-left: 1px solid var(--border-color, #e5e7eb);
+    overflow-y: auto;
+}
+
+.lesson-options-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary, #1f2937);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    background: var(--surface-color, #ffffff);
+    z-index: 1;
+}
+
+.lesson-options-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ============================================================================
+   SPLIT LESSON LAYOUT (Word Card + Options Panel)
+   ============================================================================ */
+
+.lesson-split-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 0;
+    height: 100%;
+    min-height: 500px;
+}
+
+.lesson-main-content {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.lesson-options-panel {
+    width: 360px;
+    max-width: 100%;
+}
+
+/* ============================================================================
+   MOBILE DRAWER VARIANT
+   ============================================================================ */
+
+@media (max-width: 767px) {
+    .lesson-split-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+    }
+
+    .lesson-options-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 70vh;
+        border-radius: 16px 16px 0 0;
+        border-left: none;
+        border-top: 1px solid var(--border-color, #e5e7eb);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        transform: translateY(calc(100% - 56px));
+        transition: transform 0.3s ease;
+        z-index: 100;
+    }
+
+    .lesson-options-panel.expanded {
+        transform: translateY(0);
+    }
+
+    .lesson-options-panel .lesson-options-header {
+        cursor: pointer;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .lesson-options-panel .lesson-options-header::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: var(--border-color, #d1d5db);
+        border-radius: 2px;
+    }
+
+    .lesson-options-panel .accordion-header {
+        padding: 14px 16px;
+        min-height: 48px;
+    }
+
+    .lesson-options-panel .accordion-content-inner {
+        padding: 12px 16px;
+    }
+}
+
+/* ============================================================================
+   TABLET ADJUSTMENTS
+   ============================================================================ */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .lesson-split-layout {
+        grid-template-columns: 1fr 300px;
+    }
+
+    .lesson-options-panel {
+        width: 300px;
+    }
+
+    .accordion-header {
+        padding: 14px 16px;
+    }
+
+    .accordion-content-inner {
+        padding: 14px 16px;
+    }
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+/* Opening animation */
+.accordion-panel.animating .accordion-content {
+    transition: max-height 0.3s ease-out;
+}
+
+/* Hover effect on panels */
+.accordion-panel:not(.open) .accordion-header:hover .accordion-toggle-icon {
+    transform: translateX(2px);
+}
+
+/* Active/pressed state */
+.accordion-header:active {
+    transform: scale(0.99);
+}
+
+/* ============================================================================
+   DARK MODE SUPPORT
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .accordion {
+        background: var(--surface-color-dark, #1f2937);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .accordion-panel {
+        border-color: var(--border-color-dark, #374151);
+    }
+
+    .accordion-header {
+        color: var(--text-primary-dark, #f3f4f6);
+    }
+
+    .accordion-header:hover {
+        background: var(--surface-hover-dark, #374151);
+    }
+
+    .accordion-panel.open .accordion-header {
+        background: var(--surface-highlight-dark, #1e3a5f);
+    }
+
+    .accordion-content-inner {
+        color: var(--text-secondary-dark, #9ca3af);
+    }
+}
+
+/* ============================================================================
+   LEARN CARD ACCORDION VARIANT
+   ============================================================================ */
+
+.learn-card-accordion {
+    max-width: none;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.learn-card-accordion .learn-word-display {
+    text-align: center;
+    padding: 32px 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+.learn-card-accordion .learn-portuguese-main {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--primary-color, #3b82f6);
+    line-height: 1.2;
+}
+
+.learn-card-accordion .learn-ipa {
+    font-family: 'Doulos SIL', 'Charis SIL', serif;
+    font-size: 1.5rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.learn-card-accordion .learn-english-main {
+    font-size: 1.75rem;
+    color: var(--text-primary, #1f2937);
+    font-weight: 600;
+}
+
+.learn-card-accordion .learn-alt-form {
+    font-size: 1rem;
+    color: var(--text-secondary, #6b7280);
+    font-style: italic;
+}
+
+.learn-card-accordion .learn-card-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px;
+    flex-wrap: wrap;
+}
+
+.learn-card-accordion .btn-listen-main,
+.learn-card-accordion .btn-save-word,
+.learn-card-accordion .btn-practice-say {
+    padding: 12px 20px;
+    border-radius: var(--border-radius-md, 8px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.learn-card-accordion .btn-listen-main {
+    background: var(--primary-color, #3b82f6);
+    color: white;
+}
+
+.learn-card-accordion .btn-listen-main:hover {
+    background: var(--primary-dark, #2563eb);
+}
+
+.learn-card-accordion .btn-save-word {
+    background: var(--surface-secondary, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+    border-color: var(--border-color, #e5e7eb);
+}
+
+.learn-card-accordion .btn-save-word:hover {
+    background: var(--surface-hover, #e5e7eb);
+}
+
+.learn-card-accordion .btn-practice-say {
+    background: var(--success-color, #10b981);
+    color: white;
+}
+
+.learn-card-accordion .btn-practice-say:hover {
+    background: var(--success-dark, #059669);
+}
+
+.learn-card-accordion .btn-practice-say.recording {
+    background: var(--warning-color, #f59e0b);
+    animation: pulse 1.5s infinite;
+}
+
+.learn-card-accordion .pronunciation-visualizer-container {
+    min-height: 80px;
+    padding: 0 24px;
+}
+
+.learn-card-accordion .challenge-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+    .accordion-panel {
+        break-inside: avoid;
+    }
+
+    .accordion-content {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .accordion-toggle-icon {
+        display: none;
+    }
+}

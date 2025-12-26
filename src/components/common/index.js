@@ -50,7 +50,14 @@ export {
     default as ProgressChart
 } from './ProgressChart.js';
 
+export {
+    AccordionSection,
+    Accordion,
+    createAccordion,
+    ACCORDION_ICONS,
+    default as AccordionDefault
+} from './Accordion.js';
+
 // Future exports
 // export { Button } from './Button.js';
 // export { StatusIndicator } from './StatusIndicator.js';
-// export { Accordion } from './Accordion.js';

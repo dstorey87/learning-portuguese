@@ -12,6 +12,7 @@
  * - buttons.css: Button styles
  * - cards.css: Card components
  * - animations.css: Keyframes and transitions
+ * - accordion.css: Expandable/collapsible panels
  * 
  * @module styles
  */
@@ -19,7 +20,7 @@
 // This file documents the CSS structure
 // Actual CSS files will be imported in index.html or bundled
 
-export const STYLES_VERSION = '0.1.0';
+export const STYLES_VERSION = '0.2.0';
 
 export const CSS_FILES = [
     'variables.css',
@@ -30,5 +31,6 @@ export const CSS_FILES = [
     'toast.css',
     'buttons.css',
     'cards.css',
-    'animations.css'
+    'animations.css',
+    'accordion.css'
 ];

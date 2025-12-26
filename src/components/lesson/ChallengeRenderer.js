@@ -12,9 +12,11 @@
  * 
  * @module components/lesson/ChallengeRenderer
  * @updated Phase 14 - Enhanced with new speech services
+ * @updated Phase 4 - Accordion-based lesson options panel
  */
 
 import { AudioVisualizer, RECORDING_STATE } from './AudioVisualizer.js';
+import { LessonOptionsPanel, createLessonOptionsPanel } from './LessonOptionsPanel.js';
 import { 
     getWebSpeechService, 
     isWebSpeechAvailable,
@@ -306,6 +308,12 @@ export class ChallengeRenderer {
         this.onCorrect = options.onCorrect || (() => {});
         this.onHeartsUpdate = options.onHeartsUpdate || (() => {});
         this.onShowHeartsModal = options.onShowHeartsModal || (() => {});
+        
+        // Feature flags
+        this.useAccordionLayout = options.useAccordionLayout !== false; // Default to true
+        
+        // Track LessonOptionsPanel instance for cleanup
+        this.optionsPanel = null;
     }
 
     /**
@@ -315,6 +323,16 @@ export class ChallengeRenderer {
     setSpeakerGender(gender) {
         this.speakerGender = gender;
     }
+    
+    /**
+     * Cleanup resources
+     */
+    destroy() {
+        if (this.optionsPanel) {
+            this.optionsPanel.destroy();
+            this.optionsPanel = null;
+        }
+    }
 
     /**
      * Render a challenge based on type
@@ -323,6 +341,12 @@ export class ChallengeRenderer {
      * @param {Object} state - Lesson state
      */
     render(container, challenge, state) {
+        // Cleanup previous optionsPanel if any
+        if (this.optionsPanel) {
+            this.optionsPanel.destroy();
+            this.optionsPanel = null;
+        }
+        
         // Animate transition
         container.classList.add('challenge-exit');
         
@@ -333,7 +357,11 @@ export class ChallengeRenderer {
             
             switch (challenge.type) {
                 case CHALLENGE_TYPES.LEARN_WORD:
-                    this.renderLearnWord(container, challenge, state);
+                    if (this.useAccordionLayout) {
+                        this.renderLearnWordAccordion(container, challenge, state);
+                    } else {
+                        this.renderLearnWord(container, challenge, state);
+                    }
                     break;
                 case CHALLENGE_TYPES.PRONUNCIATION:
                     this.renderPronunciation(container, challenge, state);
@@ -652,6 +680,290 @@ export class ChallengeRenderer {
             btn.addEventListener('click', () => this.playWord(btn.dataset.text));
         });
         
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            this.onChallengeComplete(state);
+        });
+    }
+
+    /**
+     * Render Learn Word challenge with accordion layout (Phase 4)
+     * Split layout: Word card on left, expandable options panel on right
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data
+     * @param {Object} state - Lesson state
+     */
+    renderLearnWordAccordion(container, challenge, state) {
+        const word = challenge.word;
+        const resolved = resolveWordForm(word, this.speakerGender);
+        const alt = getAlternateForm(word, this.speakerGender);
+        
+        const knowledge = this.getWordKnowledge(resolved);
+        const hasKnowledge = knowledge !== null;
+        const learnWordCount = state.challenges.filter(c => c.type === CHALLENGE_TYPES.LEARN_WORD).length;
+        
+        // Build the split layout HTML
+        const layoutHTML = `
+            <div class="lesson-split-layout">
+                <!-- Left: Word Card Main Content -->
+                <div class="lesson-main-content">
+                    <div class="challenge-card learn-card learn-card-accordion">
+                        <div class="challenge-instruction">📚 Learn This Word</div>
+                        
+                        <div class="learn-word-display">
+                            <div class="learn-portuguese-main">${escapeHtml(resolved)}</div>
+                            ${hasKnowledge && knowledge.ipa ? `<div class="learn-ipa">${escapeHtml(knowledge.ipa)}</div>` : ''}
+                            <div class="learn-english-main">${escapeHtml(word.en)}</div>
+                            ${alt ? `<div class="learn-alt-form">Also: ${escapeHtml(alt)}</div>` : ''}
+                        </div>
+                        
+                        <div class="learn-card-actions">
+                            <button class="btn-listen-main" id="listenBtn">🔊 Listen</button>
+                            <button class="btn-save-word" id="saveWordBtn" data-pt="${escapeHtml(resolved)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
+                            <button class="btn-practice-say" id="practiceBtn">🎤 Practice</button>
+                        </div>
+                        
+                        <div class="pronunciation-visualizer-container"></div>
+                        
+                        <div class="challenge-footer">
+                            <div class="word-progress-indicator">Word ${challenge.index + 1} of ${learnWordCount}</div>
+                            <button class="btn-continue" id="continueBtn">I've Got It! Continue →</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right: Options Panel with Accordion -->
+                <div class="lesson-options-container" id="optionsPanelContainer"></div>
+            </div>
+        `;
+        
+        container.innerHTML = layoutHTML;
+        
+        // Initialize the LessonOptionsPanel
+        const panelContainer = container.querySelector('#optionsPanelContainer');
+        this.optionsPanel = createLessonOptionsPanel(panelContainer, {
+            singleOpen: true,
+            persistLastOpen: true,
+            onAudioPlay: (audioSrc) => {
+                this.playWord(audioSrc);
+            },
+            onSectionChange: (sectionId, isOpen) => {
+                // Track user interaction for AI
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'section_toggle',
+                        wordId: getWordKey(word),
+                        sectionId,
+                        isOpen,
+                        timestamp: Date.now()
+                    });
+                } catch (e) {
+                    logger.warn('Failed to stream section toggle event', e);
+                }
+            }
+        });
+        
+        // Build word data for the panel
+        const wordData = this._buildWordDataForPanel(word, knowledge, resolved);
+        this.optionsPanel.setWordData(wordData);
+        
+        // Auto-play audio
+        setTimeout(() => this.playWord(resolved), CHALLENGE_CONFIG.autoPlayDelay + 100);
+        
+        // Bind event listeners
+        this._bindLearnWordAccordionEvents(container, word, knowledge, state, resolved);
+    }
+    
+    /**
+     * Build word data object for LessonOptionsPanel
+     * @private
+     */
+    _buildWordDataForPanel(word, knowledge, resolved) {
+        const hasKnowledge = knowledge !== null;
+        
+        return {
+            word: resolved,
+            wordId: getWordKey(word),
+            pronunciation: hasKnowledge && knowledge.pronunciation ? {
+                ipa: knowledge.ipa,
+                guide: knowledge.pronunciation.guide,
+                tip: knowledge.pronunciation.tip,
+                breakdown: knowledge.pronunciation.breakdown,
+                commonMistake: knowledge.pronunciation.commonMistake
+            } : {
+                guide: this.generatePronunciationTip(resolved),
+                tip: `Challenge: ${this.getPronunciationChallengeType(resolved)}`
+            },
+            memory: hasKnowledge ? {
+                etymology: knowledge.etymology,
+                trick: knowledge.memoryTrick
+            } : null,
+            examples: hasKnowledge ? knowledge.examples : null,
+            grammar: hasKnowledge ? knowledge.grammar : null,
+            usage: hasKnowledge && knowledge.usage ? {
+                formality: knowledge.usage.formality,
+                context: knowledge.usage.context,
+                alternatives: knowledge.usage.alternative ? [knowledge.usage.alternative] : null
+            } : null,
+            cultural: hasKnowledge ? knowledge.cultural : null,
+            aiTips: null // Will be loaded dynamically
+        };
+    }
+    
+    /**
+     * Bind event listeners for accordion learn word view
+     * @private
+     */
+    _bindLearnWordAccordionEvents(container, word, knowledge, state, resolved) {
+        // Listen button
+        document.getElementById('listenBtn').addEventListener('click', () => {
+            this.playWord(resolved);
+        });
+        
+        // Save button
+        document.getElementById('saveWordBtn').addEventListener('click', (e) => {
+            const btn = e.target;
+            this.saveToFlashcards(btn.dataset.pt, btn.dataset.en, state.lesson.title);
+            btn.textContent = '✓ Saved!';
+            btn.disabled = true;
+        });
+        
+        // Get the visualizer container
+        const visualizerContainer = container.querySelector('.pronunciation-visualizer-container');
+        
+        // Create AudioVisualizer instance
+        const visualizer = new AudioVisualizer({
+            onStateChange: (visualizerState) => {
+                logger.debug('Visualizer state:', visualizerState);
+            }
+        });
+        
+        // Practice button - pronunciation practice
+        document.getElementById('practiceBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('practiceBtn');
+            
+            // Remove any existing feedback
+            const existingFeedback = container.querySelector('.pronunciation-feedback');
+            if (existingFeedback) existingFeedback.remove();
+            
+            // Check Web Speech availability
+            if (!isWebSpeechAvailable()) {
+                this._showPronunciationFeedback(container, null, resolved, {
+                    message: 'not supported',
+                    code: 'not-supported'
+                });
+                return;
+            }
+            
+            // Show visualizer
+            visualizerContainer.innerHTML = '';
+            visualizer.create(visualizerContainer);
+            visualizer.setState(RECORDING_STATE.READY);
+            
+            btn.innerHTML = '<span class="recording-dot"></span> Recording...';
+            btn.classList.add('recording');
+            btn.disabled = true;
+            
+            let stream = null;
+            const startTime = Date.now();
+            
+            try {
+                // Get microphone access
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                // Start visualizer
+                await visualizer.start(stream);
+                
+                // Get the WebSpeechService
+                const speechService = getWebSpeechService();
+                
+                // Listen for speech
+                const recognitionResult = await speechService.listen(5000, {
+                    continuous: false,
+                    interimResults: false
+                });
+                
+                // Stop visualizer
+                visualizer.stop();
+                
+                // Stop stream tracks
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Score the result using PhoneticScorer
+                const transcribed = recognitionResult.text || '';
+                const scoreResult = phoneticScore(transcribed, resolved, {
+                    wordKnowledge: knowledge
+                });
+                
+                // Merge recognition result data
+                scoreResult.transcribed = transcribed;
+                scoreResult.alternatives = recognitionResult.alternatives || [];
+                scoreResult.confidence = recognitionResult.confidence || 0;
+                
+                const responseTime = Date.now() - startTime;
+                
+                // Stream to AI pipeline (MANDATORY)
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'pronunciation_score',
+                        wordId: getWordKey(word),
+                        word: resolved,
+                        timestamp: Date.now(),
+                        score: scoreResult.score,
+                        rating: scoreResult.rating,
+                        transcribed,
+                        expected: resolved,
+                        responseTime,
+                        phonemeIssues: scoreResult.phonemeIssues || [],
+                        confidence: scoreResult.confidence
+                    });
+                } catch (streamErr) {
+                    logger.warn('Failed to stream pronunciation event', streamErr);
+                }
+                
+                if (scoreResult && scoreResult.score > 0) {
+                    visualizer.setState(RECORDING_STATE.COMPLETE, {
+                        message: `Score: ${Math.round(scoreResult.score)}%`
+                    });
+                    this._showPronunciationFeedback(container, scoreResult, resolved);
+                    
+                    // Update AI tips based on score
+                    if (this.optionsPanel && scoreResult.phonemeIssues?.length > 0) {
+                        const tips = scoreResult.phonemeIssues.map(issue => ({
+                            tip: `Focus on the "${issue.phoneme}" sound - ${issue.suggestion || 'practice slowly'}`
+                        }));
+                        this.optionsPanel.updateAITips(tips);
+                    }
+                } else {
+                    visualizer.setState(RECORDING_STATE.ERROR, { message: 'No speech detected' });
+                    this._showPronunciationFeedback(container, null, resolved);
+                }
+            } catch (err) {
+                logger.error('Speech recognition error:', err);
+                
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                visualizer.stop();
+                visualizer.setState(RECORDING_STATE.ERROR, { message: err.message?.substring(0, 30) });
+                this._showPronunciationFeedback(container, null, resolved, err);
+            }
+            
+            btn.innerHTML = '🎤 Try Again';
+            btn.classList.remove('recording');
+            btn.disabled = false;
+        });
+        
+        // Continue button
         document.getElementById('continueBtn').addEventListener('click', () => {
             this.onChallengeComplete(state);
         });

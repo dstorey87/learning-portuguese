@@ -56,5 +56,11 @@ export {
     default as AudioVisualizerDefault
 } from './AudioVisualizer.js';
 
-// Future exports
-// export { OptionsPanel } from './OptionsPanel.js';
+export {
+    LessonOptionsPanel,
+    createLessonOptionsPanel,
+    SECTION_CONFIG,
+    SECTION_ORDER,
+    contentRenderers,
+    default as LessonOptionsPanelDefault
+} from './LessonOptionsPanel.js';
