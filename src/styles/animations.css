@@ -1,0 +1,352 @@
+/**
+ * Animation Styles
+ * 
+ * Reusable animations and transitions:
+ * - Fade animations
+ * - Slide animations
+ * - Scale animations
+ * - Spin animations
+ * - Pulse and bounce
+ * - Utility classes
+ * 
+ * @module styles/animations
+ */
+
+/* ============================================================================
+   FADE ANIMATIONS
+   ============================================================================ */
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in-left {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fade-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ============================================================================
+   SLIDE ANIMATIONS
+   ============================================================================ */
+
+@keyframes slide-in-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes slide-in-down {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes slide-out-up {
+    from { transform: translateY(0); }
+    to { transform: translateY(-100%); }
+}
+
+@keyframes slide-out-down {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+}
+
+/* ============================================================================
+   SCALE ANIMATIONS
+   ============================================================================ */
+
+@keyframes scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes scale-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes pop-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    70% {
+        transform: scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ============================================================================
+   SPIN ANIMATIONS
+   ============================================================================ */
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+/* ============================================================================
+   PULSE ANIMATIONS
+   ============================================================================ */
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes pulse-scale {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.1); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.1); }
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(102, 126, 234, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.8); }
+}
+
+/* ============================================================================
+   BOUNCE ANIMATIONS
+   ============================================================================ */
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+        transform: translateY(-25%);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+
+@keyframes bounce-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+@keyframes rubber-band {
+    0% { transform: scale(1); }
+    30% { transform: scaleX(1.25) scaleY(0.75); }
+    40% { transform: scaleX(0.75) scaleY(1.25); }
+    50% { transform: scaleX(1.15) scaleY(0.85); }
+    65% { transform: scaleX(0.95) scaleY(1.05); }
+    75% { transform: scaleX(1.05) scaleY(0.95); }
+    100% { transform: scale(1); }
+}
+
+/* ============================================================================
+   SHAKE ANIMATIONS
+   ============================================================================ */
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+}
+
+/* ============================================================================
+   PROGRESS ANIMATIONS
+   ============================================================================ */
+
+@keyframes progress-indeterminate {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(400%);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+/* Fade animations */
+.animate-fade-in { animation: fade-in var(--transition-normal) forwards; }
+.animate-fade-out { animation: fade-out var(--transition-normal) forwards; }
+.animate-fade-in-up { animation: fade-in-up var(--transition-normal) forwards; }
+.animate-fade-in-down { animation: fade-in-down var(--transition-normal) forwards; }
+.animate-fade-in-left { animation: fade-in-left var(--transition-normal) forwards; }
+.animate-fade-in-right { animation: fade-in-right var(--transition-normal) forwards; }
+
+/* Slide animations */
+.animate-slide-in-up { animation: slide-in-up var(--transition-normal) forwards; }
+.animate-slide-in-down { animation: slide-in-down var(--transition-normal) forwards; }
+.animate-slide-in-left { animation: slide-in-left var(--transition-normal) forwards; }
+.animate-slide-in-right { animation: slide-in-right var(--transition-normal) forwards; }
+
+/* Scale animations */
+.animate-scale-in { animation: scale-in var(--transition-normal) forwards; }
+.animate-scale-out { animation: scale-out var(--transition-normal) forwards; }
+.animate-pop-in { animation: pop-in var(--transition-spring) forwards; }
+
+/* Continuous animations */
+.animate-spin { animation: spin 1s linear infinite; }
+.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-bounce { animation: bounce 1s infinite; }
+.animate-heartbeat { animation: heartbeat 1s ease-in-out infinite; }
+.animate-glow { animation: glow 2s ease-in-out infinite; }
+.animate-shake { animation: shake 0.5s ease-in-out; }
+.animate-wiggle { animation: wiggle 0.5s ease-in-out; }
+
+/* Skeleton loading */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--surface-subtle) 25%,
+        var(--surface-hover) 50%,
+        var(--surface-subtle) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+/* Progress bar indeterminate */
+.progress-indeterminate::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 30%;
+    background: var(--accent);
+    animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+/* ============================================================================
+   TRANSITION UTILITIES
+   ============================================================================ */
+
+.transition-none { transition: none; }
+.transition-fast { transition: all var(--transition-fast); }
+.transition-normal { transition: all var(--transition-normal); }
+.transition-slow { transition: all var(--transition-slow); }
+
+/* Transform utilities */
+.hover-lift:hover { transform: translateY(-4px); }
+.hover-scale:hover { transform: scale(1.05); }
+.hover-rotate:hover { transform: rotate(5deg); }
+
+/* ============================================================================
+   STAGGERED ANIMATIONS
+   ============================================================================ */
+
+.stagger-children > * {
+    opacity: 0;
+    animation: fade-in-up var(--transition-normal) forwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 450ms; }

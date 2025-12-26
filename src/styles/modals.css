@@ -1,0 +1,264 @@
+/**
+ * Modal Styles
+ * 
+ * Modal dialog components:
+ * - Backdrop
+ * - Dialog container
+ * - Header, body, footer
+ * - Sizes and animations
+ * 
+ * @module styles/modals
+ */
+
+/* ============================================================================
+   MODAL BACKDROP
+   ============================================================================ */
+
+.modal-backdrop,
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--modal-backdrop, rgba(0, 0, 0, 0.5));
+    backdrop-filter: blur(4px);
+    z-index: var(--z-modal-backdrop);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.modal-backdrop.active,
+.modal-overlay.active,
+.modal-backdrop.show,
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ============================================================================
+   MODAL CONTAINER
+   ============================================================================ */
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: var(--surface);
+    border-radius: var(--modal-radius, 1.5rem);
+    padding: var(--modal-padding, 1.5rem);
+    width: 90%;
+    max-width: var(--modal-max-width, 500px);
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: var(--z-modal);
+    opacity: 0;
+    visibility: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transition: all var(--transition-normal);
+}
+
+.modal.active,
+.modal.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* ============================================================================
+   MODAL PARTS
+   ============================================================================ */
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--divider);
+}
+
+.modal-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text);
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--surface-subtle);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.modal-body {
+    color: var(--text-secondary);
+    line-height: var(--line-height-relaxed);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--spacing-3);
+    justify-content: flex-end;
+    padding-top: var(--spacing-4);
+    margin-top: var(--spacing-4);
+    border-top: 1px solid var(--divider);
+}
+
+/* ============================================================================
+   MODAL SIZES
+   ============================================================================ */
+
+.modal-sm {
+    max-width: 350px;
+}
+
+.modal-lg {
+    max-width: 700px;
+}
+
+.modal-xl {
+    max-width: 900px;
+}
+
+.modal-full {
+    max-width: none;
+    width: 95vw;
+    height: 95vh;
+    border-radius: var(--radius-xl);
+}
+
+/* ============================================================================
+   SPECIFIC MODALS
+   ============================================================================ */
+
+/* Hearts Modal */
+.modal-hearts .modal-icon {
+    font-size: 4rem;
+    text-align: center;
+    margin-bottom: var(--spacing-4);
+}
+
+.modal-hearts .hearts-display {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-4);
+}
+
+.modal-hearts .heart {
+    font-size: 2rem;
+    color: var(--heart);
+}
+
+.modal-hearts .heart.empty {
+    color: var(--heart-empty);
+}
+
+/* Lesson Complete Modal */
+.modal-complete {
+    text-align: center;
+}
+
+.modal-complete .celebration {
+    font-size: 5rem;
+    margin-bottom: var(--spacing-4);
+}
+
+.modal-complete .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-4);
+    margin: var(--spacing-4) 0;
+}
+
+.modal-complete .stat-item {
+    text-align: center;
+}
+
+.modal-complete .stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--accent);
+}
+
+.modal-complete .stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--muted);
+}
+
+/* Confirm Modal */
+.modal-confirm .modal-body {
+    text-align: center;
+    padding: var(--spacing-4) 0;
+}
+
+.modal-confirm .modal-footer {
+    justify-content: center;
+}
+
+/* ============================================================================
+   DIALOG ELEMENT (Native)
+   ============================================================================ */
+
+dialog.modal {
+    border: none;
+    padding: 0;
+    max-width: none;
+    max-height: none;
+}
+
+dialog.modal::backdrop {
+    background: var(--modal-backdrop);
+    backdrop-filter: blur(4px);
+}
+
+dialog.modal[open] {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes modal-fade-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes modal-fade-out {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+}
+
+.modal.animate-in {
+    animation: modal-fade-in var(--transition-normal) forwards;
+}
+
+.modal.animate-out {
+    animation: modal-fade-out var(--transition-normal) forwards;
+}
