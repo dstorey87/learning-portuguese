@@ -16,7 +16,22 @@ export {
     default as LessonCard
 } from './LessonCard.js';
 
+export {
+    CHALLENGE_TYPES,
+    CHALLENGE_PHASES,
+    CHALLENGE_CONFIG,
+    normalizeText,
+    escapeHtml,
+    shuffleArray,
+    getWordKey,
+    resolveWordForm,
+    getAlternateForm,
+    buildQuizOptions,
+    buildLessonChallenges,
+    ChallengeRenderer,
+    default as ChallengeRendererDefault
+} from './ChallengeRenderer.js';
+
 // Future exports
 // export { WordCard } from './WordCard.js';
 // export { OptionsPanel } from './OptionsPanel.js';
-// export { ChallengeRenderer } from './ChallengeRenderer.js';
