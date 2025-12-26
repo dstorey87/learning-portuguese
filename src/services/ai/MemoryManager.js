@@ -8,7 +8,7 @@
  * 4. Session persistence
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 
 const DEFAULT_CONFIG = {
     maxTokens: 4096,

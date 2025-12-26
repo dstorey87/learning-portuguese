@@ -10,7 +10,7 @@
  * - European Portuguese Info (learning resource)
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 
 const SOURCES = {
     priberam: {

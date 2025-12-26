@@ -5,7 +5,7 @@
  * Detects speech start/end for efficient voice conversation.
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 
 const VAD_CONFIG = {
     sampleRate: 16000,

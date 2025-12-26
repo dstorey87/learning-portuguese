@@ -8,10 +8,10 @@
  * 4. Graceful error handling
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 import { MemoryManager } from './MemoryManager.js';
 import { getToolRegistry } from './ToolRegistry.js';
-import { EventStreaming } from '../eventStreaming.js';
+import { eventStream } from '../eventStreaming.js';
 
 const OLLAMA_CONFIG = {
     baseUrl: 'http://localhost:11434',
@@ -89,7 +89,9 @@ export class AIAgent {
         this.abortController = new AbortController();
         try {
             this.memory.addMessage('user', userMessage, { isRecent: true, ...context });
-            EventStreaming.emit('learning_event', { eventType: 'user_message', userId: this.userId, timestamp: Date.now(), messageLength: userMessage.length });
+            try {
+                eventStream.track('user_message', { userId: this.userId, messageLength: userMessage.length });
+            } catch (e) { /* Event tracking failed - continue */ }
             const response = await this.generateResponse();
             return { success: true, response };
         } catch (error) {
@@ -138,7 +140,9 @@ export class AIAgent {
         }
         const assistantMessage = message.content || '';
         this.memory.addMessage('assistant', assistantMessage, { isRecent: true });
-        EventStreaming.emit('learning_event', { eventType: 'ai_response', userId: this.userId, timestamp: Date.now(), responseLength: assistantMessage.length, toolsUsed: message.tool_calls?.length || 0 });
+        try {
+            eventStream.track('ai_response', { userId: this.userId, responseLength: assistantMessage.length, toolsUsed: message.tool_calls?.length || 0 });
+        } catch (e) { /* Event tracking failed - continue */ }
         return assistantMessage;
     }
 
@@ -150,7 +154,9 @@ export class AIAgent {
         }
         Logger.info('ai_agent', 'Executing tool', { name, args: parsedArgs });
         const result = await this.toolRegistry.execute(name, parsedArgs);
-        EventStreaming.emit('learning_event', { eventType: 'tool_execution', userId: this.userId, timestamp: Date.now(), toolName: name, success: result.success });
+        try {
+            eventStream.track('tool_execution', { userId: this.userId, toolName: name, success: result.success });
+        } catch (e) { /* Event tracking failed - continue */ }
         return result;
     }
 

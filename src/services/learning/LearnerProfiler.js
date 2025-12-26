@@ -8,7 +8,7 @@
  * 4. Generate personalized recommendations
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 
 const PORTUGUESE_CONFUSION_PATTERNS = {
     gender: { patterns: ['o/a', 'um/uma', '-o/-a'], description: 'Grammatical gender assignment' },

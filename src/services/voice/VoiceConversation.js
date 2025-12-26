@@ -5,10 +5,10 @@
  * VAD → STT → LLM → TTS with <300ms latency target
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 import { getSileroVAD } from './SileroVAD.js';
 import { getAIAgent } from '../ai/AIAgent.js';
-import { EventStreaming } from '../eventStreaming.js';
+import { eventStream } from '../eventStreaming.js';
 
 const VOICE_CONFIG = {
     sttEndpoint: 'http://localhost:5000/transcribe',
@@ -58,7 +58,7 @@ export class VoiceConversation {
             if (!result.success) throw new Error(result.error);
             this.isActive = true;
             this.metrics.totalConversations++;
-            EventStreaming.emit('learning_event', { eventType: 'voice_conversation_start', userId: this.userId, timestamp: Date.now() });
+            try { eventStream.track('voice_conversation_start', { userId: this.userId }); } catch (e) { /* ignore */ }
             Logger.info('voice_conversation', 'Voice conversation started');
             this.callbacks.onListening?.();
             return { success: true };
@@ -85,7 +85,7 @@ export class VoiceConversation {
                 return;
             }
             this.callbacks.onTranscript?.(transcript);
-            EventStreaming.emit('learning_event', { eventType: 'voice_transcript', userId: this.userId, timestamp: Date.now(), transcript, audioLength: audioData.length / 16000 });
+            try { eventStream.track('voice_transcript', { userId: this.userId, transcript, audioLength: audioData.length / 16000 }); } catch (e) { /* ignore */ }
             const response = await this.agent.processInput(transcript, { source: 'voice' });
             if (!response.success) throw new Error(response.error);
             this.callbacks.onResponse?.(response.response);
@@ -158,7 +158,9 @@ export class VoiceConversation {
             const audioUrl = URL.createObjectURL(audioBlob);
             await this.playAudio(audioUrl);
             URL.revokeObjectURL(audioUrl);
-            EventStreaming.emit('learning_event', { eventType: 'tts_played', userId: this.userId, timestamp: Date.now(), textLength: text.length });
+            try {
+                eventStream.track('tts_played', { userId: this.userId, timestamp: Date.now(), textLength: text.length });
+            } catch (e) { /* ignore if no user logged in */ }
         } catch (error) {
             this.metrics.ttsErrors++;
             Logger.error('voice_conversation', 'TTS failed', { error: error.message });
@@ -191,7 +193,9 @@ export class VoiceConversation {
         this.vad.stop();
         this.stopCurrentAudio();
         this.isActive = false;
-        EventStreaming.emit('learning_event', { eventType: 'voice_conversation_end', userId: this.userId, timestamp: Date.now(), metrics: this.metrics });
+        try {
+            eventStream.track('voice_conversation_end', { userId: this.userId, timestamp: Date.now(), metrics: this.metrics });
+        } catch (e) { /* ignore if no user logged in */ }
         Logger.info('voice_conversation', 'Voice conversation stopped', { metrics: this.metrics });
     }
 

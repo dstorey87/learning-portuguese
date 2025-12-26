@@ -5,7 +5,7 @@
  * Tools integrate with existing services for Portuguese language learning.
  */
 
-import { Logger } from '../Logger.js';
+import * as Logger from '../Logger.js';
 
 export const TOOL_DEFINITIONS = [
     {
