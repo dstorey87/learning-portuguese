@@ -596,68 +596,49 @@ User/Admin Request
 
 ---
 
-## Quick Wins (Implement Now)
+## Quick Wins ✅ COMPLETED (December 2025)
 
-### 1. Use Existing Challenge Data
+### 1. ✅ Use Existing Challenge Data - DONE (LESSON-001, LESSON-002)
+
+**Commit 2b5f16c, 415b630**
+
+- `_buildWordDataForPanel()` now prioritizes word data from lesson files
+- `buildLessonChallenges()` combines learn-word + custom challenges
+- New renderers: `renderMultipleChoice()`, `renderTranslate()`, `renderFillBlank()`
+
+### 2. ✅ Dynamic Topic Tiers - DONE (LESSON-003)
+
+**Commit 076fc41**
 
 ```javascript
-// ChallengeRenderer.js - buildLessonChallenges()
-
-export function buildLessonChallenges(lesson, options = {}) {
-    // NEW: If lesson has custom challenges, use them!
-    if (lesson.challenges && lesson.challenges.length > 0) {
-        return lesson.challenges.map((challenge, idx) => ({
-            ...challenge,
-            index: idx
-        }));
-    }
-    
-    // FALLBACK: Auto-generate from words (existing behavior)
-    return buildAutoChallenges(lesson, options);
-}
+// LessonLoader.js - Now implemented with priority chain:
+// topic.tier > TOPIC_TIER_MAP > LESSON_TIERS.DAILY_TOPICS
 ```
 
-### 2. Dynamic Topic Tiers
+### 3. ✅ Lesson Image Fallbacks - DONE (LESSON-003)
+
+**Commit 076fc41**
 
 ```javascript
-// LessonLoader.js
-
-function getTopicTier(topic) {
-    // Check if topic has tier property
-    if (topic.tier) return topic.tier;
-    
-    // Fallback to mapping
-    return TOPIC_TIER_MAP[topic.id] || LESSON_TIERS.DAILY_TOPICS;
-}
-```
-
-### 3. Lesson Image Fallbacks
-
-```javascript
-// Get lesson image with fallbacks
-function getLessonImage(lesson) {
-    // 1. Lesson has its own image
-    if (lesson.image?.url) return lesson.image.url;
-    
-    // 2. Topic has default image
-    const topic = getTopicById(lesson.topic);
-    if (topic?.defaultImage) return topic.defaultImage;
-    
-    // 3. Category default
-    return CATEGORY_DEFAULTS[lesson.tier] || '/images/default-lesson.jpg';
-}
+// getLessonImage() fallback chain:
+// 1. lesson.image
+// 2. topic.defaultImage  
+// 3. TIER_DEFAULT_IMAGES[tier]
+// 4. CATEGORY_FALLBACK_IMAGES[category]
 ```
 
 ---
 
-## Success Criteria
+## Success Criteria (Updated)
 
-| Criteria | Current | Target |
-|----------|---------|--------|
-| Lesson data format | 2 incompatible | 1 unified JSON |
-| Challenge types supported | 6 hardcoded | 12+ data-driven |
-| Can AI add lessons? | ❌ No | ✅ Yes |
-| Can AI add grammar? | ❌ No | ✅ Yes |
+| Criteria | Before | After |
+|----------|--------|-------|
+| Rich challenge data used | ❌ Ignored | ✅ Flows to panel |
+| Challenge types supported | 6 hardcoded | 9 data-driven |
+| Dynamic topic tiers | ❌ Hardcoded | ✅ Priority-based |
+| Lesson image fallbacks | ❌ Hardcoded | ✅ 4-level chain |
+| Can AI add lessons? | ❌ No | ⚠️ Schema needed |
+| Can AI add grammar? | ❌ No | ⚠️ Schema needed |
 | Can AI create dialogues? | ❌ No | ✅ Yes |
 | Time to add new lesson | Hours (code) | Minutes (JSON) |
 | Validation | None | Schema-based |

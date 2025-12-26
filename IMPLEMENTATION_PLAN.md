@@ -1475,6 +1475,42 @@ Lessons start with "Essential Greetings" but should start with **language buildi
 
 ---
 
+## Phase 4B: Lesson Architecture Improvements
+
+### 4B.1 Problem Statement
+
+The lesson system had two incompatible data formats (legacy data.js vs rich building-blocks), and rich challenge data was being ignored. See [LESSON_ARCHITECTURE_REVIEW.md](docs/LESSON_ARCHITECTURE_REVIEW.md) for full analysis.
+
+### 4B.2 Quick Wins Implemented
+
+| Task ID | Task | Status | Commit |
+|---------|------|--------|--------|
+| LESSON-001 | Rich challenge data flows to accordion panel | [x] | 2b5f16c |
+| LESSON-002 | New challenge type renderers (multiple-choice, translate, fill-blank) | [x] | 415b630 |
+| LESSON-003 | Dynamic topic/lesson tiers + image fallbacks | [x] | 076fc41 |
+
+### 4B.3 Technical Changes
+
+**ChallengeRenderer.js:**
+- `_buildWordDataForPanel()`: Now prioritizes word data from lesson files over word-knowledge.js
+- `buildLessonChallenges()`: Combines learn-word challenges + custom challenges from lesson.challenges
+- New renderers: `renderMultipleChoice()`, `renderTranslate()`, `renderFillBlank()`
+- Challenge types: LEARN_WORD, PRONUNCIATION, MCQ, TYPE_ANSWER, LISTEN_TYPE, SENTENCE, MULTIPLE_CHOICE, TRANSLATE, FILL_BLANK
+
+**LessonOptionsPanel.js:**
+- Enhanced pronunciation section: breakdown, commonMistake, audioFocus
+- Enhanced examples section: audio button for each example
+
+**LessonLoader.js:**
+- `getAllTopics()`: Priority: topic.tier > TOPIC_TIER_MAP > default
+- `getAllLessons()`: Priority: lesson.tier > topic.tier > map > default
+- `getLessonImage()`: 4-level fallback chain (lesson → topic → tier default → category default)
+- New: TIER_DEFAULT_IMAGES, CATEGORY_FALLBACK_IMAGES maps
+
+**Phase 4B Complete** - Merged to main (commit 076fc41)
+
+---
+
 ## Phase 5: Real-Time AI Pipeline
 
 ### 5.1 Core Principle: Continuous Learning Intelligence
