@@ -179,6 +179,15 @@ export {
     getSkillStat,
     getAllSkillStats,
     getSkillChartData,
+    // Pronunciation tracking (SPEECH-053)
+    recordPronunciationAttempt,
+    getPronunciationHistory,
+    getAllPronunciationHistory,
+    getWordsNeedingPronunciationPractice,
+    getPhonemeWeaknesses,
+    getPronunciationSummary,
+    resetPronunciationData,
+    // Milestones
     checkMilestones,
     recordMilestone,
     hasMilestone,

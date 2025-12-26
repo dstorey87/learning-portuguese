@@ -26,6 +26,7 @@ import {
 } from '../../services/PhoneticScorer.js';
 import { createLogger } from '../../services/Logger.js';
 import eventStream from '../../services/eventStreaming.js';
+import { recordPronunciationAttempt } from '../../services/ProgressTracker.js';
 
 // Create logger for this module
 const logger = createLogger({ context: 'ChallengeRenderer' });
@@ -1227,6 +1228,19 @@ export class ChallengeRenderer {
                     });
                 } catch (streamErr) {
                     logger.warn('Failed to stream pronunciation event', streamErr);
+                }
+                
+                // Record to ProgressTracker for long-term tracking (SPEECH-053)
+                try {
+                    recordPronunciationAttempt(getWordKey(word), {
+                        score: score.score,
+                        rating: score.rating,
+                        phonemeIssues: score.phonemeIssues || [],
+                        transcription: transcribed,
+                        expected: resolved
+                    });
+                } catch (trackErr) {
+                    logger.warn('Failed to record pronunciation progress', trackErr);
                 }
                 
                 if (!bestScore || score.score > bestScore.score) {
