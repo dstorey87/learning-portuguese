@@ -94,29 +94,37 @@ const SECTION_ORDER = [
  */
 const contentRenderers = {
     /**
-     * Render pronunciation content
+     * Render pronunciation content with full details
      */
     pronunciation(data) {
         if (!data) return '<p class="no-content">No pronunciation guide available</p>';
         
-        const { ipa, guide, tip, audioSrc } = data;
+        const { ipa, guide, tip, audioSrc, breakdown, commonMistake } = data;
         let html = '';
         
         if (ipa) {
-            html += `<div class="ipa">${ipa}</div>`;
+            html += `<div class="ipa-display"><span class="ipa-label">IPA:</span> <span class="ipa-value">${ipa}</span></div>`;
         }
         
         if (guide) {
-            html += `<div class="pronunciation-guide">${guide}</div>`;
+            html += `<div class="pronunciation-guide"><span class="guide-label">How to say it:</span> <span class="guide-value">${guide}</span></div>`;
+        }
+        
+        if (breakdown) {
+            html += `<div class="pronunciation-breakdown"><span class="breakdown-label">Breakdown:</span> ${breakdown}</div>`;
         }
         
         if (tip) {
-            html += `<div class="tip">💡 ${tip}</div>`;
+            html += `<div class="pronunciation-tip"><span class="tip-icon">💡</span><span class="tip-text">${tip}</span></div>`;
+        }
+        
+        if (commonMistake) {
+            html += `<div class="pronunciation-warning"><span class="warning-icon">⚠️</span><span class="warning-label">Common mistake:</span> ${commonMistake}</div>`;
         }
         
         if (audioSrc) {
             html += `
-                <button class="audio-btn" data-audio="${audioSrc}" aria-label="Play pronunciation">
+                <button class="audio-btn pronunciation-audio" data-audio="${audioSrc}" aria-label="Play pronunciation">
                     🔊 Listen
                 </button>
             `;
@@ -146,19 +154,28 @@ const contentRenderers = {
     },
 
     /**
-     * Render example sentences
+     * Render example sentences with audio buttons
      */
     examples(data) {
         if (!data || !Array.isArray(data) || data.length === 0) {
             return '<p class="no-content">No examples available</p>';
         }
         
-        const examplesHtml = data.map(ex => `
-            <div class="example-item">
-                <div class="example-pt">${ex.pt || ex.portuguese || ex.text}</div>
-                <div class="example-en">${ex.en || ex.english || ex.translation}</div>
-            </div>
-        `).join('');
+        const examplesHtml = data.map((ex, index) => {
+            const ptText = ex.pt || ex.portuguese || ex.text;
+            return `
+                <div class="example-item" data-example-index="${index}">
+                    <div class="example-pt">
+                        <span class="example-text">${ptText}</span>
+                        <button class="audio-btn example-audio" data-audio="${ptText}" aria-label="Listen to example" title="Listen">
+                            🔊
+                        </button>
+                    </div>
+                    <div class="example-en">${ex.en || ex.english || ex.translation}</div>
+                    ${ex.context ? `<div class="example-context">${ex.context}</div>` : ''}
+                </div>
+            `;
+        }).join('');
         
         return `<div class="examples-list">${examplesHtml}</div>`;
     },

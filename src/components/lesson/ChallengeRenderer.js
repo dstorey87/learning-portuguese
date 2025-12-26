@@ -776,37 +776,100 @@ export class ChallengeRenderer {
     
     /**
      * Build word data object for LessonOptionsPanel
+     * 
+     * Priority order for data:
+     * 1. Lesson word object (word.pronunciation, word.grammarNotes, etc.)
+     * 2. Word knowledge database (knowledge object)
+     * 3. Auto-generated fallback
+     * 
      * @private
      */
     _buildWordDataForPanel(word, knowledge, resolved) {
         const hasKnowledge = knowledge !== null;
         
-        return {
-            word: resolved,
-            wordId: getWordKey(word),
-            pronunciation: hasKnowledge && knowledge.pronunciation ? {
+        // Check if word has rich data from lesson file
+        const hasWordData = word && (
+            word.pronunciation || 
+            word.grammarNotes || 
+            word.examples || 
+            word.culturalNote ||
+            word.aiTip
+        );
+        
+        // Build pronunciation data - prioritize word > knowledge > generated
+        let pronunciation;
+        if (hasKnowledge && knowledge.pronunciation) {
+            // Word knowledge database has detailed pronunciation object
+            pronunciation = {
                 ipa: knowledge.ipa,
                 guide: knowledge.pronunciation.guide,
                 tip: knowledge.pronunciation.tip,
                 breakdown: knowledge.pronunciation.breakdown,
                 commonMistake: knowledge.pronunciation.commonMistake
-            } : {
+            };
+        } else if (word.pronunciation) {
+            // Lesson word has simple pronunciation string
+            pronunciation = {
+                guide: word.pronunciation,
+                tip: `Pronunciation: "${word.pronunciation}"`,
+                breakdown: null,
+                commonMistake: null
+            };
+        } else {
+            // Generate fallback
+            pronunciation = {
                 guide: this.generatePronunciationTip(resolved),
-                tip: `Challenge: ${this.getPronunciationChallengeType(resolved)}`
-            },
-            memory: hasKnowledge ? {
-                etymology: knowledge.etymology,
-                trick: knowledge.memoryTrick
-            } : null,
-            examples: hasKnowledge ? knowledge.examples : null,
-            grammar: hasKnowledge ? knowledge.grammar : null,
-            usage: hasKnowledge && knowledge.usage ? {
-                formality: knowledge.usage.formality,
-                context: knowledge.usage.context,
-                alternatives: knowledge.usage.alternative ? [knowledge.usage.alternative] : null
-            } : null,
-            cultural: hasKnowledge ? knowledge.cultural : null,
-            aiTips: null // Will be loaded dynamically
+                tip: `Challenge: ${this.getPronunciationChallengeType(resolved)}`,
+                breakdown: null,
+                commonMistake: null
+            };
+        }
+        
+        // Build examples array - prefer word data, then knowledge
+        let examples = null;
+        if (word.examples && word.examples.length > 0) {
+            examples = word.examples;
+        } else if (hasKnowledge && knowledge.examples) {
+            examples = knowledge.examples;
+        }
+        
+        // Build grammar - prefer word data
+        const grammar = word.grammarNotes || (hasKnowledge ? knowledge.grammar : null);
+        
+        // Build cultural note - prefer word data
+        const cultural = word.culturalNote || (hasKnowledge ? knowledge.cultural : null);
+        
+        // Build memory hints
+        const memory = hasKnowledge && (knowledge.etymology || knowledge.memoryTrick) ? {
+            etymology: knowledge.etymology,
+            trick: knowledge.memoryTrick
+        } : null;
+        
+        // Build usage context
+        const usage = hasKnowledge && knowledge.usage ? {
+            formality: knowledge.usage.formality,
+            context: knowledge.usage.context,
+            alternatives: knowledge.usage.alternative ? [knowledge.usage.alternative] : null
+        } : null;
+        
+        // Build AI tips - static from word data as initial, dynamic loaded later
+        let aiTips = null;
+        if (word.aiTip) {
+            aiTips = [{ tip: word.aiTip, type: 'static', priority: 'normal' }];
+        }
+        
+        return {
+            word: resolved,
+            wordId: getWordKey(word),
+            english: word.en,
+            type: word.type || null,
+            pronunciation,
+            memory,
+            examples,
+            grammar,
+            usage,
+            cultural,
+            aiTips
         };
     }
     

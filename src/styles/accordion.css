@@ -300,6 +300,281 @@
 }
 
 /* ============================================================================
+   ENHANCED PRONUNCIATION SECTION
+   ============================================================================ */
+
+.accordion-content .ipa-display {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.accordion-content .ipa-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+    font-weight: 500;
+}
+
+.accordion-content .ipa-value {
+    font-family: 'Doulos SIL', 'Charis SIL', serif;
+    font-size: 1.2rem;
+    color: var(--primary-color, #3b82f6);
+}
+
+.accordion-content .guide-label,
+.accordion-content .breakdown-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+    font-weight: 500;
+}
+
+.accordion-content .guide-value {
+    font-size: 1.1rem;
+    color: var(--text-primary, #1f2937);
+    font-weight: 600;
+}
+
+.accordion-content .pronunciation-breakdown {
+    background: var(--surface-secondary, #f3f4f6);
+    padding: 10px 14px;
+    border-radius: var(--border-radius-sm, 4px);
+    margin: 12px 0;
+    font-family: monospace;
+    font-size: 0.95rem;
+}
+
+.accordion-content .pronunciation-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: var(--warning-bg, #fef3c7);
+    border-left: 3px solid var(--warning-color, #f59e0b);
+    padding: 12px 16px;
+    border-radius: 0 var(--border-radius-sm, 4px) var(--border-radius-sm, 4px) 0;
+    margin: 12px 0;
+}
+
+.accordion-content .pronunciation-tip .tip-icon {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+}
+
+.accordion-content .pronunciation-tip .tip-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.accordion-content .pronunciation-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: var(--error-bg, #fee2e2);
+    border-left: 3px solid var(--error-color, #ef4444);
+    padding: 12px 16px;
+    border-radius: 0 var(--border-radius-sm, 4px) var(--border-radius-sm, 4px) 0;
+    margin: 12px 0;
+    font-size: 0.9rem;
+}
+
+.accordion-content .pronunciation-warning .warning-icon {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+}
+
+.accordion-content .pronunciation-warning .warning-label {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* ============================================================================
+   ENHANCED EXAMPLES SECTION
+   ============================================================================ */
+
+.accordion-content .example-item {
+    padding: 14px 16px;
+    background: var(--surface-secondary, #f9fafb);
+    border-radius: var(--border-radius-sm, 4px);
+    border-left: 3px solid var(--primary-color, #3b82f6);
+    transition: background-color 0.2s ease;
+}
+
+.accordion-content .example-item:hover {
+    background: var(--surface-hover, #f3f4f6);
+}
+
+.accordion-content .example-pt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 6px;
+}
+
+.accordion-content .example-pt .example-text {
+    flex: 1;
+}
+
+.accordion-content .example-audio {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-sm, 4px);
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.accordion-content .example-audio:hover {
+    background: var(--primary-dark, #2563eb);
+}
+
+.accordion-content .example-audio:active {
+    transform: scale(0.95);
+}
+
+.accordion-content .example-context {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted, #9ca3af);
+    font-style: italic;
+    padding-left: 12px;
+    border-left: 2px solid var(--border-color, #e5e7eb);
+}
+
+/* ============================================================================
+   AI TIPS ENHANCED STYLES
+   ============================================================================ */
+
+.accordion-content .ai-tips-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.accordion-content .ai-status {
+    font-size: 0.75rem;
+}
+
+.accordion-content .ai-tips-label {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+}
+
+.accordion-content .refresh-tips-btn {
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    background: transparent;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: var(--border-radius-sm, 4px);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.accordion-content .refresh-tips-btn:hover {
+    background: var(--surface-hover, #f3f4f6);
+}
+
+.accordion-content .ai-tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--info-bg, #dbeafe) 0%, var(--surface-color, #ffffff) 100%);
+    border-radius: var(--border-radius-sm, 4px);
+    margin-bottom: 10px;
+    border-left: 3px solid var(--info-color, #3b82f6);
+}
+
+.accordion-content .ai-tip-item.tip-pronunciation {
+    border-left-color: var(--warning-color, #f59e0b);
+    background: linear-gradient(135deg, var(--warning-bg, #fef3c7) 0%, var(--surface-color, #ffffff) 100%);
+}
+
+.accordion-content .ai-tip-item.tip-grammar {
+    border-left-color: var(--success-color, #10b981);
+    background: linear-gradient(135deg, var(--success-bg, #d1fae5) 0%, var(--surface-color, #ffffff) 100%);
+}
+
+.accordion-content .ai-tip-item.tip-weakness {
+    border-left-color: var(--error-color, #ef4444);
+    background: linear-gradient(135deg, var(--error-bg, #fee2e2) 0%, var(--surface-color, #ffffff) 100%);
+}
+
+.accordion-content .ai-tip-item.priority-high {
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.accordion-content .ai-tip-item .tip-icon {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+}
+
+.accordion-content .ai-tip-item .tip-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-primary, #1f2937);
+}
+
+.accordion-content .ai-placeholder {
+    text-align: center;
+    color: var(--text-muted, #9ca3af);
+    font-style: italic;
+    padding: 20px;
+}
+
+.accordion-content .loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color, #e5e7eb);
+    border-top-color: var(--primary-color, #3b82f6);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* ============================================================================
+   AUDIO BUTTONS (Global)
+   ============================================================================ */
+
+.accordion-content .audio-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-sm, 4px);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    margin-top: 12px;
+}
+
+.accordion-content .audio-btn:hover {
+    background: var(--primary-dark, #2563eb);
+}
+
+.accordion-content .audio-btn:active {
+    transform: scale(0.97);
+}
+
+.accordion-content .audio-btn:focus {
+    outline: 2px solid var(--primary-color, #3b82f6);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
    LESSON OPTIONS PANEL (Right Side)
    ============================================================================ */
 
