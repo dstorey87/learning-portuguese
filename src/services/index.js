@@ -72,8 +72,33 @@ export {
     default as AIService
 } from './AIService.js';
 
-// Voice services (to be created)
-// export { VoiceService } from './VoiceService.js';
+// Voice Service
+export {
+    VOICE_CONFIG,
+    VOICE_ENGINES,
+    VOICE_PROVIDERS,
+    getLastVoiceUsed,
+    getDownloadedVoices,
+    markVoiceDownloaded,
+    isVoiceDownloaded,
+    getDownloadableVoices,
+    getBundledVoiceStatus,
+    isBundledVoiceReady,
+    getBundledVoiceOptions,
+    getBundledVoiceCount,
+    clearBundledVoice,
+    startBundledVoiceDownload,
+    ensureVoicesReady,
+    getPortugueseVoiceOptions,
+    getEngineVoiceOptions,
+    speakWord,
+    speakSentence,
+    speakWithEngine,
+    stopSpeech,
+    default as VoiceService
+} from './VoiceService.js';
+
+// TTS Service (to be created)
 // export { TTSService } from './TTSService.js';
 
 export const SERVICES_VERSION = '0.1.0';
