@@ -13,6 +13,8 @@
  * @module components/lesson/ChallengeRenderer
  */
 
+import { AudioVisualizer, RECORDING_STATE } from './AudioVisualizer.js';
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -480,28 +482,91 @@ export class ChallengeRenderer {
             btn.disabled = true;
         });
         
+        // Create a container for the audio visualizer (reused across attempts)
+        let visualizerContainer = container.querySelector('.pronunciation-visualizer-container');
+        if (!visualizerContainer) {
+            visualizerContainer = document.createElement('div');
+            visualizerContainer.className = 'pronunciation-visualizer-container';
+            const actionsDiv = container.querySelector('.learn-card-actions');
+            if (actionsDiv) actionsDiv.after(visualizerContainer);
+        }
+        
+        // Create AudioVisualizer instance
+        const visualizer = new AudioVisualizer({
+            onStateChange: (state) => {
+                console.log('Visualizer state:', state);
+            }
+        });
+        
         document.getElementById('practiceBtn').addEventListener('click', async () => {
             const btn = document.getElementById('practiceBtn');
-            btn.textContent = '🎤 Listening...';
+            
+            // Remove any existing feedback
+            const existingFeedback = container.querySelector('.pronunciation-feedback');
+            if (existingFeedback) existingFeedback.remove();
+            
+            // Show visualizer
+            visualizerContainer.innerHTML = '';
+            visualizer.create(visualizerContainer);
+            visualizer.setState(RECORDING_STATE.READY);
+            
+            btn.innerHTML = '<span class="recording-dot"></span> Recording...';
+            btn.classList.add('recording');
             btn.disabled = true;
             
+            let stream = null;
+            
             try {
+                // Get microphone access for visualization
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { 
+                        echoCancellation: true, 
+                        noiseSuppression: true 
+                    } 
+                });
+                
+                // Start visualizer
+                await visualizer.start(stream);
+                
+                // Run pronunciation test
                 const result = await this.testPronunciation(resolved, {
                     maxAttempts: 1,
                     timeoutMs: 5000,
                     wordKnowledge: knowledge
                 });
+                
+                // Stop visualizer
+                visualizer.stop();
+                
+                // Stop stream tracks
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
                 if (result && result.bestScore) {
+                    visualizer.setState(RECORDING_STATE.COMPLETE, { 
+                        message: `Score: ${Math.round(result.bestScore.score)}%` 
+                    });
                     this._showPronunciationFeedback(container, result.bestScore, resolved);
                 } else {
+                    visualizer.setState(RECORDING_STATE.ERROR, { message: 'No speech detected' });
                     this._showPronunciationFeedback(container, null, resolved);
                 }
             } catch (err) {
                 console.error('Speech recognition error:', err);
+                
+                // Stop stream tracks on error
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                visualizer.stop();
+                visualizer.setState(RECORDING_STATE.ERROR, { message: err.message?.substring(0, 30) });
                 this._showPronunciationFeedback(container, null, resolved, err);
             }
             
-            btn.textContent = '🎤 Try Again';
+            btn.innerHTML = '🎤 Try Again';
+            btn.classList.remove('recording');
             btn.disabled = false;
         });
         

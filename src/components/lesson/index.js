@@ -47,5 +47,14 @@ export {
     default as WordCardDefault
 } from './WordCard.js';
 
+export {
+    AudioVisualizer,
+    VISUALIZER_CONFIG,
+    RECORDING_STATE,
+    createWaveformVisualizer,
+    createVolumeMeter,
+    default as AudioVisualizerDefault
+} from './AudioVisualizer.js';
+
 // Future exports
 // export { OptionsPanel } from './OptionsPanel.js';
