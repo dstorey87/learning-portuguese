@@ -2,8 +2,80 @@
 
 These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanced → enable instruction files) so Copilot follows the enforced workflow.
 
+---
+
+## ⚠️ MANDATORY: Branching & Change Control (NON-OPTIONAL)
+
+**This is the highest priority rule. NO EXCEPTIONS. Every change MUST follow this process.**
+
+### Branch Creation (BEFORE any code changes)
+1. **Create a new branch** for every task, change, or task ID:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b <branch-name>
+   ```
+2. **Branch naming convention**: `<type>/<task-id>-<short-description>`
+   - Types: `feature/`, `fix/`, `refactor/`, `docs/`, `test/`, `chore/`
+   - Examples:
+     - `feature/AI-001-real-time-event-streaming`
+     - `fix/VOX-003-speed-control-not-working`
+     - `refactor/F1-002-split-app-js`
+     - `docs/DOC-001-update-readme`
+
+### Work Isolation
+3. **ALL changes happen ONLY in the task branch** - never directly on main.
+4. **One task = One branch** - do not mix unrelated changes.
+5. **If interrupted by a new task**, stash or commit current work, then create a new branch for the interruption.
+
+### Commit & Push
+6. **Commit with clear, descriptive messages** tied to the task ID:
+   ```bash
+   git add <files>
+   git commit -m "[TASK-ID] Description of change"
+   ```
+   - Examples:
+     - `[AI-001] Add real-time event streaming to AI pipeline`
+     - `[F1-002] Split app.js into modular components`
+     - `[VOX-003] Fix voice speed control affecting playback`
+7. **Push the branch to remote** after commits:
+   ```bash
+   git push -u origin <branch-name>
+   ```
+
+### Completion & Merge
+8. **After all tests pass**, create a Pull Request or merge:
+   ```bash
+   git checkout main
+   git pull origin main
+   git merge <branch-name>
+   git push origin main
+   ```
+9. **Switch back to main** after merge is complete.
+10. **Delete the feature branch** after successful merge (optional but recommended):
+    ```bash
+    git branch -d <branch-name>
+    git push origin --delete <branch-name>
+    ```
+
+### Why This Is Mandatory
+- ✅ Every change is isolated and traceable
+- ✅ Can always roll back to a previous state
+- ✅ No work is done directly on main branch
+- ✅ Each task maps to a specific branch and commit history
+- ✅ Code review possible before merge
+- ✅ Parallel work without conflicts
+
+### Enforcement
+- **Copilot MUST refuse to make changes** if not on a task-specific branch.
+- **Before ANY file edit**, verify current branch is NOT main.
+- **If on main**, first create the appropriate task branch.
+
+---
+
 ## Mandatory Workflow
-- Always read operations.md and initial_plan.md before responding; keep changes aligned to the active plan.
+- Always read operations.md, initial_plan.md, and IMPLEMENTATION_PLAN.md before responding; keep changes aligned to the active plan.
+- **Before any code change, ensure you are on the correct task branch (see Branching section above).**
 - After every code change, run lint + Playwright UI tests via `npm test`; use browser-driven checks (mcp_playwright_browser_* tools) on the affected UI.
 - If any check fails, fix immediately, rerun the same checks, and loop until all green; no deferrals.
 - Re-test the original change once fixes pass to confirm it still holds.
@@ -11,12 +83,14 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
 
 ## Documentation & Planning
 - Update documentation (README.md and relevant docs) after successful changes.
-- Update the plan (initial_plan.md) to reflect scope, status, and decisions for each change.
+- Update the plan (initial_plan.md and IMPLEMENTATION_PLAN.md) to reflect scope, status, and decisions for each change.
 - Keep version strings consistent across code, README, and tests when touched.
 
-## Git Hygiene
+## Git Hygiene (Extended)
+- **NEVER commit directly to main** - always use task branches.
 - Keep diffs minimal and related; avoid unrelated churn. Stage logically related changes together.
 - Prefer small, reviewable commits; ensure tests/docs/plan are included with the change.
+- Use meaningful commit messages with task ID prefix: `[TASK-ID] Description`.
 
 ## Structure & Quality
 - Review and maintain a professional folder/file structure; refactor when it drifts.
@@ -25,3 +99,84 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
 ## Execution Notes
 - Serve locally with `npm run serve` (port 4174) when running Playwright or manual browser checks.
 - Surface failures with clear paths/lines and propose fixes immediately.
+
+---
+
+## Implementation Principles (Added December 2025)
+
+### File Size & Structure Rules
+- **Maximum file size: 500 lines.** If exceeding, split into modules immediately.
+- All source code must be in `src/` directory with proper subfolder organization:
+  - `src/components/` - Reusable UI components
+  - `src/services/` - Business logic and API calls
+  - `src/pages/` - Page-level components
+  - `src/stores/` - State management
+  - `src/data/` - Lesson content files
+  - `src/utils/` - Utility functions
+  - `src/styles/` - Modular CSS files
+  - `src/config/` - Configuration files
+- No monolithic files. Single responsibility principle.
+- Extract repeated code into reusable components/functions.
+
+### Lesson Structure Rules
+- Building blocks (pronouns, connectors, articles) come BEFORE greetings.
+- Lesson order: Building Blocks → Essential Communication → Daily Topics.
+- Each word must have: pronunciation guide, examples, grammar notes, cultural insights.
+- AI tips section must be dynamic (updated by AI based on user performance), never static.
+
+### Real-Time AI Pipeline Rules
+- All user interactions must be streamed to AI in real-time (debounced, batched).
+- Track: correct/incorrect, pronunciation scores, time spent, misclicks, quiz choices.
+- Pronunciation scores ARE learning data and MUST be fed to AI.
+- AI tips update dynamically based on user performance patterns.
+- After 5+ failures on same concept, AI generates custom mini-lesson.
+- Custom lessons can be saved or discarded by user.
+
+### User Data Isolation Rules
+- AI can ONLY access data for currently logged-in user (enforced).
+- All localStorage keys must be prefixed with userId: `${userId}_progress`, `${userId}_scores`.
+- Admin can delete user data (failures, scores, all); users cannot delete their own data.
+- Different users' data must NEVER mix.
+
+### Validation Requirements
+- Every feature must have startup validation checking both EXISTS and WORKS.
+- Monitoring dashboard shows green/red/amber status for all components.
+- Logs must explain WHY something failed, not just that it failed.
+- Distinguish between: element exists + works, element exists but broken, element missing.
+
+### Graceful Degradation Rules
+- If AI is down: hide AI features, but lessons MUST still work.
+- If voice is down: hide audio buttons, but text learning MUST still work.
+- Show admin-only debug info for down services; hide from regular users.
+- Never break the learning experience due to optional feature failures.
+
+### Voice System Rules
+- Downloaded voices must immediately appear in dropdown and be selectable.
+- Speed control must actually affect playback speed (verify before marking complete).
+- Already installed voices must NOT appear in download list.
+- Provide voice refresh button to check for new available voices.
+- AI chat must be able to speak with Portuguese accent.
+
+### Navigation Rules
+- Desktop: Left sidebar navigation (collapsible).
+- Mobile: Bottom tab bar + hamburger drawer menu.
+- Never use bottom navigation on desktop.
+- All nav items must show current location context.
+
+### Lesson Options Panel Rules
+- Right panel with accordion behavior (only ONE section open at a time).
+- Sections: Pronunciation, Remember It, Example Sentences, Grammar Notes, When to Use, Cultural Insight, AI Tips.
+- AI Tips section updates in real-time based on user's learning data.
+- Mobile: Panel becomes bottom drawer.
+
+### Authentication Rules
+- No features available without login (except guest mode with limited access).
+- Admin must create user accounts; users cannot self-register without admin.
+- Hearts, streaks, XP must be manually adjustable by admin.
+- Role-based access: Guest < User < Admin.
+
+### Code Quality Enforcement
+- Run `npm run lint` before committing.
+- Dead code must be removed, not commented out.
+- Every new feature needs corresponding tests.
+- Functions should be <50 lines; extract if larger.
