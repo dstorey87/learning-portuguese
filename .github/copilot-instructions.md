@@ -83,10 +83,25 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
 ## Mandatory Workflow
 - Always read operations.md, initial_plan.md, and IMPLEMENTATION_PLAN.md before responding; keep changes aligned to the active plan.
 - **Before any code change, ensure you are on the correct task branch (see Branching section above).**
-- After every code change, run lint + Playwright UI tests via `npm test`; use browser-driven checks (mcp_playwright_browser_* tools) on the affected UI.
+- After code changes, run **TARGETED tests only** for the affected files/features.
 - If any check fails, fix immediately, rerun the same checks, and loop until all green; no deferrals.
 - Re-test the original change once fixes pass to confirm it still holds.
 - No bugs allowed: continue the fix/test loop until zero failures.
+
+### ⚡ TARGETED TESTING (NOT FULL SUITE)
+
+**DO NOT run `npm test` on every change** - it takes 4+ minutes with 500+ tests!
+
+Instead, use targeted test commands:
+
+| Scenario | Command |
+|----------|--------|
+| Single test file | `npx playwright test tests/e2e/navigation.e2e.test.js` |
+| Single test by name | `npx playwright test --grep "NAV-E001"` |
+| Affected E2E tests | `npx playwright test tests/e2e/<affected>.e2e.test.js` |
+| Unit tests only | `npx playwright test tests/unit/<service>.test.js` |
+| Smoke tests | `npx playwright test tests/smoke.spec.js` |
+| Full suite | `npm test` (ONLY before merge to main) |
 
 ---
 

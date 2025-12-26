@@ -232,8 +232,8 @@
         margin-left: var(--sidebar-collapsed-width);
     }
     
-    /* Hide bottom nav on desktop */
-    .bottom-nav {
+    /* Hide bottom nav on desktop ONLY when sidebar is present */
+    body.has-sidebar .bottom-nav {
         display: none;
     }
 }
@@ -808,7 +808,8 @@ body.drawer-open {
         left: var(--sidebar-collapsed-width);
     }
     
-    .bottom-nav {
+    /* Only hide bottom nav when sidebar exists */
+    body.has-sidebar .bottom-nav {
         display: none;
     }
 }
@@ -819,7 +820,8 @@ body.drawer-open {
         display: flex;
     }
     
-    .bottom-nav,
+    /* Only hide bottom nav when sidebar exists */
+    body.has-sidebar .bottom-nav,
     .mobile-drawer,
     .drawer-overlay {
         display: none !important;

@@ -4,8 +4,8 @@ export default defineConfig({
   testDir: 'tests',
   timeout: 30_000,
   retries: process.env.CI ? 2 : 0,
-  // Reduce workers to prevent machine slowdown
-  workers: process.env.CI ? 4 : 2,
+  // Use 8 workers for faster test execution
+  workers: 8,
   // Fail fast to save time
   maxFailures: process.env.CI ? 10 : 5,
   use: {

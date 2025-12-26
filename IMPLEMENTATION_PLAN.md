@@ -55,13 +55,14 @@ This plan transforms PortuLingo into a professional language learning platform w
 | 1 | Create feature branch | ✅ Yes |
 | 2 | Implement the feature/change | ✅ Yes |
 | 3 | **Write/update tests** for the new code | ✅ Yes |
-| 4 | **Run all tests** (`npm test`) | ✅ Yes |
+| 4 | **Run TARGETED tests** (affected files only) | ✅ Yes |
 | 5 | **Integration test** - verify it works with existing code | ✅ Yes |
 | 6 | **Remove redundant code** from old files | ✅ Yes (or N/A) |
 | 7 | Commit with task ID | ✅ Yes |
-| 8 | Push and merge to main | ✅ Yes |
-| 9 | Delete feature branch | ✅ Yes |
-| 10 | Update plan status | ✅ Yes |
+| 8 | **Run full suite** (`npm test`) before merge | ✅ Yes |
+| 9 | Push and merge to main | ✅ Yes |
+| 10 | Delete feature branch | ✅ Yes |
+| 11 | Update plan status | ✅ Yes |
 
 ### Task Table Format
 
@@ -84,12 +85,31 @@ All task tables MUST include these columns:
 
 To maintain development velocity, testing is required at **phase completion** rather than per-task:
 
-| When to Test | What to Test |
-|--------------|--------------|
-| Phase completion | All new services/components from that phase |
-| Before merge to main | Run full test suite (`npm test`) |
-| After critical fixes | Affected functionality only |
-| Before releases | Full regression suite |
+| When to Test | What to Test | Command |
+|--------------|--------------|--------|
+| During development | Affected files only | `npx playwright test tests/e2e/<file>.test.js` |
+| After changes | Smoke tests | `npx playwright test tests/smoke.spec.js` |
+| Phase completion | All new services/components from that phase | Targeted test files |
+| **Before merge to main** | **Full test suite** | `npm test` |
+| After critical fixes | Affected functionality only | Targeted tests |
+| Before releases | Full regression suite | `npm test` |
+
+**⚠️ DO NOT run `npm test` on every change** - 500+ tests take 4+ minutes!
+
+**Targeted Test Commands:**
+```bash
+# Single E2E file
+npx playwright test tests/e2e/navigation.e2e.test.js
+
+# Single test by ID
+npx playwright test --grep "NAV-E001"
+
+# Multiple related files
+npx playwright test tests/e2e/navigation.e2e.test.js tests/smoke.spec.js
+
+# Unit tests for a service
+npx playwright test tests/unit/lessonService.test.js
+```
 
 **Test Coverage Categories (apply at milestones):**
 

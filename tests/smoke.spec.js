@@ -12,6 +12,12 @@ test('home loads with key sections', async ({ page }) => {
 
   // Check version in footer
   await expect(page.getByText('v0.9.0')).toBeVisible();
+  
+  // CRITICAL: Check bottom navigation bar is visible
+  await expect(page.locator('#bottomNav')).toBeVisible();
+  await expect(page.locator('.nav-tab').first()).toBeVisible();
+  // Verify all 4 navigation tabs exist
+  await expect(page.locator('.nav-tab')).toHaveCount(4);
 
   // Navigate to Learn page to see lessons
   await page.goto(HOME_URL + '#learn');
