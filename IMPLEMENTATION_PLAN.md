@@ -3701,7 +3701,7 @@ const visualFeedback = {
 | SPEECH-050 | Stream pronunciation scores to AI | [x] | [x] | [x] | P0 |
 | SPEECH-051 | Generate AI tips based on phoneme weaknesses | [x] | [x] | N/A | P0 |
 | SPEECH-052 | Create custom pronunciation drill generator | [ ] | [ ] | N/A | P1 |
-| SPEECH-053 | Track pronunciation progress over time | [ ] | [ ] | N/A | P0 |
+| SPEECH-053 | Track pronunciation progress over time | [x] | [x] | N/A | P0 |
 | **Testing** |
 | SPEECH-060 | Unit tests for AudioRecorder | [x] | N/A | N/A | P0 |
 | SPEECH-061 | Unit tests for PronunciationService | [x] | N/A | N/A | P0 |

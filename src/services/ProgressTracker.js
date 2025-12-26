@@ -57,7 +57,9 @@ export const PROGRESS_EVENTS = {
     LESSON_COMPLETED: 'progressLessonCompleted',
     MILESTONE_REACHED: 'progressMilestoneReached',
     SRS_REVIEW_DUE: 'progressSrsReviewDue',
-    SKILL_UPDATED: 'progressSkillUpdated'
+    SKILL_UPDATED: 'progressSkillUpdated',
+    PRONUNCIATION_RECORDED: 'progressPronunciationRecorded',
+    PHONEME_WEAKNESS_DETECTED: 'progressPhonemeWeaknessDetected'
 };
 
 // ============================================================================
@@ -70,6 +72,8 @@ let progressState = {
     skillStats: {},
     milestones: [],
     studySessions: [],
+    pronunciationHistory: {},  // Per-word pronunciation attempts
+    phonemeWeaknesses: {},     // Tracked phoneme issues
     lastSyncTime: null
 };
 
@@ -472,6 +476,255 @@ export function getSkillChartData() {
 }
 
 // ============================================================================
+// PRONUNCIATION TRACKING (SPEECH-053)
+// ============================================================================
+
+/**
+ * Record a pronunciation attempt for a word
+ * @param {string} wordKey - Word identifier (e.g., "eu|I")
+ * @param {Object} result - Pronunciation result from PhoneticScorer
+ * @param {number} result.score - Score 0-100
+ * @param {string} result.rating - 'excellent', 'good', 'fair', 'poor'
+ * @param {Array} [result.phonemeIssues] - Array of phoneme problems
+ * @param {string} [result.transcription] - What was heard
+ * @param {string} [result.expected] - What was expected
+ */
+export function recordPronunciationAttempt(wordKey, result) {
+    if (!progressState.pronunciationHistory[wordKey]) {
+        progressState.pronunciationHistory[wordKey] = {
+            attempts: [],
+            bestScore: 0,
+            averageScore: 0,
+            lastAttempt: null,
+            totalAttempts: 0
+        };
+    }
+    
+    const history = progressState.pronunciationHistory[wordKey];
+    const attempt = {
+        score: result.score || 0,
+        rating: result.rating || 'poor',
+        phonemeIssues: result.phonemeIssues || [],
+        transcription: result.transcription || '',
+        expected: result.expected || '',
+        timestamp: Date.now()
+    };
+    
+    // Keep last 20 attempts per word to save storage
+    history.attempts.push(attempt);
+    if (history.attempts.length > 20) {
+        history.attempts.shift();
+    }
+    
+    history.totalAttempts++;
+    history.bestScore = Math.max(history.bestScore, attempt.score);
+    history.lastAttempt = attempt.timestamp;
+    
+    // Recalculate average from stored attempts
+    const sum = history.attempts.reduce((acc, a) => acc + a.score, 0);
+    history.averageScore = Math.round(sum / history.attempts.length);
+    
+    // Track phoneme weaknesses
+    if (attempt.phonemeIssues && attempt.phonemeIssues.length > 0) {
+        trackPhonemeWeaknesses(attempt.phonemeIssues, wordKey);
+    }
+    
+    // Also update the general pronunciation skill
+    updateSkillStat(SKILL_CATEGORIES.PRONUNCIATION, attempt.score);
+    
+    saveProgress();
+    dispatchProgressEvent(PROGRESS_EVENTS.PRONUNCIATION_RECORDED, { wordKey, attempt, history });
+    
+    return history;
+}
+
+/**
+ * Track phoneme weaknesses from pronunciation attempts
+ * @param {Array} phonemeIssues - Array of {phoneme, issue, tip}
+ * @param {string} wordKey - Word where issue occurred
+ */
+function trackPhonemeWeaknesses(phonemeIssues, wordKey) {
+    for (const issue of phonemeIssues) {
+        const phoneme = issue.phoneme || issue;
+        if (!progressState.phonemeWeaknesses[phoneme]) {
+            progressState.phonemeWeaknesses[phoneme] = {
+                count: 0,
+                words: [],
+                lastSeen: null,
+                tips: []
+            };
+        }
+        
+        const weakness = progressState.phonemeWeaknesses[phoneme];
+        weakness.count++;
+        weakness.lastSeen = Date.now();
+        
+        // Track which words this phoneme fails in
+        if (!weakness.words.includes(wordKey)) {
+            weakness.words.push(wordKey);
+            // Keep max 10 example words
+            if (weakness.words.length > 10) {
+                weakness.words.shift();
+            }
+        }
+        
+        // Store tips for AI reference
+        if (issue.tip && !weakness.tips.includes(issue.tip)) {
+            weakness.tips.push(issue.tip);
+            if (weakness.tips.length > 5) {
+                weakness.tips.shift();
+            }
+        }
+    }
+    
+    // Dispatch event if any phoneme appears 3+ times
+    const significantWeaknesses = Object.entries(progressState.phonemeWeaknesses)
+        .filter(([, data]) => data.count >= 3)
+        .map(([phoneme, data]) => ({ phoneme, ...data }));
+    
+    if (significantWeaknesses.length > 0) {
+        dispatchProgressEvent(PROGRESS_EVENTS.PHONEME_WEAKNESS_DETECTED, { 
+            weaknesses: significantWeaknesses 
+        });
+    }
+}
+
+/**
+ * Get pronunciation history for a word
+ * @param {string} wordKey - Word identifier
+ * @returns {Object|null} Pronunciation history
+ */
+export function getPronunciationHistory(wordKey) {
+    return progressState.pronunciationHistory[wordKey] || null;
+}
+
+/**
+ * Get all pronunciation history
+ * @returns {Object} All pronunciation history
+ */
+export function getAllPronunciationHistory() {
+    return { ...progressState.pronunciationHistory };
+}
+
+/**
+ * Get pronunciation progress over time for a word
+ * @param {string} wordKey - Word identifier
+ * @returns {Array} Array of {score, timestamp} for charting
+ */
+export function getPronunciationProgress(wordKey) {
+    const history = progressState.pronunciationHistory[wordKey];
+    if (!history) return [];
+    
+    return history.attempts.map(a => ({
+        score: a.score,
+        timestamp: a.timestamp
+    }));
+}
+
+/**
+ * Get words that need pronunciation practice (score < threshold)
+ * @param {number} threshold - Score threshold (default 70)
+ * @returns {Array} Words needing practice
+ */
+export function getWordsNeedingPronunciationPractice(threshold = 70) {
+    return Object.entries(progressState.pronunciationHistory)
+        .filter(([, history]) => history.averageScore < threshold)
+        .map(([wordKey, history]) => ({
+            wordKey,
+            averageScore: history.averageScore,
+            bestScore: history.bestScore,
+            attempts: history.totalAttempts,
+            lastAttempt: history.lastAttempt
+        }))
+        .sort((a, b) => a.averageScore - b.averageScore); // Worst first
+}
+
+/**
+ * Get phoneme weaknesses for AI analysis
+ * @param {number} minCount - Minimum failure count to include
+ * @returns {Array} Phoneme weaknesses sorted by severity
+ */
+export function getPhonemeWeaknesses(minCount = 2) {
+    return Object.entries(progressState.phonemeWeaknesses)
+        .filter(([, data]) => data.count >= minCount)
+        .map(([phoneme, data]) => ({
+            phoneme,
+            count: data.count,
+            words: data.words,
+            tips: data.tips,
+            lastSeen: data.lastSeen
+        }))
+        .sort((a, b) => b.count - a.count); // Most frequent first
+}
+
+/**
+ * Get pronunciation summary for AI context
+ * @returns {Object} Summary for AI pipeline
+ */
+export function getPronunciationSummary() {
+    const allHistory = Object.entries(progressState.pronunciationHistory);
+    const weaknesses = getPhonemeWeaknesses(1);
+    
+    if (allHistory.length === 0) {
+        return {
+            totalAttempts: 0,
+            wordsAttempted: 0,
+            overallAverage: 0,
+            strongWords: [],
+            weakWords: [],
+            phonemeWeaknesses: [],
+            needsPractice: false
+        };
+    }
+    
+    // Calculate overall stats
+    let totalScore = 0;
+    let totalAttempts = 0;
+    const wordStats = [];
+    
+    for (const [wordKey, history] of allHistory) {
+        totalScore += history.averageScore * history.totalAttempts;
+        totalAttempts += history.totalAttempts;
+        wordStats.push({ wordKey, ...history });
+    }
+    
+    const overallAverage = totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0;
+    
+    // Identify strong and weak words
+    const sorted = wordStats.sort((a, b) => b.averageScore - a.averageScore);
+    const strongWords = sorted.filter(w => w.averageScore >= 80).slice(0, 5);
+    const weakWords = sorted.filter(w => w.averageScore < 60).slice(-5).reverse();
+    
+    return {
+        totalAttempts,
+        wordsAttempted: allHistory.length,
+        overallAverage,
+        strongWords: strongWords.map(w => ({ word: w.wordKey, score: w.averageScore })),
+        weakWords: weakWords.map(w => ({ word: w.wordKey, score: w.averageScore })),
+        phonemeWeaknesses: weaknesses.slice(0, 5),
+        needsPractice: weakWords.length > 0 || weaknesses.length > 0
+    };
+}
+
+/**
+ * Clear pronunciation history for a word
+ * @param {string} wordKey - Word identifier
+ */
+export function clearPronunciationHistory(wordKey) {
+    delete progressState.pronunciationHistory[wordKey];
+    saveProgress();
+}
+
+/**
+ * Reset all pronunciation data (admin only)
+ */
+export function resetPronunciationData() {
+    progressState.pronunciationHistory = {};
+    progressState.phonemeWeaknesses = {};
+    saveProgress();
+}
+
+// ============================================================================
 // MILESTONES
 // ============================================================================
 
@@ -727,6 +980,8 @@ export function resetProgress(userId = null) {
         skillStats: {},
         milestones: [],
         studySessions: [],
+        pronunciationHistory: {},
+        phonemeWeaknesses: {},
         lastSyncTime: null
     };
     saveProgress(userId);
@@ -776,6 +1031,17 @@ export default {
     getSkillStat,
     getAllSkillStats,
     getSkillChartData,
+    
+    // Pronunciation (SPEECH-053)
+    recordPronunciationAttempt,
+    getPronunciationHistory,
+    getAllPronunciationHistory,
+    getPronunciationProgress,
+    getWordsNeedingPronunciationPractice,
+    getPhonemeWeaknesses,
+    getPronunciationSummary,
+    clearPronunciationHistory,
+    resetPronunciationData,
     
     // Milestones
     checkMilestones,
