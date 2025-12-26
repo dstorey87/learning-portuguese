@@ -2,16 +2,16 @@
  * Styles Index
  * Modular CSS organization
  * 
- * CSS files to be created:
- * - base.css: Reset, typography, variables
- * - layout.css: Grid, flexbox layouts
+ * CSS files:
+ * - variables.css: Design tokens, colors, spacing
+ * - reset.css: Reset and normalizations
  * - navigation.css: Sidebar, bottom nav, breadcrumbs
  * - lessons.css: Lesson cards, word cards
- * - components.css: Buttons, modals, toasts
- * - voice.css: Voice controls styling
- * - ai.css: AI chat, tip cards
- * - admin.css: Admin dashboard styles
- * - responsive.css: Media queries
+ * - modal.css: Modal dialogs
+ * - toast.css: Toast notifications
+ * - buttons.css: Button styles
+ * - cards.css: Card components
+ * - animations.css: Keyframes and transitions
  * 
  * @module styles
  */
@@ -22,13 +22,13 @@
 export const STYLES_VERSION = '0.1.0';
 
 export const CSS_FILES = [
-    'base.css',
-    'layout.css',
+    'variables.css',
+    'reset.css',
     'navigation.css',
     'lessons.css',
-    'components.css',
-    'voice.css',
-    'ai.css',
-    'admin.css',
-    'responsive.css'
+    'modal.css',
+    'toast.css',
+    'buttons.css',
+    'cards.css',
+    'animations.css'
 ];
