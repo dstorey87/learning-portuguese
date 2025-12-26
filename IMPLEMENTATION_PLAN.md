@@ -3665,19 +3665,19 @@ const visualFeedback = {
 | SPEECH-002 | Create PronunciationService.js (main orchestrator) | [x] | [x] | N/A | P0 |
 | SPEECH-003 | Create AudioRecorder.js (recording logic) | [x] | [x] | N/A | P0 |
 | SPEECH-004 | Create AudioPreprocessor.js (noise reduction, normalization) | [x] | [x] | N/A | P0 |
-| SPEECH-005 | Implement engine fallback chain | [ ] | [ ] | N/A | P0 |
+| SPEECH-005 | Implement engine fallback chain | [x] | [x] | N/A | P0 |
 | **Engines** |
-| SPEECH-010 | Enhance Web Speech API integration (pt-PT specific) | [ ] | [ ] | [ ] | P0 |
+| SPEECH-010 | Enhance Web Speech API integration (pt-PT specific) | [x] | [x] | N/A | P0 |
 | SPEECH-011 | Fix Whisper model loading/caching | [ ] | [ ] | [ ] | P0 |
 | SPEECH-012 | Add Portuguese-tuned Whisper model option | [ ] | [ ] | N/A | P1 |
 | SPEECH-013 | Implement Azure Speech SDK integration (optional) | [ ] | [ ] | N/A | P2 |
 | SPEECH-014 | Create backend transcription endpoint (for Whisper GPU) | [ ] | [ ] | N/A | P1 |
 | **Scoring** |
-| SPEECH-020 | Implement enhanced Levenshtein with phonetic similarity | [ ] | [ ] | [ ] | P0 |
+| SPEECH-020 | Implement enhanced Levenshtein with phonetic similarity | [x] | [x] | N/A | P0 |
 | SPEECH-021 | Create GOP scoring algorithm | [ ] | [ ] | N/A | P1 |
-| SPEECH-022 | Add phoneme-level feedback generation | [ ] | [ ] | N/A | P0 |
+| SPEECH-022 | Add phoneme-level feedback generation | [x] | [x] | N/A | P0 |
 | SPEECH-023 | Implement fluency/prosody scoring | [ ] | [ ] | N/A | P1 |
-| SPEECH-024 | Create Portuguese phoneme pattern matcher | [ ] | [ ] | [ ] | P0 |
+| SPEECH-024 | Create Portuguese phoneme pattern matcher | [x] | [x] | N/A | P0 |
 | **Visual Feedback** |
 | SPEECH-030 | Create waveform visualizer component | [x] | [x] | N/A | P0 |
 | SPEECH-031 | Add volume level indicator | [x] | [x] | N/A | P0 |
