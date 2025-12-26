@@ -12,7 +12,9 @@
 
 import { AudioRecorder, RECORDER_EVENTS, RECORDER_STATES, canRecord } from './AudioRecorder.js';
 import { AudioPreprocessor, prepareForRecognition } from './AudioPreprocessor.js';
-import { Logger } from './Logger.js';
+import { createLogger } from './Logger.js';
+
+const Logger = createLogger('PronunciationService');
 
 // ===========================================
 // CONFIGURATION
@@ -70,7 +72,7 @@ export const PRONUNCIATION_EVENTS = {
 export class PronunciationService {
     constructor(config = {}) {
         this.config = { ...PRONUNCIATION_CONFIG, ...config };
-        this.logger = Logger.createLogger({ context: 'PronunciationService' });
+        this.logger = Logger;
         
         // Services
         this.recorder = new AudioRecorder();
