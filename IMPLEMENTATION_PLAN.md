@@ -1227,22 +1227,22 @@ Lines ~4500-5000: Speech recognition - replaced by VoiceService
 
 | Task ID | Task | Tests Count | Status | Priority |
 |---------|------|-------------|--------|----------|
-| TEST-001 | AuthService unit tests | 19 | [ ] | P0 |
-| TEST-002 | AIService unit tests | 11 | [ ] | P0 |
-| TEST-003 | VoiceService unit tests | 8 | [ ] | P0 |
-| TEST-004 | TTSService unit tests | 7 | [ ] | P0 |
-| TEST-005 | LessonService unit tests | 12 | [ ] | P0 |
-| TEST-006 | ProgressTracker unit tests | 10 | [ ] | P0 |
-| TEST-007 | Logger unit tests | 8 | [ ] | P0 |
-| TEST-008 | HealthChecker unit tests | 8 | [ ] | P0 |
-| TEST-009 | AuthService E2E tests | 5 | [ ] | P0 |
+| TEST-001 | AuthService unit tests | 18 | [x] | P0 |
+| TEST-002 | AIService unit tests | 11 | [x] | P0 |
+| TEST-003 | VoiceService unit tests | 20 | [x] | P0 |
+| TEST-004 | TTSService unit tests | 12 | [x] | P0 |
+| TEST-005 | LessonService unit tests | 30 | [x] | P0 |
+| TEST-006 | ProgressTracker unit tests | 55 | [x] | P0 |
+| TEST-007 | Logger unit tests | 40 | [x] | P0 |
+| TEST-008 | HealthChecker unit tests | 35 | [x] | P0 |
+| TEST-009 | AuthService E2E tests | 5 | [x] | P0 |
 | TEST-010 | VoiceService E2E tests | 12 | [ ] | P0 |
 | TEST-011 | LessonService E2E tests | 13 | [ ] | P0 |
 | TEST-012 | Modal component tests | 11 | [ ] | P0 |
 | TEST-013 | Toast component tests | 9 | [ ] | P0 |
 | TEST-014 | Full lesson flow integration | 1 | [ ] | P0 |
 
-**Total Tests Required for Phase 1B: 124 tests**
+**Total Tests Created: 224 passing (3 skipped for UI elements not yet present)**
 
 ---
 
