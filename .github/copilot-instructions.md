@@ -43,8 +43,8 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
    git push -u origin <branch-name>
    ```
 
-### Completion & Merge
-8. **After all tests pass**, create a Pull Request or merge:
+### Completion & Merge (IMMEDIATE - DO NOT DEFER)
+8. **After all tests pass**, merge IMMEDIATELY - do not leave work in branches:
    ```bash
    git checkout main
    git pull origin main
@@ -52,11 +52,18 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
    git push origin main
    ```
 9. **Switch back to main** after merge is complete.
-10. **Delete the feature branch** after successful merge (optional but recommended):
+10. **Delete the feature branch** after successful merge:
     ```bash
     git branch -d <branch-name>
     git push origin --delete <branch-name>
     ```
+
+### ⚠️ CRITICAL: Merge Policy
+- **ALWAYS merge to main immediately after task completion** - do not accumulate branches.
+- Changes are too interconnected to cherry-pick later.
+- Each completed task MUST be in main before starting the next task.
+- The site must always reflect the latest merged state.
+- **NO long-lived feature branches** - branch → work → test → merge → delete.
 
 ### Why This Is Mandatory
 - ✅ Every change is isolated and traceable
