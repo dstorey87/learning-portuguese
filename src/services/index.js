@@ -10,11 +10,50 @@ export { EventStreaming } from './eventStreaming.js';
 export { AIPipeline } from './aiPipeline.js';
 export { HealthMonitor } from './healthMonitor.js';
 
-// Voice services (to be created)
-// export { VoiceService } from './voiceService.js';
-// export { TTSService } from './ttsService.js';
+// Auth Service
+export {
+    AUTH_CONFIG,
+    AUTH_CONSTANTS,
+    USER_ROLES,
+    AUTH_EVENTS,
+    getUser,
+    loadUser,
+    saveUser,
+    login,
+    loginAdmin,
+    logout,
+    isAdmin,
+    isLoggedIn,
+    getRole,
+    getHearts,
+    hasHearts,
+    loseHeart,
+    addHeart,
+    refillHearts,
+    setHearts,
+    getTimeToNextHeart,
+    formatRefillTime,
+    startHeartRefillTimer,
+    stopHeartRefillTimer,
+    getXP,
+    addXP,
+    setXP,
+    getStreak,
+    updateStreak,
+    setStreak,
+    completeLesson,
+    getDailyProgress,
+    getTotalLessons,
+    onAuthEvent,
+    resetUserStats,
+    getUserStats,
+    getPreferences,
+    updatePreferences,
+    default as AuthService
+} from './AuthService.js';
 
-// Auth services (to be created)
-// export { AuthService } from './authService.js';
+// Voice services (to be created)
+// export { VoiceService } from './VoiceService.js';
+// export { TTSService } from './TTSService.js';
 
 export const SERVICES_VERSION = '0.1.0';

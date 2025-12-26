@@ -211,7 +211,7 @@ learning_portuguese/
 | F1-013 | Extract toast system to `Toast.js` | [x] | P0 | 1 |
 | F1-014 | Extract challenge types to `ChallengeRenderer.js` | [x] | P0 | 3 |
 | F1-015 | Extract word display to `WordCard.js` | [x] | P0 | 2 |
-| F1-016 | Extract progress UI to `ProgressChart.js` | [ ] | P1 | 2 |
+| F1-016 | Extract progress UI to `ProgressChart.js` | [x] | P1 | 2 |
 
 ### 1.3 Create Service Layer
 
