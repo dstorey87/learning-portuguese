@@ -40,19 +40,34 @@ export const topics = [
       },
       {
         id: 10,
-        title: 'Numbers & Basics',
+        title: 'Numbers 1-20',
         level: 'beginner',
         words: [
-          { pt: 'Zero', en: 'Zero', audio: 'zero' },
           { pt: 'Um', en: 'One', audio: 'um' },
           { pt: 'Dois', en: 'Two', audio: 'dois' },
           { pt: 'Três', en: 'Three', audio: 'tres' },
           { pt: 'Quatro', en: 'Four', audio: 'quatro' },
-          { pt: 'Cinco', en: 'Five', audio: 'cinco' }
+          { pt: 'Cinco', en: 'Five', audio: 'cinco' },
+          { pt: 'Seis', en: 'Six', audio: 'seis' },
+          { pt: 'Sete', en: 'Seven', audio: 'sete' },
+          { pt: 'Oito', en: 'Eight', audio: 'oito' },
+          { pt: 'Nove', en: 'Nine', audio: 'nove' },
+          { pt: 'Dez', en: 'Ten', audio: 'dez' },
+          { pt: 'Onze', en: 'Eleven', audio: 'onze' },
+          { pt: 'Doze', en: 'Twelve', audio: 'doze' },
+          { pt: 'Treze', en: 'Thirteen', audio: 'treze' },
+          { pt: 'Catorze', en: 'Fourteen', audio: 'catorze' },
+          { pt: 'Quinze', en: 'Fifteen', audio: 'quinze' },
+          { pt: 'Dezasseis', en: 'Sixteen', audio: 'dezasseis' },
+          { pt: 'Dezassete', en: 'Seventeen', audio: 'dezassete' },
+          { pt: 'Dezoito', en: 'Eighteen', audio: 'dezoito' },
+          { pt: 'Dezanove', en: 'Nineteen', audio: 'dezanove' },
+          { pt: 'Vinte', en: 'Twenty', audio: 'vinte' }
         ],
         sentences: [
           { pt: 'Tenho três bilhetes.', en: 'I have three tickets.' },
-          { pt: 'São cinco euros, por favor.', en: 'It is five euros, please.' }
+          { pt: 'São quinze euros, por favor.', en: 'It is fifteen euros, please.' },
+          { pt: 'Ele tem vinte anos.', en: 'He is twenty years old.' }
         ]
       },
       {
@@ -309,6 +324,236 @@ export const topics = [
         sentences: [
           { pt: 'Quero melhorar as minhas competências para uma promoção.', en: 'I want to improve my skills for a promotion.' },
           { pt: 'A entrevista correu bem e espero receber feedback.', en: 'The interview went well and I hope to receive feedback.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'fundamentals',
+    title: 'Language Fundamentals',
+    gated: false,
+    lessons: [
+      {
+        id: 17,
+        title: 'Days of the Week',
+        level: 'beginner',
+        words: [
+          { pt: 'Segunda-feira', en: 'Monday', audio: 'segunda-feira' },
+          { pt: 'Terça-feira', en: 'Tuesday', audio: 'terca-feira' },
+          { pt: 'Quarta-feira', en: 'Wednesday', audio: 'quarta-feira' },
+          { pt: 'Quinta-feira', en: 'Thursday', audio: 'quinta-feira' },
+          { pt: 'Sexta-feira', en: 'Friday', audio: 'sexta-feira' },
+          { pt: 'Sábado', en: 'Saturday', audio: 'sabado' },
+          { pt: 'Domingo', en: 'Sunday', audio: 'domingo' },
+          { pt: 'Dia', en: 'Day', audio: 'dia' },
+          { pt: 'Semana', en: 'Week', audio: 'semana' },
+          { pt: 'Fim de semana', en: 'Weekend', audio: 'fim-semana' }
+        ],
+        sentences: [
+          { pt: 'A reunião é na segunda-feira.', en: 'The meeting is on Monday.' },
+          { pt: 'Sexta-feira é o meu dia favorito!', en: 'Friday is my favorite day!' },
+          { pt: 'O que fazes ao fim de semana?', en: 'What do you do on the weekend?' }
+        ]
+      },
+      {
+        id: 18,
+        title: 'Months of the Year',
+        level: 'beginner',
+        words: [
+          { pt: 'Janeiro', en: 'January', audio: 'janeiro' },
+          { pt: 'Fevereiro', en: 'February', audio: 'fevereiro' },
+          { pt: 'Março', en: 'March', audio: 'marco' },
+          { pt: 'Abril', en: 'April', audio: 'abril' },
+          { pt: 'Maio', en: 'May', audio: 'maio' },
+          { pt: 'Junho', en: 'June', audio: 'junho' },
+          { pt: 'Julho', en: 'July', audio: 'julho' },
+          { pt: 'Agosto', en: 'August', audio: 'agosto' },
+          { pt: 'Setembro', en: 'September', audio: 'setembro' },
+          { pt: 'Outubro', en: 'October', audio: 'outubro' },
+          { pt: 'Novembro', en: 'November', audio: 'novembro' },
+          { pt: 'Dezembro', en: 'December', audio: 'dezembro' },
+          { pt: 'Mês', en: 'Month', audio: 'mes' },
+          { pt: 'Ano', en: 'Year', audio: 'ano' }
+        ],
+        sentences: [
+          { pt: 'Nasci em janeiro.', en: 'I was born in January.' },
+          { pt: 'O Natal é em dezembro.', en: 'Christmas is in December.' },
+          { pt: 'Este mês é muito ocupado.', en: 'This month is very busy.' }
+        ]
+      },
+      {
+        id: 19,
+        title: 'Numbers 20-100',
+        level: 'beginner',
+        words: [
+          { pt: 'Vinte e um', en: 'Twenty-one', audio: 'vinte-um' },
+          { pt: 'Trinta', en: 'Thirty', audio: 'trinta' },
+          { pt: 'Quarenta', en: 'Forty', audio: 'quarenta' },
+          { pt: 'Cinquenta', en: 'Fifty', audio: 'cinquenta' },
+          { pt: 'Sessenta', en: 'Sixty', audio: 'sessenta' },
+          { pt: 'Setenta', en: 'Seventy', audio: 'setenta' },
+          { pt: 'Oitenta', en: 'Eighty', audio: 'oitenta' },
+          { pt: 'Noventa', en: 'Ninety', audio: 'noventa' },
+          { pt: 'Cem', en: 'One hundred', audio: 'cem' },
+          { pt: 'Mil', en: 'One thousand', audio: 'mil' }
+        ],
+        sentences: [
+          { pt: 'Isso custa trinta e cinco euros.', en: 'That costs thirty-five euros.' },
+          { pt: 'Ela tem cinquenta anos.', en: 'She is fifty years old.' },
+          { pt: 'São cem quilómetros até Lisboa.', en: 'It is one hundred kilometers to Lisbon.' }
+        ]
+      },
+      {
+        id: 20,
+        title: 'Time & Clock',
+        level: 'beginner',
+        words: [
+          { pt: 'Hora', en: 'Hour', audio: 'hora' },
+          { pt: 'Minuto', en: 'Minute', audio: 'minuto' },
+          { pt: 'Segundo', en: 'Second', audio: 'segundo' },
+          { pt: 'Meio-dia', en: 'Noon', audio: 'meio-dia' },
+          { pt: 'Meia-noite', en: 'Midnight', audio: 'meia-noite' },
+          { pt: 'De manhã', en: 'In the morning', audio: 'de-manha' },
+          { pt: 'À tarde', en: 'In the afternoon', audio: 'a-tarde' },
+          { pt: 'À noite', en: 'At night', audio: 'a-noite' },
+          { pt: 'Agora', en: 'Now', audio: 'agora' },
+          { pt: 'Mais tarde', en: 'Later', audio: 'mais-tarde' }
+        ],
+        sentences: [
+          { pt: 'Que horas são?', en: 'What time is it?' },
+          { pt: 'São três da tarde.', en: 'It is three in the afternoon.' },
+          { pt: 'O voo parte ao meio-dia.', en: 'The flight leaves at noon.' }
+        ]
+      },
+      {
+        id: 21,
+        title: 'Colors',
+        level: 'beginner',
+        words: [
+          { pt: 'Vermelho', en: 'Red', audio: 'vermelho' },
+          { pt: 'Azul', en: 'Blue', audio: 'azul' },
+          { pt: 'Verde', en: 'Green', audio: 'verde' },
+          { pt: 'Amarelo', en: 'Yellow', audio: 'amarelo' },
+          { pt: 'Laranja', en: 'Orange', audio: 'laranja' },
+          { pt: 'Roxo', en: 'Purple', audio: 'roxo' },
+          { pt: 'Cor-de-rosa', en: 'Pink', audio: 'cor-rosa' },
+          { pt: 'Branco', en: 'White', audio: 'branco' },
+          { pt: 'Preto', en: 'Black', audio: 'preto' },
+          { pt: 'Cinzento', en: 'Grey', audio: 'cinzento' }
+        ],
+        sentences: [
+          { pt: 'O céu é azul.', en: 'The sky is blue.' },
+          { pt: 'Gosto do vestido vermelho.', en: 'I like the red dress.' },
+          { pt: 'A relva é verde.', en: 'The grass is green.' }
+        ]
+      },
+      {
+        id: 22,
+        title: 'Family Members',
+        level: 'beginner',
+        words: [
+          { pt: 'Mãe', en: 'Mother', audio: 'mae' },
+          { pt: 'Pai', en: 'Father', audio: 'pai' },
+          { pt: 'Filho', ptFem: 'Filha', en: 'Son / Daughter', audio: 'filho', gendered: true },
+          { pt: 'Irmão', ptFem: 'Irmã', en: 'Brother / Sister', audio: 'irmao', gendered: true },
+          { pt: 'Avô', ptFem: 'Avó', en: 'Grandfather / Grandmother', audio: 'avo', gendered: true },
+          { pt: 'Tio', ptFem: 'Tia', en: 'Uncle / Aunt', audio: 'tio', gendered: true },
+          { pt: 'Primo', ptFem: 'Prima', en: 'Cousin (male/female)', audio: 'primo', gendered: true },
+          { pt: 'Marido', en: 'Husband', audio: 'marido' },
+          { pt: 'Mulher', en: 'Wife', audio: 'mulher' },
+          { pt: 'Família', en: 'Family', audio: 'familia' }
+        ],
+        sentences: [
+          { pt: 'A minha mãe chama-se Maria.', en: 'My mother is called Maria.' },
+          { pt: 'Tenho dois irmãos.', en: 'I have two brothers.' },
+          { pt: 'A família está toda reunida.', en: 'The whole family is gathered.' }
+        ]
+      },
+      {
+        id: 23,
+        title: 'Common Verbs',
+        level: 'beginner',
+        words: [
+          { pt: 'Ser', en: 'To be (permanent)', audio: 'ser' },
+          { pt: 'Estar', en: 'To be (temporary)', audio: 'estar' },
+          { pt: 'Ter', en: 'To have', audio: 'ter' },
+          { pt: 'Fazer', en: 'To do/make', audio: 'fazer' },
+          { pt: 'Ir', en: 'To go', audio: 'ir' },
+          { pt: 'Vir', en: 'To come', audio: 'vir' },
+          { pt: 'Poder', en: 'To be able to/can', audio: 'poder' },
+          { pt: 'Querer', en: 'To want', audio: 'querer' },
+          { pt: 'Saber', en: 'To know (facts)', audio: 'saber' },
+          { pt: 'Conhecer', en: 'To know (people/places)', audio: 'conhecer' }
+        ],
+        sentences: [
+          { pt: 'Eu sou português.', en: 'I am Portuguese.' },
+          { pt: 'Estou cansado hoje.', en: 'I am tired today.' },
+          { pt: 'Quero aprender português.', en: 'I want to learn Portuguese.' }
+        ]
+      },
+      {
+        id: 24,
+        title: 'Seasons & Weather',
+        level: 'beginner',
+        words: [
+          { pt: 'Primavera', en: 'Spring', audio: 'primavera' },
+          { pt: 'Verão', en: 'Summer', audio: 'verao' },
+          { pt: 'Outono', en: 'Autumn/Fall', audio: 'outono' },
+          { pt: 'Inverno', en: 'Winter', audio: 'inverno' },
+          { pt: 'Sol', en: 'Sun', audio: 'sol' },
+          { pt: 'Chuva', en: 'Rain', audio: 'chuva' },
+          { pt: 'Vento', en: 'Wind', audio: 'vento' },
+          { pt: 'Nuvem', en: 'Cloud', audio: 'nuvem' },
+          { pt: 'Quente', en: 'Hot', audio: 'quente' },
+          { pt: 'Frio', en: 'Cold', audio: 'frio' }
+        ],
+        sentences: [
+          { pt: 'O verão em Portugal é muito quente.', en: 'Summer in Portugal is very hot.' },
+          { pt: 'Está a chover.', en: 'It is raining.' },
+          { pt: 'Hoje está sol e calor.', en: 'Today it is sunny and warm.' }
+        ]
+      },
+      {
+        id: 25,
+        title: 'Question Words',
+        level: 'beginner',
+        words: [
+          { pt: 'O quê?', en: 'What?', audio: 'o-que' },
+          { pt: 'Quem?', en: 'Who?', audio: 'quem' },
+          { pt: 'Onde?', en: 'Where?', audio: 'onde' },
+          { pt: 'Quando?', en: 'When?', audio: 'quando' },
+          { pt: 'Porquê?', en: 'Why?', audio: 'porque' },
+          { pt: 'Como?', en: 'How?', audio: 'como' },
+          { pt: 'Quanto?', en: 'How much?', audio: 'quanto' },
+          { pt: 'Qual?', en: 'Which?', audio: 'qual' }
+        ],
+        sentences: [
+          { pt: 'O que estás a fazer?', en: 'What are you doing?' },
+          { pt: 'Onde fica a estação?', en: 'Where is the station?' },
+          { pt: 'Quando chega o comboio?', en: 'When does the train arrive?' },
+          { pt: 'Como se chama?', en: 'What is your name?' }
+        ]
+      },
+      {
+        id: 26,
+        title: 'Common Adjectives',
+        level: 'beginner',
+        words: [
+          { pt: 'Grande', en: 'Big/Large', audio: 'grande' },
+          { pt: 'Pequeno', en: 'Small', audio: 'pequeno' },
+          { pt: 'Bom', ptFem: 'Boa', en: 'Good', audio: 'bom', gendered: true },
+          { pt: 'Mau', ptFem: 'Má', en: 'Bad', audio: 'mau', gendered: true },
+          { pt: 'Novo', en: 'New/Young', audio: 'novo' },
+          { pt: 'Velho', en: 'Old', audio: 'velho' },
+          { pt: 'Bonito', en: 'Beautiful', audio: 'bonito' },
+          { pt: 'Fácil', en: 'Easy', audio: 'facil' },
+          { pt: 'Difícil', en: 'Difficult', audio: 'dificil' },
+          { pt: 'Rápido', en: 'Fast', audio: 'rapido' }
+        ],
+        sentences: [
+          { pt: 'Lisboa é uma cidade grande e bonita.', en: 'Lisbon is a big and beautiful city.' },
+          { pt: 'Português não é muito difícil.', en: 'Portuguese is not very difficult.' },
+          { pt: 'O café é bom aqui.', en: 'The coffee is good here.' }
         ]
       }
     ]

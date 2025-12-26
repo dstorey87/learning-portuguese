@@ -39,3 +39,21 @@ These rules are mandatory for every change. Treat this file as the source of tru
 6) Fix issues, repeat tests until green.
 7) Update README.md/docs and version text if visible.
 8) Stage for commit with clean diff.
+
+## Feature-Specific Operations
+
+### Pronunciation Challenge System (v0.8.0)
+- **Lesson Flow**: learn-word phases → pronunciation challenges → MCQ quiz
+- **Challenge Phase**: User must say each word aloud (3 attempts, 65% pass threshold)
+- **Speech Recognition**: Uses Web Speech API with Portuguese phoneme analysis
+- **Fallback**: Whisper model available when Web Speech API fails
+- **Phoneme Categories**: nasals, sibilants, vowel reduction, digraphs, rhotics, stress, cedilla
+- **Scoring**: Fuzzy matching with partial credit; tips shown for low scores
+- **Weak Words**: Failed pronunciations tracked for later review
+- **Files**: ai-speech.js (recognition), word-knowledge.js (data), app.js (renderPronunciationChallenge)
+
+### Lesson System Architecture
+- **Phases**: learn-word (show word with tips) → pronunciation (say aloud) → quiz (MCQ)
+- **buildLessonChallenges()**: Constructs challenge array with phase types
+- **renderChallenge()**: Routes to appropriate renderer by challenge.type
+- **Pass Threshold**: 85% lesson completion required to mark lesson complete

@@ -8,25 +8,37 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo">🇵🇹 PortuLingo</div>
-            <div class="nav-links">
-                <a href="#home">Home</a>
-                <a href="#learn">Learn</a>
-                <a href="#vault">My Vault</a>
-                <a href="#dashboard">Dashboard</a>
-                <a href="#tips">Tips</a>
-                <a href="#plans">Plans</a>
-                <a href="#coach">AI Coach</a>
-                <button class="btn-theme" id="themeToggle" aria-label="Toggle theme" aria-pressed="false">Dark mode</button>
-                <button class="btn-premium" id="premiumBtn">Go Premium</button>
+    <!-- Top Header Bar -->
+    <header class="top-header">
+        <button class="logo-btn" id="logoBtn" aria-label="PortuLingo Home">🇵🇹</button>
+        <div class="header-stats">
+            <div class="hearts-display" id="heartsDisplay">
+                <span class="heart-icon">❤️</span>
+                <span class="hearts-count" id="heartsCount">5</span>
+                <span class="hearts-timer" id="heartsTimer"></span>
+            </div>
+            <div class="streak-badge" id="streakBadge">
+                <span class="streak-icon">🔥</span>
+                <span class="streak-count" id="streakCount">0</span>
+            </div>
+            <div class="xp-badge" id="xpBadge">
+                <span class="xp-icon">⭐</span>
+                <span class="xp-count" id="xpCount">0</span>
             </div>
         </div>
-    </nav>
+        <div class="header-actions">
+            <button class="btn-theme" id="themeToggle" aria-label="Toggle theme">🌙</button>
+            <button class="btn-premium" id="premiumBtn">👑</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area with Pages -->
+    <main class="main-content">
+        <!-- Home Page -->
+        <div class="page active" id="page-home" data-page="home">
 
     <section id="home" class="hero">
         <div class="hero-content">
@@ -48,9 +60,12 @@
             </div>
             <div class="hero-badge" aria-label="European Portuguese only">EU‑PT only</div>
         </div>
-    </section>
+        </section>
+        </div>
 
-    <section id="learn" class="learning-section">
+        <!-- Learn Page -->
+        <div class="page" id="page-learn" data-page="learn">
+        <section id="learn" class="learning-section">
         <div class="learning-header">
             <div>
                 <h2>Begin Your Journey</h2>
@@ -71,9 +86,12 @@
         <div class="lesson-grid" id="lessonGrid">
             <!-- Lessons will be dynamically loaded -->
         </div>
-    </section>
+        </section>
+        </div>
 
-    <section id="vault" class="vault-section">
+        <!-- Practice Page (Vault, Flashcards, Dialogues, Coach) -->
+        <div class="page" id="page-practice" data-page="practice">
+        <section id="vault" class="vault-section">
         <h2>📚 My Learned Words Vault</h2>
         <div class="vault-stats">
             <div class="stat-card">
@@ -84,22 +102,91 @@
                 <span class="stat-number" id="streak">0</span>
                 <span class="stat-label">Day Streak</span>
             </div>
+            <div class="stat-card">
+                <span class="stat-number" id="notepadCount">0</span>
+                <span class="stat-label">Saved Notes</span>
+            </div>
         </div>
         <div class="vault-actions">
             <div class="review-card">
                 <div class="review-header">
                     <button class="btn-review" id="reviewBtn">Quick Review Quiz</button>
-                    <span class="muted">Multiple choice powered by your SRS buckets.</span>
+                    <button class="btn-review" id="listeningDrillBtn">🎧 Listening Drill</button>
+                    <button class="btn-review" id="interleavedReviewBtn">🔀 Interleaved Review</button>
+                    <span class="muted">Multiple modes powered by your SRS buckets.</span>
+                </div>
+                <div class="review-modes">
+                    <label class="mode-toggle"><input type="checkbox" id="audioOnlyMode"> Audio Only (no text)</label>
+                    <label class="mode-toggle"><input type="checkbox" id="timedMode"> ⏱️ Timed Challenge</label>
+                    <select id="speedControl" class="speed-select">
+                        <option value="0.5">0.5x Speed</option>
+                        <option value="0.75">0.75x Speed</option>
+                        <option value="1" selected>1x Speed</option>
+                        <option value="1.25">1.25x Speed</option>
+                        <option value="1.5">1.5x Speed</option>
+                        <option value="2">2x Speed</option>
+                    </select>
                 </div>
                 <div id="reviewPrompt" class="review-prompt">Tap start to generate a quick question.</div>
+                <div id="timerDisplay" class="timer-display" style="display:none;">Time: <span id="timerValue">0</span>s</div>
                 <div id="reviewOptions" class="review-options"></div>
                 <div id="reviewResult" class="review-result"></div>
             </div>
             <div class="srs-panel">
                 <p class="muted">SRS Buckets</p>
                 <div id="srsBuckets" class="srs-buckets"></div>
+                <div class="vault-stats">
+                    <button class="btn-secondary" id="viewAnalyticsBtn">📊 View Progress Analytics</button>
+                    <button class="btn-secondary" id="exportDataBtn">💾 Export Data</button>
+                    <button class="btn-secondary" id="importDataBtn">📥 Import Data</button>
+                </div>
             </div>
         </div>
+        
+        <!-- Translator Section -->
+        <div class="translator-section">
+            <h3>🔄 Sentence Translator</h3>
+            <p class="muted">Type in English and get EU-Portuguese translation with grammar notes.</p>
+            <div class="translator-input-area">
+                <textarea id="translatorInput" placeholder="Type a sentence in English..." rows="2"></textarea>
+                <div class="translator-actions">
+                    <button class="btn-small" id="translateBtn">🔄 Translate to PT</button>
+                </div>
+                <div id="translatorOutput" class="translator-output" style="display:none;">
+                    <div class="pt-text" id="translationPt"></div>
+                    <div class="translator-actions">
+                        <button class="btn-small" id="speakTranslationBtn">🔊 Listen</button>
+                        <button class="btn-small" id="saveTranslationBtn">📌 Save to Notepad</button>
+                    </div>
+                    <div class="translation-notes" id="translationNotes"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Personal Notepad Section -->
+        <div class="notepad-section">
+            <h3>📝 Personal Notepad</h3>
+            <p class="muted">Save words and phrases for later study.</p>
+            <div class="notepad-add-form">
+                <div class="form-group">
+                    <label for="notepadPt">Portuguese</label>
+                    <input type="text" id="notepadPt" placeholder="Word or phrase">
+                </div>
+                <div class="form-group">
+                    <label for="notepadEn">English</label>
+                    <input type="text" id="notepadEn" placeholder="Meaning">
+                </div>
+                <div class="form-group">
+                    <label for="notepadNote">Note</label>
+                    <input type="text" id="notepadNote" placeholder="Personal note (optional)">
+                </div>
+                <button class="btn-add-note" id="addNoteBtn">+ Add</button>
+            </div>
+            <div id="notepadList" class="notepad-list">
+                <!-- Notepad items will appear here -->
+            </div>
+        </div>
+        
         <div class="vault-filters">
             <input type="text" id="vaultSearch" placeholder="Search Portuguese or English" aria-label="Search learned words">
             <div class="vault-sort-group">
@@ -113,7 +200,107 @@
         </div>
     </section>
 
-    <section id="dashboard" class="dashboard-section">
+    <!-- Flashcards Section -->
+    <section id="flashcards" class="flashcards-section">
+        <div class="flashcards-header">
+            <h2>🃏 Flashcards</h2>
+            <p class="muted">Master your vocabulary with smart repetition and memory techniques</p>
+        </div>
+        
+        <div class="flashcards-controls">
+            <div class="flashcards-stats-row">
+                <div class="stat-card">
+                    <span class="stat-number" id="flashcardsCount">0</span>
+                    <span class="stat-label">Cards Saved</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="flashcardsGroupCount">0</span>
+                    <span class="stat-label">Groups</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="flashcardsDueCount">0</span>
+                    <span class="stat-label">Due for Review</span>
+                </div>
+            </div>
+            
+            <div class="flashcards-action-row">
+                <div class="add-chapter-card">
+                    <h3>📚 Add Entire Lesson</h3>
+                    <p class="muted">Save all words and sentences from a lesson at once</p>
+                    <div class="chapter-add-form">
+                        <select id="chapterSelector" class="chapter-select">
+                            <option value="">-- Select a lesson --</option>
+                        </select>
+                        <select id="targetGroupSelector" class="chapter-select">
+                            <option value="">📁 Default Group</option>
+                        </select>
+                        <button class="btn-add-chapter" id="saveChapterBtn">➕ Add to Flashcards</button>
+                    </div>
+                </div>
+                
+                <div class="group-manager-card">
+                    <h3>📁 Manage Groups</h3>
+                    <p class="muted">Organize flashcards into custom groups</p>
+                    <div class="group-create-form">
+                        <input type="text" id="newGroupName" placeholder="New group name..." class="group-input">
+                        <button class="btn-create-group" id="createGroupBtn">➕ Create Group</button>
+                    </div>
+                    <div id="groupsList" class="groups-list">
+                        <!-- Groups will appear here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flashcards-review-row">
+                <div class="review-mode-card">
+                    <h3>🔄 Review Mode</h3>
+                    <p class="muted">Spaced repetition for optimal learning</p>
+                    <div class="review-options">
+                        <select id="reviewGroupFilter" class="review-filter">
+                            <option value="all">All Cards</option>
+                            <option value="due">Due Only</option>
+                        </select>
+                        <button class="btn-start-review" id="startReviewBtn">Start Review</button>
+                    </div>
+                    <div id="flashcardsReviewArea" class="review-area"></div>
+                </div>
+                
+                <div class="export-card">
+                    <h3>📤 Export Flashcards</h3>
+                    <p class="muted">Export to Anki or other apps</p>
+                    <div class="export-options">
+                        <select id="exportGroupSelect" class="export-select">
+                            <option value="all">All Groups</option>
+                        </select>
+                        <button class="btn-export" id="exportAnkiBtn">📱 Export for Anki</button>
+                        <button class="btn-export-csv" id="exportCSVBtn">📄 Export CSV</button>
+                    </div>
+                    <p class="export-hint">Import the .txt file into AnkiDroid or AnkiMobile</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flashcards-list-container">
+            <div class="flashcards-list-header">
+                <h3>📋 My Flashcards</h3>
+                <div class="flashcards-filters">
+                    <select id="flashcardsGroupFilter" class="filter-select">
+                        <option value="all">All Groups</option>
+                    </select>
+                    <input type="text" id="flashcardsSearch" placeholder="Search cards..." class="search-input">
+                </div>
+            </div>
+            <div id="flashcardsList" class="flashcards-list">
+                <!-- Flashcards will appear here -->
+            </div>
+        </div>
+        </section>
+
+        </div>
+
+        <!-- Profile Page (Dashboard, Tips, Plans) -->
+        <div class="page" id="page-profile" data-page="profile">
+        <section id="dashboard" class="dashboard-section">
         <h2>User Dashboard</h2>
         <div class="dashboard-grid">
             <div class="dashboard-card">
@@ -137,35 +324,31 @@
                 </div>
                 <p class="muted" id="lessonDetailStat">Complete a lesson to see details.</p>
             </div>
-            <div class="dashboard-card">
-                <h3>Voice Settings (EU‑PT only)</h3>
-                <p class="muted">Choose a free, on-device EU Portuguese voice. Bundled Piper downloads only on demand. No Brazilian voices are shown.</p>
+            <div class="dashboard-card voice-card">
+                <h3>🎙️ Voice Settings</h3>
+                <p class="muted">Select an EU Portuguese voice for lesson audio.</p>
                 <div class="voice-settings">
-                    <label class="select-label">Preferred source
-                        <select id="voiceSourceSelect" aria-label="Voice source">
-                            <option value="auto">Auto (system first)</option>
-                        </select>
+                    <label class="select-label">Voice
+                        <select id="voiceSelect" aria-label="Voice selection"></select>
                     </label>
-                    <label class="select-label">Voice option
-                        <select id="voiceSelect" aria-label="Voice option"></select>
-                    </label>
+                    <div class="voice-control-item">
+                        <label>Speed: <span id="voiceSpeedValue">1.0x</span></label>
+                        <div class="voice-speed-display">
+                            <input type="range" id="voiceSpeedSlider" min="0.5" max="2" step="0.1" value="0.6">
+                        </div>
+                    </div>
                     <div class="voice-actions">
-                        <button class="btn-small" id="voiceSampleBtn">Play Sample</button>
-                        <button class="btn-small" id="voiceSaveBtn">Save Default</button>
-                        <button class="btn-small" id="voiceDisableBundledBtn">Disable Bundled Voices</button>
-                        <button class="btn-small" id="voiceDownloadBtn">Download Bundled Voice</button>
+                        <button class="btn-small" id="voiceSampleBtn">▶️ Test Voice</button>
                     </div>
-                    <label class="select-label">Bundled TTS API URL (HTTP)
-                        <input type="url" id="voiceBundledApiUrl" placeholder="https://your-tts-endpoint.example.com/tts" aria-label="Bundled TTS API URL">
-                    </label>
-                    <p class="muted">Set an online TTS endpoint to stream audio for the bundled Piper model. Payload: JSON with text, lang, voiceKey, and modelUrl; response: audio/wav or audio/ogg.</p>
-                    <div class="voice-status" id="voiceStatus">Detecting system voices…</div>
-                    <div class="voice-diagnostics">
-                        <div class="voice-line" id="voiceAvailability">System voices: —. Bundled voice: —.</div>
-                        <div class="voice-line" id="voiceSelection">Selected: none (text only until ready).</div>
-                        <div class="voice-line" id="voiceLastUsed">Last playback: idle.</div>
-                    </div>
-                    <div class="demo-phrase" id="voiceDemo">Demo: Olá! Vamos praticar português europeu: pão, coração, obrigado, vinte e oito.</div>
+                    <div class="voice-status" id="voiceStatus">Detecting voices…</div>
+                    
+                    <!-- Download Section -->
+                    <details class="voice-download-section" id="voiceDownloadSection">
+                        <summary>📥 Download More Voices</summary>
+                        <div class="voice-download-list" id="voiceDownloadList">
+                            <p class="muted small">Loading downloadable voices…</p>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>
@@ -260,27 +443,88 @@
 
     <section id="coach" class="coach-section">
         <div class="section-heading">
-            <h2>AI Coach (Free & Local)</h2>
-            <p class="muted">Hints adapt to your mistakes—no cloud, EU-PT only, speaks when needed.</p>
+            <h2>🎓 AI Tutor (Free & Local)</h2>
+            <p class="muted">Honest feedback from AI—no false praise, truthful like a real teacher.</p>
         </div>
+        
+        <!-- AI Status Bar -->
+        <div class="ai-status-bar">
+            <div class="ai-status-item">
+                <span class="status-label">Edge-TTS:</span>
+                <span id="ttsStatus" class="status-dot status-checking">●</span>
+                <span id="ttsStatusText">Checking...</span>
+            </div>
+            <div class="ai-status-item">
+                <span class="status-label">Whisper:</span>
+                <span id="whisperStatus" class="status-dot status-checking">●</span>
+                <span id="whisperStatusText">Not loaded</span>
+            </div>
+            <div class="ai-status-item">
+                <span class="status-label">Ollama:</span>
+                <span id="ollamaStatus" class="status-dot status-checking">●</span>
+                <span id="ollamaStatusText">Checking...</span>
+            </div>
+        </div>
+
         <div class="coach-grid">
+            <!-- Voice Selection Card -->
             <div class="coach-card">
-                <h3>Your Smart Hints</h3>
-                <div id="aiHints" class="hint-list">
-                    <p class="muted">Complete a lesson or quiz to see personalized tips.</p>
+                <h3>🎤 Voice Selection</h3>
+                <p class="muted">Choose from 6 neural Portuguese voices</p>
+                <div class="voice-selector">
+                    <label for="aiVoiceSelect">Voice:</label>
+                    <select id="aiVoiceSelect" class="voice-dropdown">
+                        <option value="pt-PT-RaquelNeural">🇵🇹 Raquel (Portugal, Female)</option>
+                        <option value="pt-PT-DuarteNeural">🇵🇹 Duarte (Portugal, Male)</option>
+                        <option value="pt-BR-FranciscaNeural">🇧🇷 Francisca (Brazil, Female)</option>
+                        <option value="pt-BR-AntonioNeural">🇧🇷 António (Brazil, Male)</option>
+                        <option value="pt-BR-ThalitaMultilingualNeural">🇧🇷 Thalita (Brazil, Multilingual)</option>
+                        <option value="pt-BR-MacerioMultilingualNeural">🇧🇷 Macério (Brazil, Multilingual)</option>
+                    </select>
+                </div>
+                <div class="voice-test">
+                    <button id="testVoiceBtn" class="btn btn-small">🔊 Test Voice</button>
+                    <span id="voiceTestStatus" class="muted"></span>
                 </div>
             </div>
+
+            <!-- Pronunciation Practice Card -->
             <div class="coach-card">
-                <h3>Stuck? Try This</h3>
-                <ul id="stuckList" class="stuck-list">
-                    <li>Nasal endings: practice “pão / mãos / corações” at 0.9× speed.</li>
-                    <li>Gender endings: swap -o/-a pairs and replay audio twice.</li>
-                    <li>Sentence melody: shadow “Como está? Onde fica o metro?” focusing on stress.</li>
-                    <li>Recall both ways: PT→EN then EN→PT for your 5 hardest words.</li>
-                </ul>
+                <h3>🎯 Pronunciation Practice</h3>
+                <p class="muted">Record yourself and get honest AI feedback</p>
+                <div class="pronunciation-input">
+                    <label for="practicePhrase">Phrase to practice:</label>
+                    <input type="text" id="practicePhrase" placeholder="Bom dia, como está?" class="practice-input">
+                    <button id="hearPhraseBtn" class="btn btn-small">🔊 Hear</button>
+                </div>
+                <div class="recording-controls">
+                    <button id="recordBtn" class="btn btn-record" disabled>🎙️ Record</button>
+                    <button id="loadWhisperBtn" class="btn btn-small">📥 Load Whisper</button>
+                    <span id="recordingStatus" class="muted">Load Whisper to enable recording</span>
+                </div>
+                <div id="transcriptionResult" class="transcription-result" style="display:none;">
+                    <strong>You said:</strong> <span id="transcribedText"></span>
+                </div>
             </div>
+
+            <!-- AI Feedback Card -->
+            <div class="coach-card coach-card-wide">
+                <h3>📝 Honest AI Feedback</h3>
+                <p class="muted">Truthful evaluation—mistakes will be clearly identified</p>
+                <div id="aiFeedback" class="ai-feedback">
+                    <p class="muted">Practice a phrase to receive honest feedback.</p>
+                </div>
+                <div id="pronunciationScore" class="pronunciation-score" style="display:none;">
+                    <div class="score-bar">
+                        <div id="scoreBarFill" class="score-bar-fill"></div>
+                    </div>
+                    <span id="scoreText" class="score-text"></span>
+                </div>
+            </div>
+
+            <!-- Skill Dashboard Card -->
             <div class="coach-card">
-                <h3>Skill Dashboard</h3>
+                <h3>📊 Skill Dashboard</h3>
                 <div id="skillStats" class="skill-grid">
                     <p class="muted">Complete a lesson to see skill stats.</p>
                 </div>
@@ -288,8 +532,128 @@
                     <p class="muted">No fix packs yet—make a few attempts first.</p>
                 </div>
             </div>
+
+            <!-- Tips Card -->
+            <div class="coach-card">
+                <h3>💡 Smart Tips</h3>
+                <div id="aiHints" class="hint-list">
+                    <p class="muted">Complete a lesson or quiz to see personalized tips.</p>
+                </div>
+                <h4>Common Challenges:</h4>
+                <ul id="stuckList" class="stuck-list">
+                    <li>Nasal sounds: practice "pão / mãos / corações" slowly.</li>
+                    <li>Gender endings: swap -o/-a pairs and listen twice.</li>
+                    <li>Sentence melody: shadow native speakers for stress patterns.</li>
+                </ul>
+            </div>
         </div>
     </section>
+    </div>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-tab active" data-page="home">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Home</span>
+        </button>
+        <button class="nav-tab" data-page="learn">
+            <span class="nav-icon">📚</span>
+            <span class="nav-label">Learn</span>
+        </button>
+        <button class="nav-tab" data-page="practice">
+            <span class="nav-icon">🎯</span>
+            <span class="nav-label">Practice</span>
+        </button>
+        <button class="nav-tab" data-page="profile">
+            <span class="nav-icon">👤</span>
+            <span class="nav-label">Profile</span>
+        </button>
+    </nav>
+
+    <!-- Dialogues Modal (fullscreen overlay) -->
+    <div id="dialoguesModal" class="fullscreen-modal" style="display:none;">
+        <div class="modal-header">
+            <button class="btn-back" id="dialoguesBackBtn">← Back</button>
+            <h2>💬 Real-World Dialogues</h2>
+        </div>
+        <div id="dialoguesList" class="dialogues-grid">
+            <!-- Dialogues will be rendered here -->
+        </div>
+        <div id="dialoguePlayer" class="dialogue-player" style="display:none;">
+            <div class="dialogue-header">
+                <h3 id="dialogueTitle"></h3>
+                <button class="btn-close" id="closeDialogueBtn">✕</button>
+            </div>
+            <div id="dialogueContent" class="dialogue-content"></div>
+            <div id="dialogueChoices" class="dialogue-choices"></div>
+            <div class="dialogue-controls">
+                <button class="btn-secondary" id="dialogueRestartBtn">🔄 Restart</button>
+                <button class="btn-secondary" id="dialogueHintBtn">💡 Hint</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal" style="display:none;">
+        <div class="modal-content login-modal">
+            <span class="close-modal" id="closeLogin">&times;</span>
+            <h2>👤 Admin Login</h2>
+            <p class="muted">Enter admin password for unlimited hearts</p>
+            <div class="login-form">
+                <input type="password" id="adminPassword" placeholder="Password" class="login-input">
+                <button class="btn-login" id="loginBtn">Login</button>
+            </div>
+            <p id="loginError" class="error-text" style="display:none;"></p>
+        </div>
+    </div>
+
+    <!-- Out of Hearts Modal -->
+    <div id="heartsModal" class="modal" style="display:none;">
+        <div class="modal-content hearts-modal">
+            <span class="close-modal" id="closeHearts">&times;</span>
+            <div class="hearts-empty">
+                <span class="big-heart">💔</span>
+                <h2>Out of Hearts!</h2>
+                <p class="muted">You've run out of hearts. Wait for them to refill or go premium!</p>
+                <div class="refill-timer">
+                    <span>❤️ Next heart in: </span>
+                    <span id="refillCountdown">30:00</span>
+                </div>
+            </div>
+            <div class="hearts-actions">
+                <button class="btn-premium" id="getPremiumBtn">👑 Go Premium - Unlimited Hearts</button>
+                <button class="btn-secondary" id="waitBtn">I'll wait</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="analyticsModal" class="modal" style="display:none;">
+        <div class="modal-content large-modal">
+            <span class="close-modal" id="closeAnalytics">&times;</span>
+            <h2>📊 Progress Analytics</h2>
+            <div class="analytics-grid">
+                <div class="chart-card">
+                    <h3>Retention Curve</h3>
+                    <canvas id="retentionChart" width="400" height="200"></canvas>
+                    <p class="muted">Your word retention over time</p>
+                </div>
+                <div class="chart-card">
+                    <h3>Forgetting Curve</h3>
+                    <canvas id="forgettingChart" width="400" height="200"></canvas>
+                    <p class="muted">Words due for review</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Study Statistics</h3>
+                    <div id="studyStats"></div>
+                </div>
+                <div class="stats-card">
+                    <h3>Weak Words</h3>
+                    <div id="weakWords"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="paywall" class="paywall-modal" style="display: none;">
         <div class="paywall-content">
@@ -308,11 +672,16 @@
 
     <footer class="footer">
         <div class="footer-content">
-            <span class="version-pill" id="appVersion">v0.4.0</span>
-            <span>Built with HTML, CSS, and JavaScript</span>
+            <span class="version-pill" id="appVersion">v0.9.0</span>
+            <span>PortuLingo - Learn European Portuguese</span>
         </div>
     </footer>
 
+    <!-- Core Modules -->
+    <script type="module" src="./auth.js"></script>
+    <script type="module" src="./ai-tts.js"></script>
+    <script type="module" src="./ai-speech.js"></script>
+    <script type="module" src="./ai-tutor.js"></script>
     <script type="module" src="./app.js"></script>
 </body>
 </html>

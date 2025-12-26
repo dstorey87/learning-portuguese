@@ -16,6 +16,7 @@ const audioContextSingleton = {
 };
 
 const BUNDLED_META_KEY = 'ptBundledVoiceMetaV1';
+const DOWNLOADED_VOICES_KEY = 'ptDownloadedVoicesV1';
 const DEFAULT_BUNDLED_META = {
   downloaded: false,
   sizeBytes: 63_201_294,
@@ -27,17 +28,86 @@ const DEFAULT_BUNDLED_META = {
   provider: null
 };
 
+// =========== DOWNLOADABLE EU-PT VOICE CATALOG ===========
+// Voices that can be downloaded for higher quality TTS
+// Only Joana (Piper) has a working URL currently
+const DOWNLOADABLE_VOICES = [
+  {
+    key: 'piper-joana',
+    name: 'Joana',
+    gender: 'female',
+    provider: 'Piper',
+    quality: 'high',
+    description: 'Clear, natural female voice from Piper TTS. Excellent for beginners.',
+    sizeBytes: 63_201_294,
+    sizeMB: 60,
+    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx',
+    configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx.json',
+    sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4',
+    sampleRate: 22050,
+    requiresBackend: true // Needs ONNX runtime or TTS server
+  }
+];
+
+// Track which voices are downloaded
+function getDownloadedVoices() {
+  try {
+    const raw = localStorage.getItem(DOWNLOADED_VOICES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function markVoiceDownloaded(voiceKey) {
+  try {
+    const downloaded = getDownloadedVoices();
+    if (!downloaded.includes(voiceKey)) {
+      downloaded.push(voiceKey);
+      localStorage.setItem(DOWNLOADED_VOICES_KEY, JSON.stringify(downloaded));
+    }
+  } catch (e) {
+    console.warn('Failed to mark voice as downloaded', e);
+  }
+}
+
+function isVoiceDownloaded(voiceKey) {
+  return getDownloadedVoices().includes(voiceKey);
+}
+
+export function getDownloadableVoices() {
+  return DOWNLOADABLE_VOICES.map(v => ({
+    ...v,
+    downloaded: isVoiceDownloaded(v.key)
+  }));
+}
+
+export { markVoiceDownloaded, isVoiceDownloaded };
+
+// Legacy bundled options kept for compatibility
 const BUNDLED_VOICE_OPTIONS = [
   {
     key: 'bundled|pt-pt|piper-tugao-medium',
-    name: 'Piper EU-PT (tugão, medium)',
-    gender: 'neutral',
+    name: 'Joana (Piper EU-PT)',
+    displayName: 'Joana',
+    gender: 'female',
     provider: 'Piper',
+    quality: 'high',
+    description: 'Clear, natural female voice. Excellent for beginners.',
     sizeBytes: 63_201_294,
     url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx',
-    sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4'
+    sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4',
+    sampleRate: 22050,
+    recommended: true
   }
 ];
+
+// Simplified voice count
+function countVoicesByGender() {
+  const male = BUNDLED_VOICE_OPTIONS.filter(v => v.gender === 'male').length;
+  const female = BUNDLED_VOICE_OPTIONS.filter(v => v.gender === 'female').length;
+  return { male, female, total: male + female };
+}
 
 function readBundledMeta() {
   try {
@@ -129,6 +199,10 @@ export function isBundledVoiceReady() {
 
 export function getBundledVoiceOptions() {
   return [...BUNDLED_VOICE_OPTIONS];
+}
+
+export function getBundledVoiceCount() {
+  return countVoicesByGender();
 }
 
 export function clearBundledVoice() {
@@ -476,6 +550,7 @@ function makeVoiceKey(voice) {
   return [voice.voiceURI || '', voice.name || '', voice.lang || ''].join('|');
 }
 
+// Enhanced voice detection with better gender categorization
 export async function getPortugueseVoiceOptions(pref = 'female') {
   const voices = await ensureVoicesReady();
   const scored = scorePortugueseVoices(voices, pref, { skipBrazilWhenPortugalAvailable: true });
@@ -488,17 +563,43 @@ export async function getPortugueseVoiceOptions(pref = 'female') {
       isPortugal: s.isPortugal,
       isBrazil: s.isBrazil,
       score: s.score,
-      provider: (s.voice.voiceURI || '').toLowerCase().includes('google') ? 'Google' : 'System'
+      provider: detectVoiceProvider(s.voice),
+      voiceURI: s.voice.voiceURI || ''
     }))
     .sort((a, b) => b.score - a.score);
 
-  const bestMale = options.find(o => o.gender === 'male') || null;
-  const bestFemale = options.find(o => o.gender === 'female') || null;
+  // Group by gender for UI
+  const maleVoices = options.filter(o => o.gender === 'male');
+  const femaleVoices = options.filter(o => o.gender === 'female');
+  const neutralVoices = options.filter(o => o.gender === 'neutral');
+
+  const bestMale = maleVoices[0] || null;
+  const bestFemale = femaleVoices[0] || null;
+  
   return {
     options,
+    maleVoices,
+    femaleVoices,
+    neutralVoices,
     bestMaleKey: bestMale?.key || null,
-    bestFemaleKey: bestFemale?.key || null
+    bestFemaleKey: bestFemale?.key || null,
+    totalCount: options.length
   };
+}
+
+// Detect voice provider (Google, Microsoft, Apple, etc.)
+function detectVoiceProvider(voice) {
+  const uri = (voice?.voiceURI || '').toLowerCase();
+  const name = (voice?.name || '').toLowerCase();
+  
+  if (uri.includes('google') || name.includes('google')) return 'Google';
+  if (uri.includes('microsoft') || name.includes('microsoft') || name.includes('azure')) return 'Microsoft';
+  if (uri.includes('apple') || name.includes('siri')) return 'Apple';
+  if (uri.includes('amazon') || name.includes('polly')) return 'Amazon';
+  if (name.includes('com.apple')) return 'Apple';
+  if (name.includes('espeak')) return 'eSpeak';
+  if (name.includes('piper')) return 'Piper';
+  return 'System';
 }
 
 function pickPortugueseVoice(voices, pref, forcedKey, { requireMatch = false } = {}) {
@@ -583,12 +684,25 @@ function scorePortugueseVoices(voices, pref, tokens) {
     .filter(Boolean);
 }
 
+// Cached voices to prevent repeated polling
+let cachedVoices = null;
+let voicesLoaded = false;
+
 // Ensure voices list is available; poll for slower browsers before giving up
 function ensureVoicesReady(maxWaitMs = 8000) {
   if (!('speechSynthesis' in window)) return Promise.resolve([]);
 
+  // Return cached voices if already loaded
+  if (voicesLoaded && cachedVoices && cachedVoices.length) {
+    return Promise.resolve(cachedVoices);
+  }
+
   const existing = speechSynthesis.getVoices();
-  if (existing && existing.length) return Promise.resolve(existing);
+  if (existing && existing.length) {
+    cachedVoices = existing;
+    voicesLoaded = true;
+    return Promise.resolve(existing);
+  }
 
   return new Promise(resolve => {
     let settled = false;
@@ -596,7 +710,9 @@ function ensureVoicesReady(maxWaitMs = 8000) {
       if (settled) return;
       settled = true;
       cleanup();
-      resolve(voices || speechSynthesis.getVoices() || []);
+      cachedVoices = voices || speechSynthesis.getVoices() || [];
+      voicesLoaded = cachedVoices.length > 0;
+      resolve(cachedVoices);
     };
 
     const handle = () => {
@@ -610,16 +726,33 @@ function ensureVoicesReady(maxWaitMs = 8000) {
       if (timeoutId) clearTimeout(timeoutId);
     };
 
-    speechSynthesis.addEventListener('voiceschanged', handle);
+    speechSynthesis.addEventListener('voiceschanged', handle, { once: true });
     // Kick off loading; some browsers need a call to populate
     speechSynthesis.getVoices();
 
-    const intervalId = setInterval(handle, 200);
+    // Only poll briefly, then stop to prevent constant checking
+    let pollCount = 0;
+    const maxPolls = 10;
+    const intervalId = setInterval(() => {
+      pollCount++;
+      if (pollCount >= maxPolls) {
+        clearInterval(intervalId);
+        finish(speechSynthesis.getVoices());
+        return;
+      }
+      handle();
+    }, 300);
     const timeoutId = setTimeout(() => finish(speechSynthesis.getVoices()), maxWaitMs);
   });
 }
 
-speechSynthesis.addEventListener('voiceschanged', () => {
-  // preload voices
-  speechSynthesis.getVoices();
-});
+// Only listen once for voiceschanged, then cache
+if ('speechSynthesis' in window) {
+  speechSynthesis.addEventListener('voiceschanged', () => {
+    const voices = speechSynthesis.getVoices();
+    if (voices && voices.length) {
+      cachedVoices = voices;
+      voicesLoaded = true;
+    }
+  }, { once: true });
+}
