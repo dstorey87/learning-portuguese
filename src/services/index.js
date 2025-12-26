@@ -229,4 +229,32 @@ export {
     default as Logger
 } from './Logger.js';
 
+// Health Checker Service
+export {
+    HEALTH_STATUS,
+    HEALTH_CONFIG,
+    HEALTH_ENDPOINTS,
+    HEALTH_EVENTS,
+    checkOllama,
+    checkTTS,
+    checkWhisper,
+    checkWebSpeech,
+    checkAllServices,
+    checkUIComponents,
+    getUIHealthSummary,
+    checkNetwork,
+    getPerformanceMetrics,
+    runFullHealthCheck,
+    getOverallStatus,
+    getHealthReport,
+    getServiceStatus,
+    isServiceAvailable,
+    startMonitoring,
+    stopMonitoring,
+    isMonitoring,
+    onHealthEvent,
+    getDegradationRecommendations,
+    default as HealthChecker
+} from './HealthChecker.js';
+
 export const SERVICES_VERSION = '0.1.0';
