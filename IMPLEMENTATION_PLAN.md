@@ -207,7 +207,7 @@ learning_portuguese/
 |---------|------|--------|----------|------------|
 | F1-010 | Extract navigation to `Sidebar.js` | [x] | P0 | 2 |
 | F1-011 | Extract lesson cards to `LessonCard.js` | [x] | P0 | 2 |
-| F1-012 | Extract modals to `Modal.js` | [ ] | P0 | 2 |
+| F1-012 | Extract modals to `Modal.js` | [x] | P0 | 2 |
 | F1-013 | Extract toast system to `Toast.js` | [ ] | P0 | 1 |
 | F1-014 | Extract challenge types to `ChallengeRenderer.js` | [ ] | P0 | 3 |
 | F1-015 | Extract word display to `WordCard.js` | [ ] | P0 | 2 |
