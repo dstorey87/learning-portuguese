@@ -1,15 +1,20 @@
 import { topics, getAllLessonsFlat } from './data.js';
+// VoiceService - audio playback and voice management
 import {
     speakWithEngine,
     getPortugueseVoiceOptions,
     startBundledVoiceDownload,
     getDownloadableVoices,
     markVoiceDownloaded
-} from './audio.js';
-import * as aiTts from './ai-tts.js';
+} from './src/services/VoiceService.js';
+// TTSService - text-to-speech server integration
+import * as aiTts from './src/services/TTSService.js';
+// Speech recognition (Whisper/Web Speech API)
 import * as aiSpeech from './ai-speech.js';
-import * as aiTutor from './ai-tutor.js';
+// AIService - Ollama AI integration
+import * as aiTutor from './src/services/AIService.js';
 import { getWordKnowledge, generateBasicPronunciationTip, getPronunciationChallengeType } from './word-knowledge.js';
+// AuthService - authentication, hearts, XP, streaks
 import {
     getHearts,
     hasHearts,
@@ -25,8 +30,8 @@ import {
     getTimeToNextHeart,
     formatRefillTime,
     completeLesson as authCompleteLesson,
-    AUTH_CONSTANTS
-} from './auth.js';
+    AUTH_CONFIG as AUTH_CONSTANTS
+} from './src/services/AuthService.js';
 
 const APP_VERSION = '0.9.0';
 const STORAGE_KEY = 'portugueseLearningData';

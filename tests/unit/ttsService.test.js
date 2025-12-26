@@ -205,40 +205,4 @@ test.describe('TTSService Unit Tests', () => {
         expect(result.stopIsFunction).toBe(true);
         expect(result.isSpeakingIsFunction).toBe(true);
     });
-    
-    // TTS-T012: Bridge file re-exports match TTSService
-    test('TTS-T012: ai-tts.js bridge exports match TTSService', async ({ page }) => {
-        const result = await withTTSService(page, async () => {
-            const bridge = await import('./ai-tts.js');
-            const service = await import('./src/services/TTSService.js');
-            
-            // Check key exports exist in both
-            const exports = [
-                'TTS_CONFIG',
-                'TTS_ENGINES',
-                'TTS_LOCALES',
-                'EDGE_VOICES',
-                'checkServerHealth',
-                'getAvailableVoices',
-                'getVoice',
-                'getRecommendedVoice',
-                'speak',
-                'stop',
-                'isSpeaking'
-            ];
-            
-            const missingInBridge = exports.filter(e => !(e in bridge));
-            const missingInService = exports.filter(e => !(e in service));
-            
-            return {
-                bridgeHasAll: missingInBridge.length === 0,
-                serviceHasAll: missingInService.length === 0,
-                missingInBridge,
-                missingInService
-            };
-        });
-        
-        expect(result.bridgeHasAll).toBe(true);
-        expect(result.serviceHasAll).toBe(true);
-    });
 });

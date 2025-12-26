@@ -330,49 +330,4 @@ test.describe('VoiceService Unit Tests', () => {
         expect(result.hasCancel).toBe(true);
         expect(result.hasIsCanceled).toBe(true);
     });
-    
-    // VOICE-T020: Bridge file re-exports match VoiceService
-    test('VOICE-T020: audio.js bridge exports match VoiceService', async ({ page }) => {
-        const result = await withVoiceService(page, async () => {
-            const bridge = await import('./audio.js');
-            const service = await import('./src/services/VoiceService.js');
-            
-            // Check key exports exist in both
-            const exports = [
-                'VOICE_CONFIG',
-                'VOICE_ENGINES',
-                'getLastVoiceUsed',
-                'getDownloadedVoices',
-                'markVoiceDownloaded',
-                'isVoiceDownloaded',
-                'getDownloadableVoices',
-                'getBundledVoiceStatus',
-                'isBundledVoiceReady',
-                'getBundledVoiceOptions',
-                'getBundledVoiceCount',
-                'clearBundledVoice',
-                'startBundledVoiceDownload',
-                'ensureVoicesReady',
-                'getPortugueseVoiceOptions',
-                'getEngineVoiceOptions',
-                'speakWord',
-                'speakSentence',
-                'speakWithEngine',
-                'stopSpeech'
-            ];
-            
-            const missingInBridge = exports.filter(e => !(e in bridge));
-            const missingInService = exports.filter(e => !(e in service));
-            
-            return {
-                bridgeHasAll: missingInBridge.length === 0,
-                serviceHasAll: missingInService.length === 0,
-                missingInBridge,
-                missingInService
-            };
-        });
-        
-        expect(result.bridgeHasAll).toBe(true);
-        expect(result.serviceHasAll).toBe(true);
-    });
 });
