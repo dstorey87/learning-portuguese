@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "word.schema.json",
+  "title": "Word Schema",
+  "description": "Schema for Portuguese vocabulary words with rich metadata",
+  "type": "object",
+  "required": ["pt", "en"],
+  "properties": {
+    "pt": {
+      "type": "string",
+      "description": "Portuguese word or phrase",
+      "minLength": 1
+    },
+    "en": {
+      "type": "string",
+      "description": "English translation",
+      "minLength": 1
+    },
+    "audio": {
+      "type": "string",
+      "description": "Audio file key or URL"
+    },
+    "ptFem": {
+      "type": "string",
+      "description": "Feminine form if gendered adjective/noun"
+    },
+    "gendered": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether word has masculine/feminine forms"
+    },
+    "pronunciation": {
+      "type": "object",
+      "properties": {
+        "ipa": {
+          "type": "string",
+          "description": "IPA phonetic transcription"
+        },
+        "guide": {
+          "type": "string",
+          "description": "Phonetic guide for English speakers"
+        },
+        "breakdown": {
+          "type": "string",
+          "description": "Syllable-by-syllable breakdown"
+        },
+        "tip": {
+          "type": "string",
+          "description": "Pronunciation tip"
+        },
+        "commonMistake": {
+          "type": "string",
+          "description": "Common pronunciation mistake to avoid"
+        },
+        "audioFocus": {
+          "type": "string",
+          "description": "What to listen for in the audio"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard", "very-hard"]
+        }
+      }
+    },
+    "grammar": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Part of speech (noun, verb, adjective, etc.)"
+        },
+        "person": {
+          "type": "string",
+          "description": "Grammatical person (1st, 2nd, 3rd)"
+        },
+        "number": {
+          "type": "string",
+          "enum": ["singular", "plural"]
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["masculine", "feminine", "neutral"]
+        },
+        "tense": {
+          "type": "string",
+          "description": "Verb tense if applicable"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional grammar notes"
+        }
+      }
+    },
+    "grammarNotes": {
+      "type": "string",
+      "description": "Detailed grammar explanation"
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pt", "en"],
+        "properties": {
+          "pt": {
+            "type": "string",
+            "description": "Portuguese example sentence"
+          },
+          "en": {
+            "type": "string",
+            "description": "English translation"
+          },
+          "context": {
+            "type": "string",
+            "description": "Usage context"
+          },
+          "audio": {
+            "type": "string",
+            "description": "Audio file for the example"
+          }
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "mnemonic": {
+          "type": "string",
+          "description": "Memory trick to remember the word"
+        },
+        "etymology": {
+          "type": "string",
+          "description": "Word origin/history"
+        },
+        "cognate": {
+          "type": "string",
+          "description": "Related words in English/other languages"
+        },
+        "visualTip": {
+          "type": "string",
+          "description": "Visual association tip"
+        }
+      }
+    },
+    "cultural": {
+      "type": "string",
+      "description": "Cultural context or usage notes"
+    },
+    "culturalNote": {
+      "type": "string",
+      "description": "Cultural insight about the word"
+    },
+    "whenToUse": {
+      "type": "string",
+      "description": "Situations when this word is appropriate"
+    },
+    "aiTip": {
+      "type": "string",
+      "description": "AI-generated learning tip"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["beginner", "intermediate", "advanced"],
+      "description": "Overall difficulty level"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Categorization tags"
+    }
+  },
+  "additionalProperties": false
+}

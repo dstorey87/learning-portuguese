@@ -335,4 +335,18 @@ export {
     default as WebSpeechServiceModule
 } from './WebSpeechService.js';
 
+// Lesson Validator
+export {
+    LessonValidator,
+    ValidationResult,
+    VALID_CHALLENGE_TYPES,
+    VALID_TIERS,
+    VALID_LEVELS,
+    VALID_STATUSES,
+    getValidator,
+    validateLesson,
+    isValidLesson,
+    default as LessonValidatorModule
+} from './LessonValidator.js';
+
 export const SERVICES_VERSION = '0.1.0';

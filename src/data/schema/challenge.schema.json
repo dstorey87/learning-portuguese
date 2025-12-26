@@ -1,0 +1,362 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "challenge.schema.json",
+  "title": "Challenge Schema",
+  "description": "Schema for lesson challenges with multiple types",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "learn-word",
+        "pronunciation",
+        "mcq",
+        "type-answer",
+        "listen-type",
+        "sentence",
+        "multiple-choice",
+        "translate",
+        "fill-blank",
+        "match",
+        "sentence-builder",
+        "conjugation",
+        "dialogue-role-play"
+      ],
+      "description": "Challenge type identifier"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique challenge identifier"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Challenge order index"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "learn-word" } }
+      },
+      "then": {
+        "properties": {
+          "wordIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index of word in lesson.words array"
+          },
+          "word": {
+            "$ref": "word.schema.json",
+            "description": "Word object reference"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "pronunciation" } }
+      },
+      "then": {
+        "properties": {
+          "wordIndex": { "type": "integer", "minimum": 0 },
+          "word": { "$ref": "word.schema.json" },
+          "maxAttempts": {
+            "type": "integer",
+            "default": 3,
+            "description": "Max pronunciation attempts"
+          },
+          "passScore": {
+            "type": "integer",
+            "default": 60,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Score needed to pass"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "mcq" } }
+      },
+      "then": {
+        "properties": {
+          "wordIndex": { "type": "integer", "minimum": 0 },
+          "word": { "$ref": "word.schema.json" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "type-answer" } }
+      },
+      "then": {
+        "properties": {
+          "wordIndex": { "type": "integer", "minimum": 0 },
+          "word": { "$ref": "word.schema.json" },
+          "showHint": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "listen-type" } }
+      },
+      "then": {
+        "properties": {
+          "wordIndex": { "type": "integer", "minimum": 0 },
+          "word": { "$ref": "word.schema.json" },
+          "showHint": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "sentence" } }
+      },
+      "then": {
+        "properties": {
+          "sentence": {
+            "type": "object",
+            "required": ["pt", "en"],
+            "properties": {
+              "pt": { "type": "string" },
+              "en": { "type": "string" },
+              "context": { "type": "string" },
+              "audio": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "multiple-choice" } }
+      },
+      "then": {
+        "required": ["question", "options", "correct"],
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Question text"
+          },
+          "options": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "maxItems": 6,
+            "description": "Answer options"
+          },
+          "correct": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index of correct answer"
+          },
+          "explanation": {
+            "type": "string",
+            "description": "Explanation shown after answer"
+          },
+          "context": {
+            "type": "string",
+            "description": "Additional context"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "translate" } }
+      },
+      "then": {
+        "required": ["prompt", "answer"],
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": ["pt-to-en", "en-to-pt"],
+            "default": "en-to-pt"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Text to translate"
+          },
+          "answer": {
+            "type": "string",
+            "description": "Expected translation"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Alternative correct answers"
+          },
+          "hints": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Translation hints"
+          },
+          "context": {
+            "type": "string",
+            "description": "Context for the translation"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "fill-blank" } }
+      },
+      "then": {
+        "required": ["sentence", "options", "correct"],
+        "properties": {
+          "sentence": {
+            "type": "string",
+            "description": "Sentence with ___ for blank"
+          },
+          "options": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "description": "Options to fill blank"
+          },
+          "correct": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index of correct option"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "context": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "match" } }
+      },
+      "then": {
+        "required": ["pairs"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Instructions for matching"
+          },
+          "pairs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["left", "right"],
+              "properties": {
+                "left": { "type": "string" },
+                "right": { "type": "string" }
+              }
+            },
+            "minItems": 2,
+            "maxItems": 8,
+            "description": "Pairs to match"
+          },
+          "shuffled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Shuffle pairs before display"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "sentence-builder" } }
+      },
+      "then": {
+        "required": ["targetSentence", "words"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "English sentence to build"
+          },
+          "targetSentence": {
+            "type": "string",
+            "description": "Correct Portuguese sentence"
+          },
+          "words": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Words to arrange (in correct order)"
+          },
+          "distractors": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Extra words that don't belong"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "conjugation" } }
+      },
+      "then": {
+        "required": ["verb", "tense", "person", "answer"],
+        "properties": {
+          "verb": {
+            "type": "string",
+            "description": "Infinitive verb"
+          },
+          "tense": {
+            "type": "string",
+            "description": "Tense name (presente, pretérito, etc.)"
+          },
+          "person": {
+            "type": "string",
+            "description": "Grammatical person (eu, tu, etc.)"
+          },
+          "answer": {
+            "type": "string",
+            "description": "Correct conjugated form"
+          },
+          "translation": {
+            "type": "string",
+            "description": "English translation"
+          },
+          "hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "dialogue-role-play" } }
+      },
+      "then": {
+        "required": ["dialogueId", "role"],
+        "properties": {
+          "dialogueId": {
+            "type": "string",
+            "description": "Reference to dialogue"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["speaker-a", "speaker-b"],
+            "description": "User's role in dialogue"
+          },
+          "context": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

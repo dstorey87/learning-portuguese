@@ -52,7 +52,11 @@ export const CHALLENGE_TYPES = {
     // Rich challenge types from building-blocks
     MULTIPLE_CHOICE: 'multiple-choice',
     TRANSLATE: 'translate',
-    FILL_BLANK: 'fill-blank'
+    FILL_BLANK: 'fill-blank',
+    // Additional challenge types
+    MATCH: 'match',
+    SENTENCE_BUILDER: 'sentence-builder',
+    CONJUGATION: 'conjugation'
 };
 
 /**
@@ -401,6 +405,15 @@ export class ChallengeRenderer {
                     break;
                 case CHALLENGE_TYPES.FILL_BLANK:
                     this.renderFillBlank(container, challenge, state);
+                    break;
+                case CHALLENGE_TYPES.MATCH:
+                    this.renderMatch(container, challenge, state);
+                    break;
+                case CHALLENGE_TYPES.SENTENCE_BUILDER:
+                    this.renderSentenceBuilder(container, challenge, state);
+                    break;
+                case CHALLENGE_TYPES.CONJUGATION:
+                    this.renderConjugation(container, challenge, state);
                     break;
                 default:
                     console.warn(`Unknown challenge type: ${challenge.type}`);
@@ -2183,6 +2196,436 @@ export class ChallengeRenderer {
                     this.onChallengeComplete(state);
                 });
             });
+        });
+    }
+
+    /**
+     * Render Match challenge - pair matching exercise
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data: { type, prompt, pairs, shuffled }
+     * @param {Object} state - Lesson state
+     */
+    renderMatch(container, challenge, state) {
+        const { prompt, pairs, shuffled = true } = challenge;
+        
+        // Create separate arrays for left and right items
+        const leftItems = pairs.map((p, i) => ({ text: p.left, pairIndex: i }));
+        const rightItems = pairs.map((p, i) => ({ text: p.right, pairIndex: i }));
+        
+        // Shuffle if enabled
+        if (shuffled) {
+            shuffleArray(leftItems);
+            shuffleArray(rightItems);
+        }
+        
+        container.innerHTML = `
+            <div class="challenge-card match-card">
+                <div class="challenge-instruction">🔗 Match the Pairs</div>
+                ${prompt ? `<div class="match-prompt">${escapeHtml(prompt)}</div>` : ''}
+                <div class="match-container">
+                    <div class="match-column match-left" id="matchLeft">
+                        ${leftItems.map((item, i) => `
+                            <button class="match-item" data-side="left" data-pair="${item.pairIndex}" data-idx="${i}">
+                                ${escapeHtml(item.text)}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="match-column match-right" id="matchRight">
+                        ${rightItems.map((item, i) => `
+                            <button class="match-item" data-side="right" data-pair="${item.pairIndex}" data-idx="${i}">
+                                ${escapeHtml(item.text)}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="match-progress">
+                    <span id="matchedCount">0</span> / ${pairs.length} matched
+                </div>
+                <div class="challenge-feedback" id="feedback"></div>
+                <div class="challenge-footer hidden" id="footerActions">
+                    <button class="btn-continue" id="continueBtn">Continue →</button>
+                </div>
+            </div>
+        `;
+        
+        let selectedLeft = null;
+        let selectedRight = null;
+        let matchedPairs = new Set();
+        let mistakes = 0;
+        
+        const leftButtons = container.querySelectorAll('.match-left .match-item');
+        const rightButtons = container.querySelectorAll('.match-right .match-item');
+        const allButtons = container.querySelectorAll('.match-item');
+        
+        const checkMatch = () => {
+            if (selectedLeft === null || selectedRight === null) return;
+            
+            const leftBtn = container.querySelector(`.match-left .match-item[data-idx="${selectedLeft}"]`);
+            const rightBtn = container.querySelector(`.match-right .match-item[data-idx="${selectedRight}"]`);
+            
+            const leftPair = parseInt(leftBtn.dataset.pair, 10);
+            const rightPair = parseInt(rightBtn.dataset.pair, 10);
+            
+            if (leftPair === rightPair) {
+                // Correct match
+                leftBtn.classList.add('matched');
+                rightBtn.classList.add('matched');
+                leftBtn.disabled = true;
+                rightBtn.disabled = true;
+                matchedPairs.add(leftPair);
+                
+                document.getElementById('matchedCount').textContent = matchedPairs.size;
+                
+                // Check if all matched
+                if (matchedPairs.size === pairs.length) {
+                    const isFullyCorrect = mistakes === 0;
+                    
+                    setTimeout(() => {
+                        this._showFeedback(true);
+                        document.getElementById('footerActions').classList.remove('hidden');
+                        
+                        if (isFullyCorrect) {
+                            state.correct++;
+                            this.onCorrect(challenge, state);
+                        }
+                        
+                        try {
+                            eventStream.emit('learning_event', {
+                                eventType: 'answer_correct',
+                                challengeType: 'match',
+                                pairsCount: pairs.length,
+                                mistakes,
+                                timestamp: Date.now()
+                            });
+                        } catch (e) { /* ignore */ }
+                        
+                        document.getElementById('continueBtn').addEventListener('click', () => {
+                            this.onChallengeComplete(state);
+                        });
+                    }, 300);
+                }
+            } else {
+                // Wrong match
+                leftBtn.classList.add('wrong-match');
+                rightBtn.classList.add('wrong-match');
+                mistakes++;
+                
+                setTimeout(() => {
+                    leftBtn.classList.remove('wrong-match', 'selected');
+                    rightBtn.classList.remove('wrong-match', 'selected');
+                }, 500);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_incorrect',
+                        challengeType: 'match',
+                        leftText: leftBtn.textContent.trim(),
+                        rightText: rightBtn.textContent.trim(),
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            }
+            
+            // Reset selection
+            selectedLeft = null;
+            selectedRight = null;
+            allButtons.forEach(b => b.classList.remove('selected'));
+        };
+        
+        leftButtons.forEach((btn, idx) => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                leftButtons.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedLeft = idx;
+                checkMatch();
+            });
+        });
+        
+        rightButtons.forEach((btn, idx) => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                rightButtons.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedRight = idx;
+                checkMatch();
+            });
+        });
+    }
+
+    /**
+     * Render Sentence Builder challenge - word ordering exercise
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data: { type, prompt, targetSentence, words, distractors, explanation }
+     * @param {Object} state - Lesson state
+     */
+    renderSentenceBuilder(container, challenge, state) {
+        const { prompt, targetSentence, words, distractors = [], explanation } = challenge;
+        
+        // Combine words and distractors, shuffle
+        const allWords = [...words.map(w => ({ text: w, isDistractor: false }))];
+        if (distractors.length > 0) {
+            distractors.forEach(d => allWords.push({ text: d, isDistractor: true }));
+        }
+        shuffleArray(allWords);
+        
+        container.innerHTML = `
+            <div class="challenge-card sentence-builder-card">
+                <div class="challenge-instruction">🧩 Build the Sentence</div>
+                ${prompt ? `<div class="builder-prompt">"${escapeHtml(prompt)}"</div>` : ''}
+                <div class="builder-answer" id="builderAnswer">
+                    <span class="builder-placeholder">Tap words below to build the sentence</span>
+                </div>
+                <div class="builder-words" id="builderWords">
+                    ${allWords.map((w, i) => `
+                        <button class="builder-word ${w.isDistractor ? 'distractor' : ''}" data-idx="${i}" data-text="${escapeHtml(w.text)}">
+                            ${escapeHtml(w.text)}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="builder-actions">
+                    <button class="btn-clear" id="clearBtn">Clear</button>
+                    <button class="btn-check" id="checkBtn">Check Answer</button>
+                </div>
+                <div class="challenge-feedback" id="feedback"></div>
+                <div class="challenge-explanation hidden" id="explanation">
+                    ${explanation ? `<div class="explanation-text">💡 ${escapeHtml(explanation)}</div>` : ''}
+                </div>
+                <div class="challenge-footer hidden" id="footerActions">
+                    <button class="btn-continue" id="continueBtn">Continue →</button>
+                </div>
+            </div>
+        `;
+        
+        const answerArea = document.getElementById('builderAnswer');
+        const wordsArea = document.getElementById('builderWords');
+        const wordButtons = wordsArea.querySelectorAll('.builder-word');
+        const clearBtn = document.getElementById('clearBtn');
+        const checkBtn = document.getElementById('checkBtn');
+        
+        let selectedWords = [];
+        
+        const updateAnswerDisplay = () => {
+            if (selectedWords.length === 0) {
+                answerArea.innerHTML = '<span class="builder-placeholder">Tap words below to build the sentence</span>';
+            } else {
+                answerArea.innerHTML = selectedWords.map((w, i) => `
+                    <span class="answer-word" data-pos="${i}">${escapeHtml(w)}</span>
+                `).join('');
+                
+                // Allow removing words by clicking
+                answerArea.querySelectorAll('.answer-word').forEach(span => {
+                    span.addEventListener('click', () => {
+                        const pos = parseInt(span.dataset.pos, 10);
+                        const removedWord = selectedWords[pos];
+                        selectedWords.splice(pos, 1);
+                        
+                        // Re-enable the word button
+                        const wordBtn = wordsArea.querySelector(`.builder-word[data-text="${CSS.escape(removedWord)}"]`);
+                        if (wordBtn) wordBtn.disabled = false;
+                        
+                        updateAnswerDisplay();
+                    });
+                });
+            }
+        };
+        
+        wordButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                
+                selectedWords.push(btn.dataset.text);
+                btn.disabled = true;
+                updateAnswerDisplay();
+            });
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            selectedWords = [];
+            wordButtons.forEach(btn => btn.disabled = false);
+            updateAnswerDisplay();
+            document.getElementById('feedback').innerHTML = '';
+            document.getElementById('explanation').classList.add('hidden');
+        });
+        
+        checkBtn.addEventListener('click', () => {
+            const userAnswer = selectedWords.join(' ');
+            const normalizedUser = normalizeText(userAnswer);
+            const normalizedTarget = normalizeText(targetSentence);
+            
+            const isCorrect = normalizedUser === normalizedTarget;
+            
+            // Disable all interactions
+            wordButtons.forEach(btn => btn.disabled = true);
+            checkBtn.disabled = true;
+            
+            this._showFeedback(isCorrect, targetSentence);
+            
+            if (explanation) {
+                document.getElementById('explanation').classList.remove('hidden');
+            }
+            
+            if (isCorrect) {
+                state.correct++;
+                answerArea.classList.add('correct-answer');
+                this.onCorrect(challenge, state);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_correct',
+                        challengeType: 'sentence-builder',
+                        targetSentence: targetSentence.substring(0, 50),
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            } else {
+                state.mistakes++;
+                answerArea.classList.add('incorrect-answer');
+                state.wrongAnswers.push({
+                    targetSentence,
+                    userAnswer,
+                    type: 'sentence-builder'
+                });
+                this._handleMistake(state);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_incorrect',
+                        challengeType: 'sentence-builder',
+                        targetSentence: targetSentence.substring(0, 50),
+                        userAnswer: userAnswer.substring(0, 50),
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            }
+            
+            document.getElementById('footerActions').classList.remove('hidden');
+            document.getElementById('continueBtn').addEventListener('click', () => {
+                this.onChallengeComplete(state);
+            });
+        });
+    }
+
+    /**
+     * Render Conjugation challenge - verb conjugation practice
+     * 
+     * @param {HTMLElement} container - Container element
+     * @param {Object} challenge - Challenge data: { type, verb, tense, person, answer, translation, hint }
+     * @param {Object} state - Lesson state
+     */
+    renderConjugation(container, challenge, state) {
+        const { verb, tense, person, answer, translation, hint } = challenge;
+        
+        container.innerHTML = `
+            <div class="challenge-card conjugation-card">
+                <div class="challenge-instruction">📝 Conjugate the Verb</div>
+                <div class="conjugation-verb">
+                    <span class="verb-infinitive">${escapeHtml(verb)}</span>
+                    <span class="verb-arrow">→</span>
+                    <span class="verb-context">${escapeHtml(person)} (${escapeHtml(tense)})</span>
+                </div>
+                ${translation ? `<div class="conjugation-translation">"${escapeHtml(translation)}"</div>` : ''}
+                <div class="conjugation-input-area">
+                    <input type="text" id="conjugationInput" class="conjugation-input" 
+                           placeholder="Type the conjugated form..." autocomplete="off" autocapitalize="off">
+                    ${hint ? `<button class="hint-btn" id="hintBtn" title="Show hint">💡</button>` : ''}
+                </div>
+                <div class="hint-area hidden" id="hintArea">
+                    ${hint ? `<span class="hint-text">${escapeHtml(hint)}</span>` : ''}
+                </div>
+                <div class="challenge-actions">
+                    <button class="btn-check" id="checkBtn">Check Answer</button>
+                </div>
+                <div class="challenge-feedback" id="feedback"></div>
+                <div class="challenge-footer hidden" id="footerActions">
+                    <button class="btn-continue" id="continueBtn">Continue →</button>
+                </div>
+            </div>
+        `;
+        
+        const input = document.getElementById('conjugationInput');
+        const checkBtn = document.getElementById('checkBtn');
+        const hintBtn = document.getElementById('hintBtn');
+        const hintArea = document.getElementById('hintArea');
+        
+        // Auto-focus
+        setTimeout(() => input.focus(), 100);
+        
+        // Hint button
+        if (hintBtn) {
+            hintBtn.addEventListener('click', () => {
+                hintArea.classList.toggle('hidden');
+            });
+        }
+        
+        const checkAnswer = () => {
+            const userAnswer = input.value.trim();
+            if (!userAnswer) return;
+            
+            const normalizedUser = normalizeText(userAnswer);
+            const normalizedAnswer = normalizeText(answer);
+            
+            const isCorrect = normalizedUser === normalizedAnswer;
+            
+            input.disabled = true;
+            checkBtn.disabled = true;
+            if (hintBtn) hintBtn.disabled = true;
+            
+            input.classList.add(isCorrect ? 'correct-input' : 'incorrect-input');
+            
+            this._showFeedback(isCorrect, answer);
+            
+            if (isCorrect) {
+                state.correct++;
+                this.onCorrect(challenge, state);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_correct',
+                        challengeType: 'conjugation',
+                        verb,
+                        tense,
+                        person,
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            } else {
+                state.mistakes++;
+                state.wrongAnswers.push({
+                    verb,
+                    tense,
+                    person,
+                    userAnswer,
+                    correctAnswer: answer,
+                    type: 'conjugation'
+                });
+                this._handleMistake(state);
+                
+                try {
+                    eventStream.emit('learning_event', {
+                        eventType: 'answer_incorrect',
+                        challengeType: 'conjugation',
+                        verb,
+                        tense,
+                        person,
+                        userAnswer,
+                        correctAnswer: answer,
+                        timestamp: Date.now()
+                    });
+                } catch (e) { /* ignore */ }
+            }
+            
+            document.getElementById('footerActions').classList.remove('hidden');
+            document.getElementById('continueBtn').addEventListener('click', () => {
+                this.onChallengeComplete(state);
+            });
+        };
+        
+        checkBtn.addEventListener('click', checkAnswer);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkAnswer();
         });
     }
 

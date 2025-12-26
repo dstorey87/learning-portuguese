@@ -4039,6 +4039,384 @@ body {
     color: #f1a5ab;
 }
 
+/* =========================================
+   MATCH CHALLENGE STYLES
+   ========================================= */
+
+.match-card {
+    max-width: 700px;
+}
+
+.match-prompt {
+    font-size: 1rem;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.match-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1rem;
+}
+
+.match-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.match-item {
+    padding: 0.875rem 1rem;
+    background: var(--surface);
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.match-item:hover:not(:disabled):not(.matched) {
+    border-color: var(--accent);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.match-item.selected {
+    border-color: var(--accent);
+    background: rgba(102, 126, 234, 0.2);
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.match-item.matched {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+    cursor: default;
+}
+
+.match-item.wrong-match {
+    background: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+    animation: shake 0.4s ease;
+}
+
+.match-progress {
+    text-align: center;
+    font-size: 0.95rem;
+    color: var(--muted);
+    padding: 0.75rem;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.dark-theme .match-item.matched {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: #28a745;
+    color: #7dce88;
+}
+
+.dark-theme .match-item.wrong-match {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: #dc3545;
+    color: #f1a5ab;
+}
+
+/* =========================================
+   SENTENCE BUILDER CHALLENGE STYLES
+   ========================================= */
+
+.sentence-builder-card {
+    max-width: 650px;
+}
+
+.builder-prompt {
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    color: var(--accent);
+    font-style: italic;
+}
+
+.builder-answer {
+    min-height: 70px;
+    padding: 1rem;
+    background: var(--surface-subtle);
+    border: 2px dashed rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    margin: 1rem 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.builder-answer.correct-answer {
+    border-color: #28a745;
+    background: #d4edda;
+}
+
+.builder-answer.incorrect-answer {
+    border-color: #dc3545;
+    background: #f8d7da;
+}
+
+.builder-placeholder {
+    color: var(--muted);
+    font-style: italic;
+}
+
+.answer-word {
+    background: var(--accent);
+    color: white;
+    padding: 0.5rem 0.875rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.answer-word:hover {
+    background: #dc3545;
+    transform: scale(0.95);
+}
+
+.builder-words {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 1rem;
+}
+
+.builder-word {
+    padding: 0.625rem 1rem;
+    background: var(--surface);
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.builder-word:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: scale(1.05);
+}
+
+.builder-word:disabled {
+    opacity: 0.4;
+    cursor: default;
+    transform: scale(0.95);
+}
+
+.builder-word.distractor {
+    border-style: dashed;
+}
+
+.builder-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0.5rem;
+}
+
+.btn-clear {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: 2px solid var(--muted);
+    color: var(--muted);
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-clear:hover {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.btn-check {
+    padding: 0.75rem 2rem;
+    background: var(--accent);
+    border: none;
+    color: white;
+    border-radius: 25px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-check:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-check:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.dark-theme .builder-answer.correct-answer {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: #28a745;
+}
+
+.dark-theme .builder-answer.incorrect-answer {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: #dc3545;
+}
+
+/* =========================================
+   CONJUGATION CHALLENGE STYLES
+   ========================================= */
+
+.conjugation-card {
+    max-width: 550px;
+}
+
+.conjugation-verb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    font-size: 1.5rem;
+}
+
+.verb-infinitive {
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(102, 126, 234, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+}
+
+.verb-arrow {
+    color: var(--muted);
+    font-size: 1.25rem;
+}
+
+.verb-context {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.conjugation-translation {
+    text-align: center;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 1.05rem;
+    margin-bottom: 1rem;
+}
+
+.conjugation-input-area {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1rem;
+}
+
+.conjugation-input {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    font-size: 1.2rem;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--text);
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.conjugation-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.conjugation-input.correct-input {
+    border-color: #28a745;
+    background: #d4edda;
+}
+
+.conjugation-input.incorrect-input {
+    border-color: #dc3545;
+    background: #f8d7da;
+}
+
+.hint-btn {
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.hint-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: white;
+}
+
+.hint-btn:disabled {
+    opacity: 0.5;
+}
+
+.hint-area {
+    text-align: center;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.hint-text {
+    display: inline-block;
+    background: rgba(255, 193, 7, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    color: #856404;
+    font-size: 0.95rem;
+}
+
+.dark-theme .hint-text {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.challenge-actions {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.dark-theme .conjugation-input.correct-input {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: #28a745;
+    color: #7dce88;
+}
+
+.dark-theme .conjugation-input.incorrect-input {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: #dc3545;
+    color: #f1a5ab;
+}
+
 /* Challenge explanation */
 .challenge-explanation {
     padding: 1rem;

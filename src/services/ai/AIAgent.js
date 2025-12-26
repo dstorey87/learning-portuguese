@@ -15,7 +15,7 @@ import { eventStream } from '../eventStreaming.js';
 
 const OLLAMA_CONFIG = {
     baseUrl: 'http://localhost:11434',
-    model: 'qwen2.5:7b',
+    model: 'qwen2.5:latest',
     options: { temperature: 0.7, top_p: 0.9, num_ctx: 4096 }
 };
 

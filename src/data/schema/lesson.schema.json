@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "lesson.schema.json",
+  "title": "Lesson Schema",
+  "description": "Schema for Portuguese lesson data including words, sentences, and challenges",
+  "type": "object",
+  "required": ["id", "title", "topic", "words"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique lesson identifier (kebab-case)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Lesson display title"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Parent topic identifier"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "description": "Difficulty tier: 1=Building Blocks, 2=Essential, 3=Daily, 4=Advanced"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["beginner", "intermediate", "advanced"],
+      "default": "beginner"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Lesson description"
+    },
+    "estimatedTime": {
+      "type": "string",
+      "pattern": "^\\d+\\s*(min|mins|minutes|hour|hours)$",
+      "description": "Estimated completion time"
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Lesson IDs that should be completed first"
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Image URL"
+        },
+        "alt": {
+          "type": "string",
+          "description": "Alt text for accessibility"
+        },
+        "credit": {
+          "type": "string",
+          "description": "Image attribution"
+        }
+      }
+    },
+    "words": {
+      "type": "array",
+      "items": { "$ref": "word.schema.json" },
+      "minItems": 1,
+      "description": "Vocabulary words in this lesson"
+    },
+    "sentences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pt", "en"],
+        "properties": {
+          "pt": {
+            "type": "string",
+            "description": "Portuguese sentence"
+          },
+          "en": {
+            "type": "string",
+            "description": "English translation"
+          },
+          "audio": {
+            "type": "string",
+            "description": "Audio file reference"
+          },
+          "context": {
+            "type": "string",
+            "description": "Usage context"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Additional notes"
+          }
+        }
+      },
+      "description": "Practice sentences"
+    },
+    "challenges": {
+      "type": "array",
+      "items": { "$ref": "challenge.schema.json" },
+      "description": "Custom challenges. If empty, auto-generate from words."
+    },
+    "grammar": {
+      "type": "object",
+      "properties": {
+        "focus": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Grammar points covered"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "explanation": { "type": "string" },
+              "examples": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "cardIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of grammar cards to show"
+        }
+      },
+      "description": "Grammar content for this lesson"
+    },
+    "dialogues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of dialogues to include"
+    },
+    "aiConfig": {
+      "type": "object",
+      "properties": {
+        "focusAreas": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Areas AI should emphasize"
+        },
+        "commonMistakes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Common mistakes to watch for"
+        },
+        "dynamicTipTriggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "condition": { "type": "string" },
+              "tip": { "type": "string" }
+            }
+          },
+          "description": "Triggers for AI tips"
+        },
+        "reinforceWords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Word IDs from previous lessons to reinforce"
+        }
+      },
+      "description": "Configuration for AI assistance"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "createdBy": {
+          "type": "string",
+          "enum": ["human", "ai"],
+          "description": "Content creator"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Categorization tags"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "review", "approved", "published"],
+          "default": "draft"
+        },
+        "reviewedBy": {
+          "type": "string",
+          "description": "Reviewer identifier"
+        }
+      }
+    },
+    "completionCriteria": {
+      "type": "object",
+      "properties": {
+        "minScore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 70,
+          "description": "Minimum score to complete lesson"
+        },
+        "requiredChallenges": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Challenge IDs that must be completed"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max attempts before hints"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
