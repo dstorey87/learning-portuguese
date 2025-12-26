@@ -190,33 +190,39 @@ export function buildQuizOptions(correctWord, pool, learnedWords = []) {
  * @returns {Array} Array of challenge objects
  */
 export function buildLessonChallenges(lesson, options = {}) {
-    // QUICK WIN: Use existing challenge data if available (building blocks have rich challenges)
-    if (lesson.challenges && lesson.challenges.length > 0) {
-        return lesson.challenges.map((challenge, idx) => ({
-            ...challenge,
-            index: idx,
-            // Ensure word reference is resolved if challenge references word by index
-            word: typeof challenge.wordIndex === 'number' 
-                ? lesson.words?.[challenge.wordIndex] 
-                : challenge.word
-        }));
-    }
-    
-    // FALLBACK: Auto-generate challenges from words (legacy lessons)
-    const challenges = [];
     const words = lesson.words || [];
     const sentences = lesson.sentences || [];
     const learnedWords = options.learnedWords || [];
+    const challenges = [];
+    let challengeIndex = 0;
     
-    // Phase 1: Learn new words (listen & see)
+    // Phase 1: Learn new words (always generate for any lesson with words)
     words.forEach((word, idx) => {
         challenges.push({
             type: CHALLENGE_TYPES.LEARN_WORD,
             word,
             phase: CHALLENGE_PHASES.LEARN,
-            index: idx
+            index: challengeIndex++
         });
     });
+    
+    // If lesson has custom rich challenges, use them after the learn phase
+    if (lesson.challenges && lesson.challenges.length > 0) {
+        lesson.challenges.forEach(challenge => {
+            challenges.push({
+                ...challenge,
+                index: challengeIndex++,
+                // Ensure word reference is resolved if challenge references word by index
+                word: typeof challenge.wordIndex === 'number' 
+                    ? lesson.words?.[challenge.wordIndex] 
+                    : challenge.word
+            });
+        });
+        
+        return challenges;
+    }
+    
+    // FALLBACK: Auto-generate practice challenges from words (legacy lessons)
     
     // Phase 2: Pronunciation practice - say each word
     const pronWords = shuffleArray([...words]).slice(0, Math.min(4, words.length));
@@ -225,7 +231,8 @@ export function buildLessonChallenges(lesson, options = {}) {
             type: CHALLENGE_TYPES.PRONUNCIATION,
             word,
             phase: CHALLENGE_PHASES.PRONOUNCE,
-            maxAttempts: CHALLENGE_CONFIG.maxPronunciationAttempts
+            maxAttempts: CHALLENGE_CONFIG.maxPronunciationAttempts,
+            index: challengeIndex++
         });
     });
     
@@ -236,7 +243,8 @@ export function buildLessonChallenges(lesson, options = {}) {
             type: CHALLENGE_TYPES.MCQ,
             word,
             phase: CHALLENGE_PHASES.PRACTICE,
-            options: buildQuizOptions(word, words, learnedWords)
+            options: buildQuizOptions(word, words, learnedWords),
+            index: challengeIndex++
         });
     });
     
@@ -246,7 +254,8 @@ export function buildLessonChallenges(lesson, options = {}) {
         challenges.push({
             type: CHALLENGE_TYPES.TYPE_ANSWER,
             word,
-            phase: CHALLENGE_PHASES.PRACTICE
+            phase: CHALLENGE_PHASES.PRACTICE,
+            index: challengeIndex++
         });
     });
     
@@ -256,7 +265,8 @@ export function buildLessonChallenges(lesson, options = {}) {
         challenges.push({
             type: CHALLENGE_TYPES.LISTEN_TYPE,
             word,
-            phase: CHALLENGE_PHASES.PRACTICE
+            phase: CHALLENGE_PHASES.PRACTICE,
+            index: challengeIndex++
         });
     });
     
