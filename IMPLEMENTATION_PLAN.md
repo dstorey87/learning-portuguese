@@ -222,7 +222,7 @@ learning_portuguese/
 | F1-022 | Create `VoiceService.js` from audio.js | [x] | P0 | 3 |
 | F1-023 | Create `TTSService.js` from ai-tts.js | [x] | P0 | 2 |
 | F1-024 | Create `LessonService.js` for lesson logic | [x] | P0 | 4 |
-| F1-025 | Create `ProgressTracker.js` for progress | [ ] | P0 | 3 |
+| F1-025 | Create `ProgressTracker.js` for progress | [x] | P0 | 3 |
 | F1-026 | Create `Logger.js` for logging | [ ] | P0 | 2 |
 | F1-027 | Create `HealthChecker.js` for monitoring | [ ] | P0 | 3 |
 
