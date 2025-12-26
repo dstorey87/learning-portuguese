@@ -14,13 +14,13 @@ test('home loads with key sections', async ({ page }) => {
   await expect(page.getByText('v0.9.0')).toBeVisible();
 
   // Navigate to Learn page to see lessons
-  await page.locator('.nav-tab[data-page="learn"]').click();
+  await page.goto(HOME_URL + '#learn');
   await expect(page.locator('.lesson-card').first()).toBeVisible();
   await expect(page.locator('#lessonGrid')).toBeVisible();
   await expect(page.locator('#topicFilters')).toBeVisible();
 
   // Navigate to Practice page to see Vault
-  await page.locator('.nav-tab[data-page="practice"]').click();
+  await page.goto(HOME_URL + '#practice');
   await expect(page.locator('#srsBuckets')).toBeVisible();
   await expect(page.locator('#reviewPrompt')).toBeVisible();
 });
@@ -29,7 +29,7 @@ test('tips, plans, and AI tutor render correctly', async ({ page }) => {
   await page.goto(HOME_URL);
 
   // Navigate to Profile page (contains tips, plans, dashboard, coach)
-  await page.locator('.nav-tab[data-page="profile"]').click();
+  await page.goto(HOME_URL + '#profile');
 
   // Tips section
   await page.locator('#tips').scrollIntoViewIfNeeded();

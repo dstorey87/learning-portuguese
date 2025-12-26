@@ -36,11 +36,9 @@ test.describe('Full Lesson Flow Integration', () => {
         await page.reload();
         await page.waitForTimeout(500);
         
-        // Step 1: Navigate to Learn page
+        // Step 1: Navigate to Learn page - use hash navigation for reliability
         console.log('Step 1: Navigate to Learn page');
-        const learnTab = page.locator('.nav-tab[data-page="learn"]');
-        await expect(learnTab).toBeVisible();
-        await learnTab.click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         // Verify lesson grid loads
@@ -199,8 +197,8 @@ test.describe('Full Lesson Flow Integration', () => {
             await page.keyboard.press('Escape');
             await page.waitForTimeout(300);
             
-            // Click learn tab again to return to lesson list
-            await learnTab.click();
+            // Navigate to learn page to return to lesson list
+            await page.goto(HOME_URL + '#learn');
             await page.waitForTimeout(300);
         }
         

@@ -45,7 +45,12 @@ export const LEARNING_CONFIG = {
 
 export const UI_CONFIG = {
     mobileBreakpoint: 768,
-    sidebarWidth: 280,
+    tabletBreakpoint: 1024,
+    sidebarWidth: 240,
+    sidebarCollapsedWidth: 64,
+    bottomNavHeight: 64,
+    topBarHeight: 64,
+    drawerWidth: 280,
     animationDuration: 300,
 };
 

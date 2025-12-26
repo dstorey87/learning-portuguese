@@ -36,7 +36,7 @@ test.describe('LessonService E2E Tests', () => {
     
     test('LESSON-E001: Lesson grid displays on Learn page', async ({ page }) => {
         // Navigate to Learn page
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         // Lesson grid should be visible
@@ -50,7 +50,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E002: Topic filters work', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         // Topic filters should exist
@@ -75,7 +75,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E003: Lesson card shows title', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -97,7 +97,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E004: Lesson card shows word count', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -120,7 +120,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E005: Clicking lesson opens lesson view', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -154,7 +154,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E006: Lesson view displays current word', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -187,7 +187,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E007: Next button advances word', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -229,7 +229,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E008: Previous button goes back', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -271,7 +271,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E009: Progress bar shows completion', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -320,7 +320,7 @@ test.describe('LessonService E2E Tests', () => {
             resetProgress();
         });
         
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -360,7 +360,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E011: Challenge mode displays challenges', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -400,7 +400,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E012: Answering challenge shows feedback', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -451,7 +451,7 @@ test.describe('LessonService E2E Tests', () => {
     });
     
     test('LESSON-E013: Lesson can be closed/exited', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();

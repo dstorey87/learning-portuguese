@@ -7,7 +7,7 @@ test('dashboard voice settings shows controls', async ({ page }) => {
   await page.goto(HOME_URL);
 
   // Navigate to Profile page (contains dashboard)
-  await page.locator('.nav-tab[data-page="profile"]').click();
+  await page.goto(HOME_URL + '#profile');
   await page.locator('#dashboard').scrollIntoViewIfNeeded();
 
   // Simplified voice UI: single dropdown + download section

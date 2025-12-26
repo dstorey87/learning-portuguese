@@ -31,7 +31,7 @@ test.describe('VoiceService E2E Tests', () => {
     
     test('VOICE-T009: Voice play button exists', async ({ page }) => {
         // Navigate to Learn page
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         // Click first lesson card to open lesson
@@ -65,7 +65,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T010: Voice play button is clickable', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -94,7 +94,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T011: Voice play button plays audio', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="learn"]').click();
+        await page.goto(HOME_URL + '#learn');
         await page.waitForTimeout(300);
         
         const lessonCard = page.locator('.lesson-card').first();
@@ -131,7 +131,7 @@ test.describe('VoiceService E2E Tests', () => {
     
     test('VOICE-T012: Voice speed slider exists', async ({ page }) => {
         // Voice speed slider might be in settings or AI Tutor section
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         // Check AI Tutor section for voice controls
@@ -144,7 +144,7 @@ test.describe('VoiceService E2E Tests', () => {
             await expect(speedSlider.first()).toBeVisible();
         } else {
             // Speed control might be in lesson view
-            await page.locator('.nav-tab[data-page="learn"]').click();
+            await page.goto(HOME_URL + '#learn');
             await page.waitForTimeout(300);
             
             const lessonCard = page.locator('.lesson-card').first();
@@ -169,7 +169,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T013: Voice speed slider is interactive', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const speedSlider = page.locator(
@@ -192,7 +192,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T014: Voice speed actually changes playback', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const speedSlider = page.locator(
@@ -219,7 +219,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T015: Voice selector dropdown exists', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         // Voice selector in AI Tutor section
@@ -236,7 +236,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T016: Voice selector has options', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const voiceSelect = page.locator(
@@ -257,7 +257,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T017: Selecting voice changes playback voice', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const voiceSelect = page.locator(
@@ -293,7 +293,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T018: Download voice button exists', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         // Download voice button might be in settings or AI Tutor
@@ -319,7 +319,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T019: Download initiates on click', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const downloadBtn = page.locator(
@@ -357,7 +357,7 @@ test.describe('VoiceService E2E Tests', () => {
     });
     
     test('VOICE-T020: Downloaded voice appears in selector', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         // Mark a voice as downloaded via service
@@ -368,7 +368,7 @@ test.describe('VoiceService E2E Tests', () => {
         
         // Refresh to ensure UI updates
         await page.reload();
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         // Check if downloaded voices are reflected

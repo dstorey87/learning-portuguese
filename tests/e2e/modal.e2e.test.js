@@ -38,7 +38,7 @@ test.describe('Modal Component E2E Tests', () => {
             expect(modalCount).toBeGreaterThan(0);
         } else {
             // Modal might be created dynamically - trigger it first
-            await page.locator('.nav-tab[data-page="profile"]').click();
+            await page.goto(HOME_URL + '#profile');
             await page.waitForTimeout(300);
             
             const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -79,7 +79,7 @@ test.describe('Modal Component E2E Tests', () => {
     
     test('MODAL-T003: Modal opens on trigger', async ({ page }) => {
         // Navigate to profile and click admin button to trigger modal
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -122,7 +122,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T004: Modal displays title', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -156,7 +156,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T005: Modal displays content', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -179,7 +179,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T006: X button closes modal', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -211,7 +211,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T007: Click outside closes modal', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -251,7 +251,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T008: Escape key closes modal', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -281,7 +281,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T009: Focus trapped in modal', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -326,7 +326,7 @@ test.describe('Modal Component E2E Tests', () => {
     });
     
     test('MODAL-T010: Modal backdrop appears', async ({ page }) => {
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');
@@ -386,7 +386,7 @@ test.describe('Modal Component E2E Tests', () => {
         }
         
         // Open first modal
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        await page.goto(HOME_URL + '#profile');
         await page.waitForTimeout(300);
         
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin]');

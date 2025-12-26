@@ -28,8 +28,9 @@ test.beforeEach(async ({ page }) => {
 test.describe('AuthService E2E Tests', () => {
     
     test('AUTH-T020: Hearts display updates on change', async ({ page }) => {
-        // Navigate to profile where hearts display
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        // Navigate to profile where hearts display - use hash navigation for reliability
+        await page.goto(HOME_URL + '#profile');
+        await page.waitForTimeout(300);
         
         // Verify hearts display exists
         const heartsDisplay = page.locator('#hearts-display, .hearts-display, [data-hearts]');
@@ -64,8 +65,9 @@ test.describe('AuthService E2E Tests', () => {
     });
     
     test('AUTH-T021: XP display updates on change', async ({ page }) => {
-        // Navigate to profile where XP displays
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        // Navigate to profile where XP displays - use hash navigation
+        await page.goto(HOME_URL + '#profile');
+        await page.waitForTimeout(300);
         
         // Verify XP display exists
         const xpDisplay = page.locator('#xp-display, .xp-display, [data-xp], #totalXP, .total-xp');
@@ -102,8 +104,9 @@ test.describe('AuthService E2E Tests', () => {
     });
     
     test('AUTH-T022: Streak display updates on change', async ({ page }) => {
-        // Navigate to profile where streak displays
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        // Navigate to profile where streak displays - use hash navigation
+        await page.goto(HOME_URL + '#profile');
+        await page.waitForTimeout(300);
         
         // Verify streak display exists
         const streakDisplay = page.locator('#streak-display, .streak-display, [data-streak], #currentStreak');
@@ -133,8 +136,9 @@ test.describe('AuthService E2E Tests', () => {
     });
     
     test('AUTH-T023: Admin login modal works', async ({ page }) => {
-        // Navigate to profile page where admin button is
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        // Navigate to profile page where admin button is - use hash navigation
+        await page.goto(HOME_URL + '#profile');
+        await page.waitForTimeout(300);
         
         // Look for admin link/button
         const adminBtn = page.locator('#adminBtn, .admin-btn, [data-admin], a[href="#admin"]');
@@ -197,8 +201,9 @@ test.describe('AuthService E2E Tests', () => {
             login('TestUser');
         });
         
-        // Navigate to profile
-        await page.locator('.nav-tab[data-page="profile"]').click();
+        // Navigate to profile - use hash navigation
+        await page.goto(HOME_URL + '#profile');
+        await page.waitForTimeout(300);
         
         // Find logout button
         const logoutBtn = page.locator('#logoutBtn, .logout-btn, button:has-text("Logout"), button:has-text("Sign Out")');
