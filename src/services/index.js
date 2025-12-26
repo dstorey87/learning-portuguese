@@ -183,9 +183,11 @@ export {
     recordPronunciationAttempt,
     getPronunciationHistory,
     getAllPronunciationHistory,
+    getPronunciationProgress,
     getWordsNeedingPronunciationPractice,
     getPhonemeWeaknesses,
     getPronunciationSummary,
+    clearPronunciationHistory,
     resetPronunciationData,
     // Milestones
     checkMilestones,
