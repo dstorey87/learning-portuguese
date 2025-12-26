@@ -98,7 +98,26 @@ export {
     default as VoiceService
 } from './VoiceService.js';
 
-// TTS Service (to be created)
-// export { TTSService } from './TTSService.js';
+// TTS Service
+export {
+    TTS_CONFIG,
+    TTS_ENGINES,
+    TTS_LOCALES,
+    EDGE_VOICES,
+    checkServerHealth as checkTTSServerHealth,
+    getServerStatus as getTTSServerStatus,
+    refreshServerStatus as refreshTTSServerStatus,
+    getAvailableVoices as getTTSVoices,
+    getVoice as getTTSVoice,
+    getRecommendedVoice,
+    speak as ttsSpeak,
+    speakWithVoice,
+    speakPortuguese,
+    stop as ttsStop,
+    isSpeaking,
+    getPlaybackState,
+    initTTSService,
+    default as TTSService
+} from './TTSService.js';
 
 export const SERVICES_VERSION = '0.1.0';
