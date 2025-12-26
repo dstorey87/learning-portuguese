@@ -193,4 +193,40 @@ export {
     default as ProgressTracker
 } from './ProgressTracker.js';
 
+// Logger Service
+export {
+    LOG_LEVELS,
+    LOGGER_CONFIG,
+    debug,
+    info,
+    warn,
+    error,
+    createLogger,
+    setContext,
+    clearContext,
+    setLevel,
+    getLevel,
+    setConsoleEnabled,
+    setHistoryEnabled,
+    startTimer,
+    endTimer,
+    timeAsync,
+    timeSync,
+    groupStart,
+    groupStartCollapsed,
+    groupEnd,
+    getHistory,
+    getErrors,
+    getWarnings,
+    clearHistory,
+    exportHistory,
+    logObject,
+    logTable,
+    trace,
+    assert,
+    isDebugEnabled,
+    getStats as getLoggerStats,
+    default as Logger
+} from './Logger.js';
+
 export const SERVICES_VERSION = '0.1.0';
