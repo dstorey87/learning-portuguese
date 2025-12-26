@@ -52,6 +52,26 @@ export {
     default as AuthService
 } from './AuthService.js';
 
+// AI Service
+export {
+    AI_CONFIG,
+    AI_PROVIDERS,
+    FEEDBACK_TYPES,
+    checkOllamaStatus,
+    getAIStatus,
+    setModel,
+    initAIService,
+    getPronunciationFeedback,
+    getTranslationFeedback,
+    getGrammarHelp,
+    getGrammarTopics,
+    getStudyRecommendations,
+    chat,
+    streamChat,
+    streamOllama,
+    default as AIService
+} from './AIService.js';
+
 // Voice services (to be created)
 // export { VoiceService } from './VoiceService.js';
 // export { TTSService } from './TTSService.js';

@@ -217,7 +217,7 @@ learning_portuguese/
 
 | Task ID | Task | Status | Priority | Est. Hours |
 |---------|------|--------|----------|------------|
-| F1-020 | Create `AuthService.js` from auth.js | [ ] | P0 | 2 |
+| F1-020 | Create `AuthService.js` from auth.js | [x] | P0 | 2 |
 | F1-021 | Create `AIService.js` from ai-tutor.js | [ ] | P0 | 3 |
 | F1-022 | Create `VoiceService.js` from audio.js | [ ] | P0 | 3 |
 | F1-023 | Create `TTSService.js` from ai-tts.js | [ ] | P0 | 2 |
