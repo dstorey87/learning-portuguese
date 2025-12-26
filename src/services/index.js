@@ -149,4 +149,48 @@ export {
     default as LessonService
 } from './LessonService.js';
 
+// Progress Tracker Service
+export {
+    PROGRESS_CONFIG,
+    SRS_INTERVALS,
+    SKILL_CATEGORIES,
+    PROGRESS_EVENTS,
+    loadProgress,
+    saveProgress,
+    getProgressSnapshot,
+    addLearnedWord,
+    addLearnedWords,
+    getLearnedWords,
+    getLearnedWordCount,
+    isWordLearned,
+    getWordByKey,
+    updateWordSRS,
+    getWordsDueForReview,
+    getDueReviewCount,
+    getSRSStats,
+    recordLessonCompletion,
+    getCompletedLessons,
+    getCompletedLessonCount,
+    isLessonCompleted,
+    getLessonHistory,
+    getTodaysLessons,
+    getLessonsInRange,
+    updateSkillStat,
+    getSkillStat,
+    getAllSkillStats,
+    getSkillChartData,
+    checkMilestones,
+    recordMilestone,
+    hasMilestone,
+    getMilestones,
+    startStudySession,
+    endStudySession,
+    getStudySessionStats,
+    getProgressSummary,
+    getWeeklyActivity,
+    onProgressEvent,
+    resetProgress,
+    default as ProgressTracker
+} from './ProgressTracker.js';
+
 export const SERVICES_VERSION = '0.1.0';
