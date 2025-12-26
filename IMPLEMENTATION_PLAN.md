@@ -1173,9 +1173,9 @@ Phase 1 created new modular code in `src/`. This phase:
 
 | Task ID | Task | Status | Tests | Cleanup | Priority |
 |---------|------|--------|-------|---------|----------|
-| INT-020 | Add CSS imports to index.html | [ ] | [ ] | N/A | P0 |
-| INT-021 | Remove duplicate styles from styles.css | [ ] | N/A | [ ] | P0 |
-| INT-022 | Verify all styles still apply | [ ] | [ ] | N/A | P0 |
+| INT-020 | Add CSS imports to index.html | [x] | [ ] | N/A | P0 |
+| INT-021 | Remove duplicate styles from styles.css | [ ] | N/A | [ ] | P1 |
+| INT-022 | Verify all styles still apply | [ ] | [ ] | N/A | P1 |
 
 **CSS Cleanup Specification:**
 ```markdown
@@ -1238,13 +1238,13 @@ Lines ~4500-5000: Speech recognition - replaced by VoiceService
 | TEST-007 | Logger unit tests | 40 | [x] | P0 |
 | TEST-008 | HealthChecker unit tests | 35 | [x] | P0 |
 | TEST-009 | AuthService E2E tests | 5 | [x] | P0 |
-| TEST-010 | VoiceService E2E tests | 12 | [ ] | P0 |
-| TEST-011 | LessonService E2E tests | 13 | [ ] | P0 |
-| TEST-012 | Modal component tests | 11 | [ ] | P0 |
-| TEST-013 | Toast component tests | 9 | [ ] | P0 |
-| TEST-014 | Full lesson flow integration | 1 | [ ] | P0 |
+| TEST-010 | VoiceService E2E tests | 12 | [x] | P0 |
+| TEST-011 | LessonService E2E tests | 13 | [x] | P0 |
+| TEST-012 | Modal component tests | 11 | [x] | P0 |
+| TEST-013 | Toast component tests | 9 | [x] | P0 |
+| TEST-014 | Full lesson flow integration | 1 | [x] | P0 |
 
-**Total Tests Created: 224 passing (3 skipped for UI elements not yet present)**
+**Total Tests Created: 246 passing (25 skipped for UI elements not yet present)**
 
 ---
 
