@@ -1293,19 +1293,19 @@ Lessons start with "Essential Greetings" but should start with **language buildi
 
 | Task ID | Task | Status | Tests | Cleanup | Priority |
 |---------|------|--------|-------|---------|----------|
-| L2-001 | Create `src/data/building-blocks/pronouns.js` | [ ] | [ ] | N/A | P0 |
-| L2-002 | Create `src/data/building-blocks/verbs-ser.js` | [ ] | [ ] | N/A | P0 |
-| L2-003 | Create `src/data/building-blocks/verbs-estar.js` | [ ] | [ ] | N/A | P0 |
-| L2-004 | Create `src/data/building-blocks/verbs-ter.js` | [ ] | [ ] | N/A | P0 |
-| L2-005 | Create `src/data/building-blocks/articles.js` | [ ] | [ ] | N/A | P0 |
-| L2-006 | Create `src/data/building-blocks/connectors.js` | [ ] | [ ] | N/A | P0 |
-| L2-007 | Create `src/data/building-blocks/prepositions.js` | [ ] | [ ] | N/A | P0 |
-| L2-008 | Create `src/data/building-blocks/questions.js` | [ ] | [ ] | N/A | P0 |
-| L2-009 | Create `src/data/building-blocks/negation.js` | [ ] | [ ] | N/A | P0 |
-| L2-010 | Create `src/data/building-blocks/possessives.js` | [ ] | [ ] | N/A | P0 |
-| L2-011 | Update lesson ordering system | [ ] | [ ] | [ ] | P0 |
-| L2-012 | Implement prerequisite system | [ ] | [ ] | N/A | P1 |
-| L2-013 | Update tests for new lesson order | [ ] | [ ] | N/A | P0 |
+| L2-001 | Create `src/data/building-blocks/pronouns.js` | [x] | [x] | N/A | P0 |
+| L2-002 | Create `src/data/building-blocks/verbs-ser.js` | [x] | [x] | N/A | P0 |
+| L2-003 | Create `src/data/building-blocks/verbs-estar.js` | [x] | [x] | N/A | P0 |
+| L2-004 | Create `src/data/building-blocks/verbs-ter.js` | [x] | [x] | N/A | P0 |
+| L2-005 | Create `src/data/building-blocks/articles.js` | [x] | [x] | N/A | P0 |
+| L2-006 | Create `src/data/building-blocks/connectors.js` | [x] | [x] | N/A | P0 |
+| L2-007 | Create `src/data/building-blocks/prepositions.js` | [x] | [x] | N/A | P0 |
+| L2-008 | Create `src/data/building-blocks/questions.js` | [x] | [x] | N/A | P0 |
+| L2-009 | Create `src/data/building-blocks/negation.js` | [x] | [x] | N/A | P0 |
+| L2-010 | Create `src/data/building-blocks/possessives.js` | [x] | [x] | N/A | P0 |
+| L2-011 | Update lesson ordering system | [x] | [x] | N/A | P0 |
+| L2-012 | Implement prerequisite system | [x] | [x] | N/A | P1 |
+| L2-013 | Update tests for new lesson order | [x] | [x] | N/A | P0 |
 
 ---
 

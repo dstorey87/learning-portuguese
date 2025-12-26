@@ -5,23 +5,45 @@
  * @module data
  */
 
-// Building blocks lessons (pronouns, connectors, articles)
-// export { buildingBlocksLessons } from './lessons/buildingBlocks.js';
+// Building blocks - foundational lessons (Tier 1)
+export { 
+    buildingBlocksTopic,
+    getBuildingBlockLessons,
+    getBuildingBlockLesson,
+    getLessonPrerequisites,
+    arePrerequisitesMet,
+    pronounsLesson,
+    verbSerLesson,
+    verbEstarLesson,
+    verbTerLesson,
+    articlesLesson,
+    connectorsLesson,
+    prepositionsLesson,
+    questionsLesson,
+    negationLesson,
+    possessivesLesson
+} from './building-blocks/index.js';
 
-// Essential communication lessons
-// export { essentialLessons } from './lessons/essential.js';
+// Lesson Loader - unified lesson access with ordering
+export {
+    LESSON_TIERS,
+    getAllTopics,
+    getTopicById,
+    getAllLessons,
+    getLessonById,
+    getLessonsByTopic,
+    getLessonsByTier,
+    areBuildingBlocksComplete,
+    getBuildingBlocksProgress,
+    checkLessonAvailability,
+    getNextRecommendedLesson,
+    getAvailableLessons,
+    getProgressStats,
+    clearCache
+} from './LessonLoader.js';
 
-// Daily topics lessons
-// export { dailyTopicsLessons } from './lessons/dailyTopics.js';
-
-// Word database with pronunciation, examples, grammar
-// export { wordDatabase } from './words/database.js';
-
-// Static tips database (fallback when AI unavailable)
-// export { staticTips } from './tips/staticTips.js';
-
-// Placeholder export until data is migrated
-export const DATA_VERSION = '0.1.0';
+// Version
+export const DATA_VERSION = '2.0.0';
 
 // Lesson order configuration
 export const LESSON_ORDER = {
@@ -30,5 +52,11 @@ export const LESSON_ORDER = {
         'essential',          // Greetings, basic communication
         'daily-topics'        // Food, travel, etc.
     ],
-    buildingBlocksFirst: true
+    buildingBlocksFirst: true,
+    tiers: {
+        BUILDING_BLOCKS: 1,
+        ESSENTIAL: 2,
+        DAILY_TOPICS: 3,
+        ADVANCED: 4
+    }
 };
