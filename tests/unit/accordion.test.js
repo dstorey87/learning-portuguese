@@ -19,7 +19,7 @@ const mockDocument = () => {
 test.describe('Accordion Component', () => {
     test.describe('Initialization', () => {
         test('ACC-U001: should create accordion with provided sections', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -51,7 +51,7 @@ test.describe('Accordion Component', () => {
         });
 
         test('ACC-U002: should set default open section', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -83,7 +83,7 @@ test.describe('Accordion Component', () => {
         });
 
         test('ACC-U003: should render section icons when provided', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -116,7 +116,7 @@ test.describe('Accordion Component', () => {
 
     test.describe('Single Open Mode', () => {
         test('ACC-U004: should close other sections when opening a new one in single mode', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -155,7 +155,7 @@ test.describe('Accordion Component', () => {
         });
 
         test('ACC-U005: should allow multiple open sections when singleOpen is false', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -197,7 +197,7 @@ test.describe('Accordion Component', () => {
 
     test.describe('Toggle Behavior', () => {
         test('ACC-U006: should toggle section open/closed on header click', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -244,7 +244,7 @@ test.describe('Accordion Component', () => {
 
     test.describe('Content Updates', () => {
         test('ACC-U007: should update section content dynamically', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -281,7 +281,7 @@ test.describe('Accordion Component', () => {
 
     test.describe('Events', () => {
         test('ACC-U008: should emit change event when section is toggled', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -321,7 +321,7 @@ test.describe('Accordion Component', () => {
         });
 
         test('ACC-U009: should allow removing event listeners', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -364,7 +364,7 @@ test.describe('Accordion Component', () => {
 
     test.describe('Accessibility', () => {
         test('ACC-U010: should have proper aria attributes', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -402,7 +402,7 @@ test.describe('Accordion Component', () => {
         });
 
         test('ACC-U011: should update aria-expanded when toggled', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -447,7 +447,7 @@ test.describe('Accordion Component', () => {
 
     test.describe('Cleanup', () => {
         test('ACC-U012: should clean up properly when destroyed', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createAccordion } = window.LearningPortuguese?.components?.common || {};
@@ -486,7 +486,7 @@ test.describe('Accordion Component', () => {
 test.describe('LessonOptionsPanel Component', () => {
     test.describe('Section Rendering', () => {
         test('LOP-U001: should render all lesson sections', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createLessonOptionsPanel, SECTION_ORDER } = window.LearningPortuguese?.components?.lesson || {};
@@ -513,7 +513,7 @@ test.describe('LessonOptionsPanel Component', () => {
         });
 
         test('LOP-U002: should update content when word data is set', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createLessonOptionsPanel } = window.LearningPortuguese?.components?.lesson || {};
@@ -554,7 +554,7 @@ test.describe('LessonOptionsPanel Component', () => {
 
     test.describe('Section Persistence', () => {
         test('LOP-U003: should save last open section to localStorage', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createLessonOptionsPanel } = window.LearningPortuguese?.components?.lesson || {};
@@ -592,7 +592,7 @@ test.describe('LessonOptionsPanel Component', () => {
     test.describe('Mobile Drawer', () => {
         test('LOP-U004: should toggle expanded class on mobile', async ({ page }) => {
             await page.setViewportSize({ width: 375, height: 667 });
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(() => {
                 const { createLessonOptionsPanel } = window.LearningPortuguese?.components?.lesson || {};
@@ -629,7 +629,7 @@ test.describe('LessonOptionsPanel Component', () => {
 
     test.describe('AI Tips Updates', () => {
         test('LOP-U005: should update AI tips dynamically', async ({ page }) => {
-            await page.goto('http://localhost:4174');
+            await page.goto('http://localhost:4321');
             
             const result = await page.evaluate(async () => {
                 const { createLessonOptionsPanel } = window.LearningPortuguese?.components?.lesson || {};

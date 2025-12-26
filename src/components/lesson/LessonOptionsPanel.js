@@ -13,12 +13,16 @@
  * - Cultural Insight: Portugal-specific usage
  * - AI Tips: Dynamic, personalized suggestions
  * 
- * @phase Phase 4 - Lesson Layout & Options Panel
+ * @phase Phase 4 - Lesson Layout & Options Panel (LP-006, LP-007)
  * @module components/lesson/LessonOptionsPanel
  */
 
 import { createAccordion } from '../common/Accordion.js';
 import * as Logger from '../../services/Logger.js';
+import { eventStream } from '../../services/eventStreaming.js';
+import { createLearnerProfiler } from '../../services/learning/LearnerProfiler.js';
+import { userStorage } from '../../services/userStorage.js';
+import * as AIService from '../../services/AIService.js';
 
 // Section configuration
 const SECTION_CONFIG = {
@@ -242,18 +246,29 @@ const contentRenderers = {
     /**
      * Render AI tips (dynamic content)
      */
-    aiTips(data, isLoading = false) {
+    aiTips(data, isLoading = false, isConnected = true) {
         if (isLoading) {
             return `
                 <div class="ai-tips-content">
-                    <div class="ai-loading">Analyzing your learning patterns...</div>
+                    <div class="ai-loading">
+                        <span class="loading-spinner"></span>
+                        <span>Analyzing your learning patterns...</span>
+                    </div>
                 </div>
             `;
         }
         
+        const connectionStatus = isConnected 
+            ? '<span class="ai-status ai-connected" title="AI Connected">🟢</span>'
+            : '<span class="ai-status ai-offline" title="AI Offline - Using cached tips">🟡</span>';
+        
         if (!data || (Array.isArray(data) && data.length === 0)) {
             return `
                 <div class="ai-tips-content">
+                    <div class="ai-tips-header">
+                        ${connectionStatus}
+                        <span class="ai-tips-label">Personalized Tips</span>
+                    </div>
                     <p class="ai-placeholder">Complete a few exercises to get personalized tips!</p>
                 </div>
             `;
@@ -262,14 +277,51 @@ const contentRenderers = {
         // Handle array or single tip
         const tips = Array.isArray(data) ? data : [data];
         
-        const tipsHtml = tips.map(tip => {
+        const tipsHtml = tips.map((tip, index) => {
             const tipText = typeof tip === 'string' ? tip : (tip.tip || tip.text || tip.message);
-            return `<div class="ai-tip-item">${tipText}</div>`;
+            const tipType = tip.type || 'general';
+            const priority = tip.priority || 'normal';
+            return `
+                <div class="ai-tip-item tip-${tipType} priority-${priority}" data-tip-index="${index}">
+                    <span class="tip-icon">${getTipIcon(tipType)}</span>
+                    <span class="tip-text">${tipText}</span>
+                </div>
+            `;
         }).join('');
         
-        return `<div class="ai-tips-content">${tipsHtml}</div>`;
+        return `
+            <div class="ai-tips-content">
+                <div class="ai-tips-header">
+                    ${connectionStatus}
+                    <span class="ai-tips-label">Personalized Tips</span>
+                    <button class="refresh-tips-btn" title="Refresh tips" aria-label="Refresh AI tips">
+                        🔄
+                    </button>
+                </div>
+                <div class="ai-tips-list">${tipsHtml}</div>
+            </div>
+        `;
     }
 };
+
+/**
+ * Get icon for tip type
+ * @param {string} type - Tip type
+ * @returns {string} Icon emoji
+ */
+function getTipIcon(type) {
+    const icons = {
+        pronunciation: '🗣️',
+        grammar: '📖',
+        memory: '💡',
+        weakness: '⚠️',
+        strength: '💪',
+        timing: '⏰',
+        motivation: '🌟',
+        general: '💭'
+    };
+    return icons[type] || icons.general;
+}
 
 /**
  * LessonOptionsPanel Class
@@ -298,13 +350,23 @@ export class LessonOptionsPanel {
             headerTitle: '📖 Learning Options',
             onSectionChange: null,
             onAudioPlay: null,
+            enableRealTimeUpdates: true,
+            mobileBreakpoint: 767,
+            drawerMode: 'auto', // 'auto' | 'always' | 'never'
             ...options
         };
         
         this.accordion = null;
         this.wordData = null;
         this.aiTipsLoading = false;
+        this.aiConnected = false;
         this.eventListeners = [];
+        this.eventUnsubscribe = null;
+        this.learnerProfiler = null;
+        this.tipRefreshDebounce = null;
+        this.lastTipRefresh = 0;
+        this.cachedTips = [];
+        this.isDrawerExpanded = false;
         
         this.init();
     }
@@ -314,10 +376,329 @@ export class LessonOptionsPanel {
      */
     init() {
         this.container.classList.add('lesson-options-panel');
+        
+        // Initialize learner profiler for the current user
+        const userId = userStorage.getCurrentUserId();
+        if (userId) {
+            this.learnerProfiler = createLearnerProfiler(userId);
+        }
+        
+        // Check AI status
+        this.checkAIConnection();
+        
         this.render();
         this.bindEvents();
         
-        Logger.debug('LessonOptionsPanel', 'Initialized');
+        // Subscribe to event streaming for real-time updates
+        if (this.options.enableRealTimeUpdates) {
+            this.subscribeToEvents();
+        }
+        
+        // Initialize mobile drawer mode
+        this.initMobileDrawer();
+        
+        Logger.debug('LessonOptionsPanel', 'Initialized with real-time updates');
+    }
+    
+    /**
+     * Check AI connection status
+     */
+    async checkAIConnection() {
+        try {
+            const status = await AIService.checkOllamaStatus();
+            this.aiConnected = status.available;
+            Logger.debug('LessonOptionsPanel', 'AI connection status', { connected: this.aiConnected });
+        } catch (error) {
+            this.aiConnected = false;
+            Logger.warn('LessonOptionsPanel', 'Failed to check AI status', error);
+        }
+    }
+    
+    /**
+     * Subscribe to event streaming for real-time tip updates
+     */
+    subscribeToEvents() {
+        this.eventUnsubscribe = eventStream.subscribe((event) => {
+            this.handleLearningEvent(event);
+        });
+        Logger.debug('LessonOptionsPanel', 'Subscribed to event stream');
+    }
+    
+    /**
+     * Handle learning events for tip updates
+     * @param {Object} event - Learning event
+     */
+    handleLearningEvent(event) {
+        // Events that should trigger tip refresh
+        const tipTriggers = ['word_attempt', 'pronunciation', 'quiz_answer'];
+        
+        if (!tipTriggers.includes(event.eventType)) {
+            return;
+        }
+        
+        // Update learner profiler
+        if (this.learnerProfiler) {
+            // Map event types to profiler format
+            const mappedEvent = this.mapEventForProfiler(event);
+            this.learnerProfiler.processEvent(mappedEvent);
+        }
+        
+        // Debounce tip refresh (don't refresh more than once per 5 seconds)
+        const now = Date.now();
+        if (now - this.lastTipRefresh < 5000) {
+            clearTimeout(this.tipRefreshDebounce);
+            this.tipRefreshDebounce = setTimeout(() => {
+                this.refreshAITips();
+            }, 5000 - (now - this.lastTipRefresh));
+            return;
+        }
+        
+        this.refreshAITips();
+    }
+    
+    /**
+     * Map event stream events to profiler format
+     * @param {Object} event - Raw event
+     * @returns {Object} Mapped event
+     */
+    mapEventForProfiler(event) {
+        const { eventType, data, timestamp } = event;
+        
+        switch (eventType) {
+            case 'word_attempt':
+                return {
+                    eventType: data.correct ? 'answer_correct' : 'answer_incorrect',
+                    wordId: data.wordId,
+                    userAnswer: data.userInput,
+                    correctAnswer: data.correctAnswer,
+                    responseTime: data.responseTime,
+                    timestamp
+                };
+            case 'pronunciation':
+                return {
+                    eventType: 'pronunciation_score',
+                    wordId: data.wordId,
+                    score: data.score,
+                    phonemes: data.phonemeBreakdown,
+                    timestamp
+                };
+            case 'quiz_answer':
+                return {
+                    eventType: data.correct ? 'answer_correct' : 'answer_incorrect',
+                    wordId: data.questionId,
+                    userAnswer: data.selectedOption,
+                    correctAnswer: data.correctOption,
+                    responseTime: data.timeSpent,
+                    timestamp
+                };
+            default:
+                return { eventType, ...data, timestamp };
+        }
+    }
+    
+    /**
+     * Refresh AI tips based on current learning data
+     */
+    async refreshAITips() {
+        this.lastTipRefresh = Date.now();
+        
+        if (!this.wordData) {
+            return;
+        }
+        
+        // Show loading state briefly
+        this.aiTipsLoading = true;
+        this.accordion?.updateContent('aiTips', contentRenderers.aiTips(null, true, this.aiConnected));
+        
+        try {
+            const tips = await this.generateDynamicTips();
+            this.cachedTips = tips;
+            this.accordion?.updateContent('aiTips', contentRenderers.aiTips(tips, false, this.aiConnected));
+            Logger.debug('LessonOptionsPanel', 'AI tips refreshed', { count: tips.length });
+        } catch (error) {
+            Logger.warn('LessonOptionsPanel', 'Failed to refresh AI tips', error);
+            // Fall back to cached tips
+            this.accordion?.updateContent('aiTips', contentRenderers.aiTips(this.cachedTips, false, this.aiConnected));
+        } finally {
+            this.aiTipsLoading = false;
+        }
+    }
+    
+    /**
+     * Generate dynamic tips based on learning data
+     * @returns {Promise<Array>} Generated tips
+     */
+    async generateDynamicTips() {
+        const tips = [];
+        
+        // Get recommendations from learner profiler
+        if (this.learnerProfiler) {
+            const recommendations = this.learnerProfiler.getRecommendations();
+            recommendations.forEach(rec => {
+                tips.push({
+                    tip: rec.message,
+                    type: rec.type,
+                    priority: rec.priority,
+                    data: rec.data
+                });
+            });
+            
+            // Get summary for context
+            const summary = this.learnerProfiler.getSummaryForAI();
+            
+            // Add weakness-based tips
+            if (summary.topWeaknesses && summary.topWeaknesses.length > 0) {
+                const weakness = summary.topWeaknesses[0];
+                tips.push({
+                    tip: `You often confuse "${weakness.word1}" with "${weakness.word2}". Try creating a mental story linking them!`,
+                    type: 'weakness',
+                    priority: 'high'
+                });
+            }
+            
+            // Add pronunciation tips
+            if (summary.pronunciationIssues && summary.pronunciationIssues.length > 0) {
+                const issue = summary.pronunciationIssues[0];
+                tips.push({
+                    tip: `Work on the "${issue.phoneme}" sound - your average score is ${Math.round(issue.averageScore)}%. Practice slowly!`,
+                    type: 'pronunciation',
+                    priority: 'high'
+                });
+            }
+        }
+        
+        // Add word-specific tips from AI if connected and we have word data
+        if (this.aiConnected && this.wordData) {
+            try {
+                const aiTip = await this.getAITipForWord(this.wordData);
+                if (aiTip) {
+                    tips.push({
+                        tip: aiTip,
+                        type: 'general',
+                        priority: 'normal'
+                    });
+                }
+            } catch (error) {
+                Logger.debug('LessonOptionsPanel', 'AI tip generation failed', error);
+            }
+        }
+        
+        // Fallback tips if none generated
+        if (tips.length === 0) {
+            tips.push({
+                tip: 'Keep practicing! The more you learn, the better tips I can give you.',
+                type: 'motivation',
+                priority: 'low'
+            });
+        }
+        
+        // Limit to top 5 tips
+        return tips.slice(0, 5);
+    }
+    
+    /**
+     * Get AI-generated tip for specific word
+     * @param {Object} wordData - Word data
+     * @returns {Promise<string|null>} Generated tip
+     */
+    async getAITipForWord(wordData) {
+        const word = wordData.word || wordData.pt || wordData.portuguese;
+        if (!word) return null;
+        
+        // Use AIService grammar help for tips
+        try {
+            const result = await AIService.getGrammarHelp(word, 'memory tip');
+            return result.explanation;
+        } catch {
+            return null;
+        }
+    }
+    
+    /**
+     * Initialize mobile drawer mode
+     */
+    initMobileDrawer() {
+        // Check if we should use drawer mode
+        const shouldUseDrawer = this.shouldUseDrawerMode();
+        
+        if (shouldUseDrawer) {
+            this.container.classList.add('drawer-mode');
+            this.createDrawerToggle();
+        }
+        
+        // Listen for resize to switch modes
+        const handleResize = () => {
+            const useDrawer = this.shouldUseDrawerMode();
+            this.container.classList.toggle('drawer-mode', useDrawer);
+            
+            if (useDrawer && !this.container.querySelector('.drawer-toggle')) {
+                this.createDrawerToggle();
+            }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        this.eventListeners.push(['resize', handleResize, window]);
+    }
+    
+    /**
+     * Check if drawer mode should be used
+     * @returns {boolean}
+     */
+    shouldUseDrawerMode() {
+        if (this.options.drawerMode === 'always') return true;
+        if (this.options.drawerMode === 'never') return false;
+        return window.innerWidth <= this.options.mobileBreakpoint;
+    }
+    
+    /**
+     * Create mobile drawer toggle button
+     */
+    createDrawerToggle() {
+        // Don't create if already exists
+        if (this.container.querySelector('.drawer-toggle')) return;
+        
+        const toggle = document.createElement('button');
+        toggle.className = 'drawer-toggle';
+        toggle.setAttribute('aria-label', 'Toggle learning options');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.innerHTML = `
+            <span class="drawer-toggle-icon">📖</span>
+            <span class="drawer-toggle-text">Learning Options</span>
+            <span class="drawer-toggle-arrow">▲</span>
+        `;
+        
+        toggle.addEventListener('click', () => {
+            this.toggleDrawer();
+        });
+        
+        this.container.insertBefore(toggle, this.container.firstChild);
+    }
+    
+    /**
+     * Toggle mobile drawer expanded state
+     * @param {boolean} [expanded] - Force state
+     */
+    toggleDrawer(expanded) {
+        if (expanded === undefined) {
+            this.isDrawerExpanded = !this.isDrawerExpanded;
+        } else {
+            this.isDrawerExpanded = expanded;
+        }
+        
+        this.container.classList.toggle('expanded', this.isDrawerExpanded);
+        
+        // Update ARIA
+        const toggle = this.container.querySelector('.drawer-toggle');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', String(this.isDrawerExpanded));
+        }
+        
+        // Dispatch event
+        this.container.dispatchEvent(new CustomEvent('drawer-toggle', {
+            detail: { expanded: this.isDrawerExpanded }
+        }));
+        
+        Logger.debug('LessonOptionsPanel', 'Drawer toggled', { expanded: this.isDrawerExpanded });
     }
     
     /**
@@ -439,54 +820,19 @@ export class LessonOptionsPanel {
     async loadAITips(wordData) {
         // Show loading state
         this.aiTipsLoading = true;
-        this.accordion.updateContent('aiTips', contentRenderers.aiTips(null, true));
+        this.accordion.updateContent('aiTips', contentRenderers.aiTips(null, true, this.aiConnected));
         
         try {
-            // Try to get AI tips from event streaming or AI service
-            const tips = await this.fetchAITips(wordData);
-            this.accordion.updateContent('aiTips', contentRenderers.aiTips(tips));
+            // Generate tips using the dynamic system
+            const tips = await this.generateDynamicTips();
+            this.cachedTips = tips;
+            this.accordion.updateContent('aiTips', contentRenderers.aiTips(tips, false, this.aiConnected));
         } catch (error) {
             Logger.warn('LessonOptionsPanel', 'Failed to load AI tips', error);
-            this.accordion.updateContent('aiTips', contentRenderers.aiTips(null));
+            this.accordion.updateContent('aiTips', contentRenderers.aiTips(this.cachedTips, false, this.aiConnected));
         } finally {
             this.aiTipsLoading = false;
         }
-    }
-    
-    /**
-     * Fetch AI tips (placeholder for integration)
-     * @param {Object} wordData - Word data
-     * @returns {Promise<Array>} AI tips
-     */
-    async fetchAITips(wordData) {
-        // This will be integrated with AIService and eventStreaming
-        // For now, return placeholder
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // Simulate AI response based on word data
-                const tips = [];
-                
-                if (wordData?.difficulty === 'hard' || wordData?.userStruggling) {
-                    tips.push({
-                        tip: "You've been practicing this word - try using it in a sentence out loud!"
-                    });
-                }
-                
-                if (wordData?.pronunciation?.tip) {
-                    tips.push({
-                        tip: `Focus on: ${wordData.pronunciation.tip}`
-                    });
-                }
-                
-                if (tips.length === 0) {
-                    tips.push({
-                        tip: "Complete more exercises to unlock personalized learning tips!"
-                    });
-                }
-                
-                resolve(tips);
-            }, 500);
-        });
     }
     
     /**
@@ -494,7 +840,8 @@ export class LessonOptionsPanel {
      * @param {Array} tips - New AI tips
      */
     updateAITips(tips) {
-        this.accordion.updateContent('aiTips', contentRenderers.aiTips(tips));
+        this.cachedTips = tips;
+        this.accordion.updateContent('aiTips', contentRenderers.aiTips(tips, false, this.aiConnected));
         Logger.debug('LessonOptionsPanel', 'AI tips updated', { count: tips?.length });
     }
     
@@ -517,17 +864,49 @@ export class LessonOptionsPanel {
         this.container.addEventListener('click', handleAudioClick);
         this.eventListeners.push(['click', handleAudioClick]);
         
-        // Mobile drawer toggle
+        // Refresh tips button
+        const handleRefreshClick = (e) => {
+            if (e.target.closest('.refresh-tips-btn')) {
+                this.refreshAITips();
+            }
+        };
+        
+        this.container.addEventListener('click', handleRefreshClick);
+        this.eventListeners.push(['click', handleRefreshClick]);
+        
+        // Mobile drawer - header click (only when not in drawer mode)
         const header = this.container.querySelector('.lesson-options-header');
         if (header) {
             const handleHeaderClick = () => {
-                if (window.innerWidth <= 767) {
-                    this.container.classList.toggle('expanded');
+                if (this.shouldUseDrawerMode() && !this.container.querySelector('.drawer-toggle')) {
+                    this.toggleDrawer();
                 }
             };
             header.addEventListener('click', handleHeaderClick);
             this.eventListeners.push(['click', handleHeaderClick, header]);
         }
+        
+        // Close drawer on outside click (mobile)
+        const handleOutsideClick = (e) => {
+            if (this.isDrawerExpanded && 
+                this.shouldUseDrawerMode() && 
+                !this.container.contains(e.target)) {
+                this.toggleDrawer(false);
+            }
+        };
+        
+        document.addEventListener('click', handleOutsideClick);
+        this.eventListeners.push(['click', handleOutsideClick, document]);
+        
+        // Close drawer on escape key
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && this.isDrawerExpanded) {
+                this.toggleDrawer(false);
+            }
+        };
+        
+        document.addEventListener('keydown', handleKeyDown);
+        this.eventListeners.push(['keydown', handleKeyDown, document]);
     }
     
     /**
@@ -575,13 +954,40 @@ export class LessonOptionsPanel {
      * @returns {boolean}
      */
     isMobileMode() {
-        return window.innerWidth <= 767;
+        return this.shouldUseDrawerMode();
+    }
+    
+    /**
+     * Get cached tips
+     * @returns {Array} Cached AI tips
+     */
+    getCachedTips() {
+        return this.cachedTips;
+    }
+    
+    /**
+     * Force refresh tips (public API)
+     */
+    async forceRefreshTips() {
+        this.lastTipRefresh = 0; // Reset debounce
+        await this.refreshAITips();
     }
     
     /**
      * Destroy the panel
      */
     destroy() {
+        // Unsubscribe from event stream
+        if (this.eventUnsubscribe) {
+            this.eventUnsubscribe();
+            this.eventUnsubscribe = null;
+        }
+        
+        // Clear debounce timer
+        if (this.tipRefreshDebounce) {
+            clearTimeout(this.tipRefreshDebounce);
+        }
+        
         // Remove event listeners
         this.eventListeners.forEach(([event, handler, target]) => {
             (target || this.container).removeEventListener(event, handler);
@@ -593,9 +999,13 @@ export class LessonOptionsPanel {
             this.accordion.destroy();
         }
         
+        // Clear references
+        this.learnerProfiler = null;
+        this.cachedTips = [];
+        
         // Clear container
         this.container.innerHTML = '';
-        this.container.classList.remove('lesson-options-panel', 'expanded');
+        this.container.classList.remove('lesson-options-panel', 'expanded', 'drawer-mode');
         
         Logger.debug('LessonOptionsPanel', 'Destroyed');
     }

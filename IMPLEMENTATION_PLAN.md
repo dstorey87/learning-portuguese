@@ -1460,16 +1460,18 @@ Lessons start with "Essential Greetings" but should start with **language buildi
 
 | Task ID | Task | Status | Tests | Cleanup | Priority |
 |---------|------|--------|-------|---------|----------|
-| LP-001 | Create `Accordion.js` component | [ ] | [ ] | N/A | P0 |
-| LP-002 | Create `ExpandablePanel.js` component | [ ] | [ ] | N/A | P0 |
-| LP-003 | Implement single-open accordion behavior | [ ] | [ ] | N/A | P0 |
-| LP-004 | Create right panel layout | [ ] | [ ] | [ ] | P0 |
-| LP-005 | Add smooth expand/collapse animations | [ ] | [ ] | N/A | P1 |
-| LP-006 | Wire AI Tips to dynamic updates | [ ] | [ ] | N/A | P0 |
-| LP-007 | Create mobile drawer variant | [ ] | [ ] | N/A | P0 |
-| LP-008 | Persist user's last open section | [ ] | [ ] | N/A | P2 |
-| LP-009 | Style options panel with CSS module | [ ] | [ ] | [ ] | P0 |
-| LP-010 | Add section icons | [ ] | [ ] | N/A | P2 |
+| LP-001 | Create `Accordion.js` component | [x] | [x] | N/A | P0 |
+| LP-002 | Create `LessonOptionsPanel.js` component | [x] | [x] | N/A | P0 |
+| LP-003 | Implement single-open accordion behavior | [x] | [x] | N/A | P0 |
+| LP-004 | Create right panel layout | [x] | [x] | [x] | P0 |
+| LP-005 | Add smooth expand/collapse animations | [x] | [x] | N/A | P1 |
+| LP-006 | Wire AI Tips to dynamic updates | [x] | [x] | N/A | P0 |
+| LP-007 | Create mobile drawer variant | [x] | [x] | N/A | P0 |
+| LP-008 | Persist user's last open section | [x] | [x] | N/A | P2 |
+| LP-009 | Style options panel with CSS module | [x] | [x] | [x] | P0 |
+| LP-010 | Add section icons | [x] | [x] | N/A | P2 |
+
+**Phase 4 Complete** - Merged to main (commit f8bccaa)
 
 ---
 
