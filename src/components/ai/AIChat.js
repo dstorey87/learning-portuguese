@@ -17,6 +17,7 @@ import { getAIAgent } from '../../services/ai/AIAgent.js';
 import { ensureToolHandlersInitialized } from '../../services/ai/ToolHandlers.js';
 import { getWebSpeechService, isWebSpeechAvailable, RECOGNITION_EVENTS } from '../../services/WebSpeechService.js';
 import { speak, speakPortuguese, stop as stopTTS, isSpeaking } from '../../services/TTSService.js';
+import { getPronunciationAssessor } from '../../services/PronunciationAssessor.js';
 import * as Logger from '../../services/Logger.js';
 import { eventStream } from '../../services/eventStreaming.js';
 
@@ -37,11 +38,13 @@ class AIChatComponent {
     constructor() {
         this.agent = null;
         this.webSpeechService = null;
+        this.pronunciationAssessor = null;
         this.messages = [];
         this.isInitialized = false;
         this.isProcessing = false;
         this.isVoiceMode = false;
         this.isListening = false;
+        this.isAssessingPronunciation = false;
         this.container = null;
         this.userId = null;
         this.lastAIResponse = null;
@@ -71,6 +74,9 @@ class AIChatComponent {
         } else {
             Logger.info('ai_chat', 'Web Speech API available for voice input');
         }
+        
+        // Initialize pronunciation assessor
+        this.pronunciationAssessor = getPronunciationAssessor();
         
         this.isInitialized = true;
         Logger.info('ai_chat', 'AI Chat initialized', { userId, aiAvailable: agentResult.success, voiceAvailable });
@@ -401,6 +407,187 @@ class AIChatComponent {
                 50% { opacity: 1; }
             }
             
+            /* Voice mode styles */
+            .ai-voice-toggle.listening {
+                background: #f97316 !important;
+                animation: pulse-orange 1.5s infinite;
+            }
+            
+            .ai-voice-toggle.speaking {
+                background: #8b5cf6 !important;
+                animation: pulse-purple 1s infinite;
+            }
+            
+            @keyframes pulse-orange {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+                50% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+            }
+            
+            @keyframes pulse-purple {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+                50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0); }
+            }
+            
+            /* Interim transcript (live transcription) */
+            .ai-message.interim {
+                opacity: 0.7;
+            }
+            
+            .ai-message.interim .message-content {
+                background: var(--bg-secondary, #2a2a3e);
+                border: 1px dashed var(--border, #444);
+            }
+            
+            .interim-text {
+                font-style: italic;
+            }
+            
+            .voice-indicator-dots {
+                display: inline-flex;
+                gap: 2px;
+                margin-left: 8px;
+            }
+            
+            .voice-indicator-dots span {
+                width: 4px;
+                height: 4px;
+                background: var(--primary, #667eea);
+                border-radius: 50%;
+                animation: bounce 1.4s ease-in-out infinite;
+            }
+            
+            .voice-indicator-dots span:nth-child(2) { animation-delay: 0.2s; }
+            .voice-indicator-dots span:nth-child(3) { animation-delay: 0.4s; }
+            
+            @keyframes bounce {
+                0%, 80%, 100% { transform: scale(0); }
+                40% { transform: scale(1); }
+            }
+            
+            /* Inline audio buttons for Portuguese words */
+            .portuguese-word {
+                display: inline;
+                color: var(--primary, #667eea);
+            }
+            
+            .inline-audio-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                font-size: 12px;
+                padding: 0 2px;
+                margin-left: 2px;
+                opacity: 0.7;
+                transition: opacity 0.2s, transform 0.2s;
+                vertical-align: middle;
+            }
+            
+            .inline-audio-btn:hover {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+            
+            .inline-audio-btn:active {
+                transform: scale(0.9);
+            }
+            
+            /* IPA pronunciation */
+            .ipa {
+                font-family: 'Lucida Sans Unicode', 'DejaVu Sans', monospace;
+                color: var(--text-muted, #888);
+                font-size: 0.9em;
+            }
+            
+            /* System messages */
+            .ai-message.system .message-content {
+                background: var(--bg-tertiary, #1a1a2e);
+                border-left: 3px solid var(--primary, #667eea);
+                font-size: 13px;
+            }
+            
+            /* Pronunciation Feedback */
+            .pronunciation-feedback {
+                padding: 12px;
+                border-radius: 12px;
+                background: var(--bg-secondary, #2a2a3e);
+            }
+            
+            .pronunciation-feedback.excellent {
+                border: 2px solid #22c55e;
+                background: rgba(34, 197, 94, 0.1);
+            }
+            
+            .pronunciation-feedback.good {
+                border: 2px solid #3b82f6;
+                background: rgba(59, 130, 246, 0.1);
+            }
+            
+            .pronunciation-feedback.fair {
+                border: 2px solid #f59e0b;
+                background: rgba(245, 158, 11, 0.1);
+            }
+            
+            .pronunciation-feedback.needs-work {
+                border: 2px solid #ef4444;
+                background: rgba(239, 68, 68, 0.1);
+            }
+            
+            .pronunciation-feedback .score-badge {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            
+            .pronunciation-feedback .score-badge .emoji {
+                font-size: 24px;
+            }
+            
+            .pronunciation-feedback .score-badge .score {
+                font-size: 20px;
+                font-weight: bold;
+                color: var(--text, #e0e0e0);
+            }
+            
+            .pronunciation-feedback .feedback-text {
+                margin: 8px 0;
+                color: var(--text, #e0e0e0);
+            }
+            
+            .pronunciation-feedback .feedback-tips {
+                margin: 8px 0;
+                padding-left: 20px;
+                color: var(--text-muted, #aaa);
+                font-size: 13px;
+            }
+            
+            .pronunciation-feedback .feedback-tips li {
+                margin: 4px 0;
+            }
+            
+            .pronunciation-feedback .replay-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin-top: 8px;
+                padding: 8px 12px;
+                background: var(--primary, #667eea);
+                border: none;
+                border-radius: 8px;
+                color: white;
+                font-size: 13px;
+                cursor: pointer;
+                transition: background 0.2s, transform 0.2s;
+            }
+            
+            .pronunciation-feedback .replay-btn:hover {
+                background: var(--primary-dark, #5a6fd6);
+                transform: scale(1.02);
+            }
+            
             /* Mobile responsive */
             @media (max-width: 480px) {
                 .ai-chat-widget {
@@ -532,9 +719,20 @@ class AIChatComponent {
         const messagesContainer = document.getElementById('aiMessages');
         if (!messagesContainer) return;
         
+        // Store last AI response for voice mode
+        if (role === 'assistant') {
+            this.lastAIResponse = content;
+        }
+        
         const messageEl = document.createElement('div');
         messageEl.className = `ai-message ${role}`;
-        messageEl.innerHTML = `<div class="message-content">${this.formatMessage(content)}</div>`;
+        
+        // For assistant messages, add inline audio buttons for Portuguese words
+        const formattedContent = role === 'assistant' 
+            ? this.formatMessageWithAudio(content)
+            : this.formatMessage(content);
+        
+        messageEl.innerHTML = `<div class="message-content">${formattedContent}</div>`;
         
         messagesContainer.appendChild(messageEl);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -547,9 +745,33 @@ class AIChatComponent {
             this.messages = this.messages.slice(-CHAT_CONFIG.maxMessages);
         }
     }
+    
+    /**
+     * Format message with inline audio buttons for Portuguese words
+     * @param {string} content - Message content
+     * @returns {string} Formatted HTML with audio buttons
+     */
+    formatMessageWithAudio(content) {
+        // First apply standard formatting
+        let formatted = content
+            .replace(/`(.+?)`/g, '<code>$1</code>')
+            .replace(/\/(.+?)\//g, '<span class="ipa">/$1/</span>')
+            .replace(/\n/g, '<br>');
+        
+        // Then handle Portuguese words marked with ** - add audio buttons
+        formatted = formatted.replace(/\*\*([a-záàâãéêíóôõúçñ\s]+)\*\*/gi, (match, word) => {
+            const escaped = word.trim().replace(/'/g, "\\'");
+            return `<strong class="portuguese-word" data-word="${escaped}">${word} <button class="inline-audio-btn" onclick="window.playPortugueseWord('${escaped}')" title="Listen to '${word}'">🔊</button></strong>`;
+        });
+        
+        // Handle single * for emphasis (but not Portuguese words)
+        formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        
+        return formatted;
+    }
 
     formatMessage(content) {
-        // Convert markdown-like formatting
+        // Convert markdown-like formatting (for user messages)
         return content
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -587,52 +809,345 @@ class AIChatComponent {
         if (status) status.textContent = processing ? 'Thinking...' : 'Ready to help';
     }
 
+    /**
+     * Toggle voice mode - using WebSpeechService for recognition
+     * and TTSService for speaking AI responses
+     */
     async toggleVoiceMode() {
         const voiceToggle = document.getElementById('aiVoiceToggle');
         const voiceIndicator = document.getElementById('aiVoiceIndicator');
         const input = document.getElementById('aiInput');
+        const status = document.getElementById('aiStatus');
         
-        if (!this.voiceConversation) {
-            this.addMessageToUI('assistant', 'Voice mode is not available. Please check your microphone settings.');
+        // If already in voice mode, stop it
+        if (this.isVoiceMode || this.isListening) {
+            this.stopVoiceMode();
             return;
         }
         
-        this.isVoiceMode = !this.isVoiceMode;
-        voiceToggle?.classList.toggle('active', this.isVoiceMode);
+        // Check if Web Speech API is available
+        if (!isWebSpeechAvailable()) {
+            this.addMessageToUI('assistant', '⚠️ Voice recognition is not available in your browser. Please try Chrome, Edge, or Safari.');
+            return;
+        }
         
-        if (this.isVoiceMode) {
-            // Start voice conversation
-            voiceIndicator.style.display = 'flex';
-            input.style.display = 'none';
+        // Start voice recognition
+        this.isVoiceMode = true;
+        this.isListening = true;
+        voiceToggle?.classList.add('active', 'listening');
+        if (voiceIndicator) voiceIndicator.style.display = 'flex';
+        if (input) input.style.display = 'none';
+        if (status) status.textContent = 'Listening... Speak now';
+        
+        // Show interim transcript element
+        this.showInterimTranscript();
+        
+        // Set up interim result listener
+        const interimUnsub = this.webSpeechService.on(RECOGNITION_EVENTS.INTERIM_RESULT, (interim) => {
+            this.updateInterimTranscript(interim.text);
+        });
+        
+        try {
+            Logger.info('ai_chat', 'Starting voice recognition');
             
-            await this.voiceConversation.start({
-                onTranscript: (text) => {
-                    this.addMessageToUI('user', text);
-                },
-                onResponse: (text) => {
-                    this.addMessageToUI('assistant', text);
-                },
-                onSpeaking: (who) => {
-                    const status = document.getElementById('aiStatus');
-                    if (status) status.textContent = who === 'user' ? 'Listening...' : 'Speaking...';
-                },
-                onListening: () => {
-                    const status = document.getElementById('aiStatus');
-                    if (status) status.textContent = 'Listening...';
-                },
-                onError: (error) => {
-                    this.addMessageToUI('assistant', `Voice error: ${error}`);
+            // Listen for speech (10 second timeout)
+            const result = await this.webSpeechService.listen(10000);
+            
+            // Hide interim transcript
+            this.hideInterimTranscript();
+            interimUnsub(); // Clean up listener
+            
+            if (result.text && result.text.trim()) {
+                Logger.info('ai_chat', 'Voice input received', { text: result.text, confidence: result.confidence });
+                
+                // Show what user said
+                this.addMessageToUI('user', result.text);
+                
+                // Update status
+                if (status) status.textContent = 'Processing...';
+                
+                // Send to AI
+                await this.sendMessage(result.text);
+                
+                // Speak the AI response if we got one
+                if (this.lastAIResponse && this.isVoiceMode) {
+                    await this.speakAIResponse(this.lastAIResponse);
                 }
-            });
-        } else {
-            // Stop voice conversation
-            this.voiceConversation.stop();
-            voiceIndicator.style.display = 'none';
-            input.style.display = 'block';
+            } else {
+                Logger.info('ai_chat', 'No speech detected');
+                if (result.noSpeech) {
+                    this.addMessageToUI('assistant', "I didn't hear anything. Click the 🎤 button and try speaking again.");
+                }
+            }
+        } catch (error) {
+            Logger.error('ai_chat', 'Voice recognition error', { error: error.message });
+            this.hideInterimTranscript();
+            interimUnsub();
             
-            const status = document.getElementById('aiStatus');
+            // Show appropriate error message
+            if (error.code === 'not-allowed') {
+                this.addMessageToUI('assistant', '🎤 Microphone access denied. Please allow microphone access in your browser settings.');
+            } else if (error.code === 'audio-capture') {
+                this.addMessageToUI('assistant', '🎤 No microphone found. Please connect a microphone and try again.');
+            } else {
+                this.addMessageToUI('assistant', `Voice error: ${error.message || 'Unknown error'}. Please try again.`);
+            }
+        } finally {
+            this.stopVoiceMode();
+        }
+    }
+    
+    /**
+     * Stop voice mode and reset UI
+     */
+    stopVoiceMode() {
+        const voiceToggle = document.getElementById('aiVoiceToggle');
+        const voiceIndicator = document.getElementById('aiVoiceIndicator');
+        const input = document.getElementById('aiInput');
+        const status = document.getElementById('aiStatus');
+        
+        this.isVoiceMode = false;
+        this.isListening = false;
+        
+        // Stop any ongoing recognition
+        if (this.webSpeechService) {
+            this.webSpeechService.stop();
+        }
+        
+        // Stop any ongoing TTS
+        stopTTS();
+        
+        // Reset UI
+        voiceToggle?.classList.remove('active', 'listening', 'speaking');
+        if (voiceIndicator) voiceIndicator.style.display = 'none';
+        if (input) input.style.display = 'block';
+        if (status) status.textContent = 'Ready to help';
+        
+        this.hideInterimTranscript();
+    }
+    
+    /**
+     * Show interim transcript display
+     */
+    showInterimTranscript() {
+        this.hideInterimTranscript(); // Remove any existing
+        
+        this.interimTranscriptElement = document.createElement('div');
+        this.interimTranscriptElement.className = 'ai-message user interim';
+        this.interimTranscriptElement.innerHTML = `
+            <div class="message-content">
+                <span class="interim-text">...</span>
+                <span class="voice-indicator-dots"><span></span><span></span><span></span></span>
+            </div>
+        `;
+        
+        const messagesContainer = document.getElementById('aiMessages');
+        if (messagesContainer) {
+            messagesContainer.appendChild(this.interimTranscriptElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
+    
+    /**
+     * Update interim transcript text
+     */
+    updateInterimTranscript(text) {
+        if (this.interimTranscriptElement) {
+            const textSpan = this.interimTranscriptElement.querySelector('.interim-text');
+            if (textSpan) {
+                textSpan.textContent = text || '...';
+            }
+        }
+    }
+    
+    /**
+     * Hide and remove interim transcript display
+     */
+    hideInterimTranscript() {
+        if (this.interimTranscriptElement) {
+            this.interimTranscriptElement.remove();
+            this.interimTranscriptElement = null;
+        }
+    }
+    
+    /**
+     * Speak AI response using TTS
+     * @param {string} text - Text to speak
+     */
+    async speakAIResponse(text) {
+        const voiceToggle = document.getElementById('aiVoiceToggle');
+        const status = document.getElementById('aiStatus');
+        
+        try {
+            voiceToggle?.classList.add('speaking');
+            voiceToggle?.classList.remove('listening');
+            if (status) status.textContent = 'Speaking...';
+            
+            // Use Edge-TTS with European Portuguese voice
+            await speakPortuguese(text, {
+                onStart: () => Logger.debug('ai_chat', 'TTS started'),
+                onEnd: () => Logger.debug('ai_chat', 'TTS ended')
+            });
+        } catch (error) {
+            Logger.warn('ai_chat', 'TTS failed, response displayed as text only', { error: error.message });
+        } finally {
+            voiceToggle?.classList.remove('speaking');
             if (status) status.textContent = 'Ready to help';
         }
+    }
+    
+    /**
+     * Parse AI response and add inline audio buttons for Portuguese words
+     * @param {string} content - AI response content
+     * @returns {string} HTML with audio buttons added
+     */
+    parseResponseForAudio(content) {
+        // Find Portuguese words marked with ** (bold)
+        // e.g., **obrigado** becomes clickable with audio
+        return content.replace(/\*\*([a-záàâãéêíóôõúçñ]+)\*\*/gi, (match, word) => {
+            const escaped = word.replace(/'/g, "\\'");
+            return `<strong class="portuguese-word" data-word="${word}">${word} <button class="inline-audio-btn" onclick="window.playPortugueseWord('${escaped}')" title="Listen to pronunciation">🔊</button></strong>`;
+        });
+    }
+    
+    /**
+     * Start pronunciation assessment for a specific word
+     * Called when AI asks user to pronounce something
+     * @param {string} wordToPronounce - Portuguese word to assess
+     */
+    async assessPronunciation(wordToPronounce) {
+        if (!wordToPronounce) return;
+        
+        // Check if voice recognition is available
+        if (!isWebSpeechAvailable()) {
+            this.addMessageToUI('assistant', '⚠️ Voice recognition is not available. Cannot assess pronunciation.');
+            return;
+        }
+        
+        this.isAssessingPronunciation = true;
+        
+        // Show prompt
+        this.addSystemMessage(`🎤 Say "**${wordToPronounce}**" in Portuguese`);
+        
+        // Play the correct pronunciation first
+        try {
+            await speakPortuguese(wordToPronounce);
+        } catch (error) {
+            Logger.warn('ai_chat', 'Failed to play example pronunciation', { error: error.message });
+        }
+        
+        // Wait a moment then listen
+        await new Promise(r => setTimeout(r, 800));
+        
+        // Show listening indicator
+        this.showInterimTranscript();
+        const status = document.getElementById('aiStatus');
+        if (status) status.textContent = 'Your turn - speak now...';
+        
+        try {
+            // Listen for user attempt
+            const result = await this.webSpeechService.listen(8000);
+            this.hideInterimTranscript();
+            
+            if (!result.text || !result.text.trim()) {
+                this.addMessageToUI('assistant', "I didn't hear anything. Click 🎤 to try the pronunciation assessment again.");
+                return;
+            }
+            
+            // Show what user said
+            this.addMessageToUI('user', result.text);
+            
+            // Assess pronunciation
+            const assessment = this.pronunciationAssessor.assess(wordToPronounce, result.text);
+            
+            // Display feedback
+            this.showPronunciationFeedback(assessment);
+            
+            // Log for AI learning
+            if (eventStream && eventStream.emit) {
+                eventStream.emit('pronunciation_assessment', {
+                    word: wordToPronounce,
+                    userAttempt: result.text,
+                    score: assessment.score,
+                    errors: assessment.errors,
+                    timestamp: Date.now()
+                });
+            }
+            
+            // If score is low, play correct pronunciation again
+            if (assessment.feedback.playAudio) {
+                await new Promise(r => setTimeout(r, 500));
+                await speakPortuguese(wordToPronounce);
+            }
+            
+        } catch (error) {
+            this.hideInterimTranscript();
+            Logger.error('ai_chat', 'Pronunciation assessment failed', { error: error.message });
+            this.addMessageToUI('assistant', `Error: ${error.message || 'Could not complete assessment'}`);
+        } finally {
+            this.isAssessingPronunciation = false;
+            if (status) status.textContent = 'Ready to help';
+        }
+    }
+    
+    /**
+     * Display pronunciation feedback in the chat
+     * @param {Object} assessment - Assessment result from PronunciationAssessor
+     */
+    showPronunciationFeedback(assessment) {
+        const levelClass = assessment.feedback.level || 'fair';
+        const feedbackHTML = `
+            <div class="pronunciation-feedback ${levelClass}">
+                <div class="score-badge">
+                    <span class="emoji">${assessment.feedback.emoji}</span>
+                    <span class="score">${assessment.score}%</span>
+                </div>
+                <p class="feedback-text">${assessment.feedback.overall}</p>
+                ${assessment.feedback.tips && assessment.feedback.tips.length > 0 ? `
+                    <ul class="feedback-tips">
+                        ${assessment.feedback.tips.map(tip => `<li>${tip}</li>`).join('')}
+                    </ul>
+                ` : ''}
+                <button class="replay-btn" onclick="window.playPortugueseWord('${assessment.expected.replace(/'/g, "\\'")}')">
+                    🔊 Hear correct pronunciation
+                </button>
+            </div>
+        `;
+        
+        this.addMessageHTML('assistant', feedbackHTML);
+    }
+    
+    /**
+     * Add a system message (different styling)
+     * @param {string} content - Message content
+     */
+    addSystemMessage(content) {
+        const messagesContainer = document.getElementById('aiMessages');
+        if (!messagesContainer) return;
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = 'ai-message system';
+        messageEl.innerHTML = `<div class="message-content">${this.formatMessageWithAudio(content)}</div>`;
+        
+        messagesContainer.appendChild(messageEl);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    /**
+     * Add raw HTML message to UI
+     * @param {string} role - Message role ('user', 'assistant', 'system')
+     * @param {string} html - HTML content
+     */
+    addMessageHTML(role, html) {
+        const messagesContainer = document.getElementById('aiMessages');
+        if (!messagesContainer) return;
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = `ai-message ${role}`;
+        messageEl.innerHTML = `<div class="message-content">${html}</div>`;
+        
+        messagesContainer.appendChild(messageEl);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
     toggleMinimize() {
@@ -661,7 +1176,43 @@ class AIChatComponent {
     }
 }
 
-// Singleton instance
+// ============================================================================
+// Global Functions
+// ============================================================================
+
+/**
+ * Global function to play Portuguese word pronunciation
+ * Called from inline audio buttons in AI responses
+ * @param {string} word - Portuguese word to pronounce
+ */
+window.playPortugueseWord = async (word) => {
+    try {
+        Logger.debug('ai_chat', 'Playing Portuguese word', { word });
+        await speakPortuguese(word);
+    } catch (error) {
+        Logger.error('ai_chat', 'Failed to play word pronunciation', { word, error: error.message });
+        console.warn('Failed to play word:', word, error);
+    }
+};
+
+/**
+ * Global function to start pronunciation assessment
+ * Can be triggered from AI responses
+ * @param {string} word - Portuguese word to assess
+ */
+window.assessPronunciation = async (word) => {
+    const chat = getAIChat();
+    if (chat && chat.isInitialized) {
+        await chat.assessPronunciation(word);
+    } else {
+        console.warn('AI Chat not initialized, cannot assess pronunciation');
+    }
+};
+
+// ============================================================================
+// Singleton Instance
+// ============================================================================
+
 let chatInstance = null;
 
 export function getAIChat() {

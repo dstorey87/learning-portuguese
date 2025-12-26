@@ -306,4 +306,33 @@ export {
     default as PronunciationServiceModule
 } from './PronunciationService.js';
 
+// Pronunciation Assessor (Client-side assessment)
+export {
+    PronunciationAssessor,
+    ASSESSMENT_CONFIG,
+    PHONEME_MAP,
+    DIPHTHONGS,
+    PHONETIC_VARIATIONS,
+    getPronunciationAssessor,
+    assessPronunciation,
+    default as PronunciationAssessorModule
+} from './PronunciationAssessor.js';
+
+// Web Speech Service
+export {
+    WebSpeechService,
+    WEBSPEECH_CONFIG,
+    RECOGNITION_STATES,
+    RECOGNITION_EVENTS,
+    SPEECH_ERRORS,
+    normalizePortuguese,
+    normalizePreserveAccents,
+    stripDiacritics,
+    getWebSpeechService,
+    resetWebSpeechService,
+    isWebSpeechAvailable,
+    detectPortugueseSupport,
+    default as WebSpeechServiceModule
+} from './WebSpeechService.js';
+
 export const SERVICES_VERSION = '0.1.0';
