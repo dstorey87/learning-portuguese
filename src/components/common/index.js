@@ -35,6 +35,21 @@ export {
     default as Toast
 } from './Toast.js';
 
+export {
+    PROGRESS_CONFIG,
+    SKILL_DEFINITIONS,
+    formatTime,
+    getSeverity,
+    animateCount,
+    StatsDisplay,
+    SkillAnalyzer,
+    SkillDashboard,
+    ProgressBar,
+    CircularProgress,
+    LessonProgress,
+    default as ProgressChart
+} from './ProgressChart.js';
+
 // Future exports
 // export { Button } from './Button.js';
 // export { StatusIndicator } from './StatusIndicator.js';
