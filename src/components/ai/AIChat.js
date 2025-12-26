@@ -3,14 +3,20 @@
  * 
  * Provides a chat interface for the AI Portuguese tutor with:
  * - Text messaging
- * - Voice input/output toggle
+ * - Voice input/output (WebSpeechService + TTSService)
  * - Real-time AI responses
  * - Context-aware suggestions
+ * - Pronunciation assessment
+ * - Inline audio playback for Portuguese words
+ * 
+ * @module AIChat
+ * @since Phase 15 - Voice Integration Excellence
  */
 
 import { getAIAgent } from '../../services/ai/AIAgent.js';
 import { ensureToolHandlersInitialized } from '../../services/ai/ToolHandlers.js';
-import { getVoiceConversation } from '../../services/voice/VoiceConversation.js';
+import { getWebSpeechService, isWebSpeechAvailable, RECOGNITION_EVENTS } from '../../services/WebSpeechService.js';
+import { speak, speakPortuguese, stop as stopTTS, isSpeaking } from '../../services/TTSService.js';
 import * as Logger from '../../services/Logger.js';
 import { eventStream } from '../../services/eventStreaming.js';
 
@@ -30,13 +36,16 @@ const QUICK_PROMPTS = [
 class AIChatComponent {
     constructor() {
         this.agent = null;
-        this.voiceConversation = null;
+        this.webSpeechService = null;
         this.messages = [];
         this.isInitialized = false;
         this.isProcessing = false;
         this.isVoiceMode = false;
+        this.isListening = false;
         this.container = null;
         this.userId = null;
+        this.lastAIResponse = null;
+        this.interimTranscriptElement = null;
     }
 
     async initialize(userId = 'default') {
@@ -53,18 +62,20 @@ class AIChatComponent {
             Logger.warn('ai_chat', 'AI agent not available, text-only mode', { error: agentResult.error });
         }
         
-        // Initialize voice conversation (optional)
-        try {
-            this.voiceConversation = getVoiceConversation(userId);
-            await this.voiceConversation.initialize();
-        } catch (error) {
-            Logger.warn('ai_chat', 'Voice not available', { error: error.message });
+        // Initialize WebSpeechService for voice recognition
+        this.webSpeechService = getWebSpeechService();
+        const voiceAvailable = isWebSpeechAvailable();
+        
+        if (!voiceAvailable) {
+            Logger.warn('ai_chat', 'Web Speech API not available in this browser');
+        } else {
+            Logger.info('ai_chat', 'Web Speech API available for voice input');
         }
         
         this.isInitialized = true;
-        Logger.info('ai_chat', 'AI Chat initialized', { userId, aiAvailable: agentResult.success });
+        Logger.info('ai_chat', 'AI Chat initialized', { userId, aiAvailable: agentResult.success, voiceAvailable });
         
-        return { success: true, aiAvailable: agentResult.success };
+        return { success: true, aiAvailable: agentResult.success, voiceAvailable };
     }
 
     render(containerId) {

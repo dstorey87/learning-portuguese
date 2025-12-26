@@ -63,15 +63,21 @@ export function getAllTopics() {
     const topics = [buildingBlocksTopic];
     
     // Add legacy topics with tier info
+    // Priority: topic.tier > TOPIC_TIER_MAP > default (DAILY_TOPICS)
     legacyTopics.forEach(topic => {
+        const tier = topic.tier ?? TOPIC_TIER_MAP[topic.id] ?? LESSON_TIERS.DAILY_TOPICS;
         topics.push({
             ...topic,
-            tier: TOPIC_TIER_MAP[topic.id] || LESSON_TIERS.DAILY_TOPICS
+            tier
         });
     });
     
-    // Sort by tier
-    cachedTopics = topics.sort((a, b) => (a.tier || 99) - (b.tier || 99));
+    // Sort by tier, then by order property if available
+    cachedTopics = topics.sort((a, b) => {
+        const tierDiff = (a.tier || 99) - (b.tier || 99);
+        if (tierDiff !== 0) return tierDiff;
+        return (a.order || 0) - (b.order || 0);
+    });
     
     return cachedTopics;
 }
@@ -113,9 +119,11 @@ export function getAllLessons() {
     });
     
     // Add legacy lessons with tier info
+    // Priority: lesson.tier > topic.tier > TOPIC_TIER_MAP > default
     const legacyFlat = getLegacyLessons();
     legacyFlat.forEach((lesson, index) => {
-        const tier = TOPIC_TIER_MAP[lesson.topicId] || LESSON_TIERS.DAILY_TOPICS;
+        const topic = getTopicById(lesson.topicId);
+        const tier = lesson.tier ?? topic?.tier ?? TOPIC_TIER_MAP[lesson.topicId] ?? LESSON_TIERS.DAILY_TOPICS;
         lessons.push({
             ...lesson,
             tier,
@@ -312,6 +320,84 @@ export function getAvailableLessons(completedLessonIds) {
 }
 
 // ============================================================================
+// LESSON IMAGES
+// ============================================================================
+
+/**
+ * Default images by tier
+ */
+const TIER_DEFAULT_IMAGES = {
+    [LESSON_TIERS.BUILDING_BLOCKS]: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=250&fit=crop',
+    [LESSON_TIERS.ESSENTIAL]: 'https://images.unsplash.com/photo-1555421689-d68471e189f2?w=400&h=250&fit=crop',
+    [LESSON_TIERS.DAILY_TOPICS]: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop',
+    [LESSON_TIERS.ADVANCED]: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=250&fit=crop'
+};
+
+/**
+ * Fallback image when all else fails
+ */
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1513185158878-8d8c2a2a3da3?w=400&h=250&fit=crop';
+
+/**
+ * Get lesson image with fallback chain
+ * Priority: lesson.image > topic.defaultImage > tier default > fallback
+ * 
+ * @param {Object} lesson - Lesson object
+ * @returns {Object} Image object with url and alt
+ */
+export function getLessonImage(lesson) {
+    // 1. Lesson has its own image
+    if (lesson.image?.url) {
+        return {
+            url: lesson.image.url,
+            alt: lesson.image.alt || `Image for ${lesson.title}`,
+            credit: lesson.image.credit || null
+        };
+    }
+    
+    // 2. Topic has default image
+    const topic = getTopicById(lesson.topicId);
+    if (topic?.defaultImage) {
+        return {
+            url: topic.defaultImage,
+            alt: `${topic.title} topic image`,
+            credit: topic.imageCredit || null
+        };
+    }
+    
+    // 3. Tier default image
+    const tier = lesson.tier || LESSON_TIERS.DAILY_TOPICS;
+    if (TIER_DEFAULT_IMAGES[tier]) {
+        return {
+            url: TIER_DEFAULT_IMAGES[tier],
+            alt: `${lesson.title} lesson image`,
+            credit: 'Unsplash'
+        };
+    }
+    
+    // 4. Ultimate fallback
+    return {
+        url: FALLBACK_IMAGE,
+        alt: `${lesson.title} lesson image`,
+        credit: 'Unsplash'
+    };
+}
+
+/**
+ * Set topic default image
+ * @param {string} topicId - Topic ID
+ * @param {string} imageUrl - Image URL
+ */
+export function setTopicDefaultImage(topicId, imageUrl) {
+    const topic = getTopicById(topicId);
+    if (topic) {
+        topic.defaultImage = imageUrl;
+        // Clear cache to reflect changes
+        clearCache();
+    }
+}
+
+// ============================================================================
 // STATS & INFO
 // ============================================================================
 
@@ -384,6 +470,10 @@ export default {
     getLessonById,
     getLessonsByTopic,
     getLessonsByTier,
+    
+    // Images
+    getLessonImage,
+    setTopicDefaultImage,
     
     // Prerequisites
     areBuildingBlocksComplete,
