@@ -3662,9 +3662,9 @@ const visualFeedback = {
 |---------|------|--------|-------|---------|----------|
 | **Foundation** |
 | SPEECH-001 | Refactor ai-speech.js into modular service | [ ] | [ ] | [ ] | P0 |
-| SPEECH-002 | Create PronunciationService.js (main orchestrator) | [ ] | [ ] | N/A | P0 |
-| SPEECH-003 | Create AudioRecorder.js (recording logic) | [ ] | [ ] | N/A | P0 |
-| SPEECH-004 | Create AudioPreprocessor.js (noise reduction, normalization) | [ ] | [ ] | N/A | P0 |
+| SPEECH-002 | Create PronunciationService.js (main orchestrator) | [x] | [x] | N/A | P0 |
+| SPEECH-003 | Create AudioRecorder.js (recording logic) | [x] | [x] | N/A | P0 |
+| SPEECH-004 | Create AudioPreprocessor.js (noise reduction, normalization) | [x] | [x] | N/A | P0 |
 | SPEECH-005 | Implement engine fallback chain | [ ] | [ ] | N/A | P0 |
 | **Engines** |
 | SPEECH-010 | Enhance Web Speech API integration (pt-PT specific) | [ ] | [ ] | [ ] | P0 |
@@ -3695,8 +3695,8 @@ const visualFeedback = {
 | SPEECH-052 | Create custom pronunciation drill generator | [ ] | [ ] | N/A | P1 |
 | SPEECH-053 | Track pronunciation progress over time | [ ] | [ ] | N/A | P0 |
 | **Testing** |
-| SPEECH-060 | Unit tests for AudioRecorder | [ ] | N/A | N/A | P0 |
-| SPEECH-061 | Unit tests for PronunciationService | [ ] | N/A | N/A | P0 |
+| SPEECH-060 | Unit tests for AudioRecorder | [x] | N/A | N/A | P0 |
+| SPEECH-061 | Unit tests for PronunciationService | [x] | N/A | N/A | P0 |
 | SPEECH-062 | Unit tests for GOP scoring | [ ] | N/A | N/A | P0 |
 | SPEECH-063 | E2E tests for pronunciation flow | [ ] | N/A | N/A | P0 |
 | SPEECH-064 | E2E tests for fallback chain | [ ] | N/A | N/A | P0 |
