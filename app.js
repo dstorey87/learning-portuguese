@@ -32,6 +32,12 @@ import {
     completeLesson as authCompleteLesson,
     AUTH_CONFIG as AUTH_CONSTANTS
 } from './src/services/AuthService.js';
+// ProgressTracker - learning progress, SRS, milestones
+import * as ProgressTracker from './src/services/ProgressTracker.js';
+// Logger - centralized logging service
+import * as Logger from './src/services/Logger.js';
+// HealthChecker - service health monitoring
+import * as HealthChecker from './src/services/HealthChecker.js';
 
 const APP_VERSION = '0.9.0';
 const STORAGE_KEY = 'portugueseLearningData';
@@ -437,8 +443,20 @@ const voiceDefaults = {
 const voiceState = structuredClone(voiceDefaults);
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Logger with app context
+    Logger.setContext('app');
+    Logger.info('PortuLingo starting', { version: APP_VERSION });
+    
     initTheme();
     loadUserData();
+    
+    // Load progress from ProgressTracker service
+    ProgressTracker.loadProgress();
+    Logger.debug('Progress loaded', { 
+        learnedWords: ProgressTracker.getLearnedWordCount(),
+        completedLessons: ProgressTracker.getCompletedLessonCount()
+    });
+    
     renderVersion();
     renderTopicFilters();
     renderLessons();
@@ -455,6 +473,13 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDashboard();
     renderDialogues();
     initAITutor();
+    
+    // Start health monitoring for services
+    HealthChecker.startMonitoring();
+    Logger.info('Health monitoring started');
+    
+    // Log startup complete
+    Logger.info('PortuLingo initialized successfully');
 });
 
 function initTheme() {

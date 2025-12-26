@@ -1204,12 +1204,14 @@ Styles to REMOVE from styles.css after import:
 |------|----------------|---------------------|---------------|--------|
 | app.js | 5,831 | See breakdown below | ~2,000 | [ ] |
 | styles.css | 4,553 | CSS blocks listed above | ~2,000 | [ ] |
-| auth.js | 294 | DELETE ENTIRE FILE | 0 | [ ] |
-| audio.js | ~400 | DELETE ENTIRE FILE | 0 | [ ] |
-| ai-tutor.js | ~300 | DELETE ENTIRE FILE | 0 | [ ] |
-| ai-tts.js | ~200 | DELETE ENTIRE FILE | 0 | [ ] |
-| ai-speech.js | ~150 | DELETE ENTIRE FILE | 0 | [ ] |
+| auth.js | 72 | DELETE ENTIRE FILE | 0 | [x] ✅ DELETED |
+| audio.js | 48 | DELETE ENTIRE FILE | 0 | [x] ✅ DELETED |
+| ai-tutor.js | 47 | DELETE ENTIRE FILE | 0 | [x] ✅ DELETED |
+| ai-tts.js | 46 | DELETE ENTIRE FILE | 0 | [x] ✅ DELETED |
+| ai-speech.js | ~150 | KEEP - actual implementation | ~150 | [ ] Keep |
 | data.js | 566 | Keep until Phase 2 | 566 | [ ] |
+
+**Note:** auth.js, audio.js, ai-tutor.js, ai-tts.js were bridge files (~214 lines total) that re-exported from src/services/. They were deleted on 2025-01-XX and app.js now imports directly from src/services/. ai-speech.js contains actual Whisper speech recognition code and was NOT deleted.
 
 **app.js Functions to Remove After Integration:**
 ```
