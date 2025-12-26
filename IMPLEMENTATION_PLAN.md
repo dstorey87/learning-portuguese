@@ -399,54 +399,54 @@ learning_portuguese/
 
 ### 1.1 Create Folder Structure
 
-| Task ID | Task | Status | Priority |
-|---------|------|--------|----------|
-| F1-001 | Create `src/` directory | [x] | P0 |
-| F1-002 | Create `src/components/` subdirectories | [x] | P0 |
-| F1-003 | Create `src/services/` subdirectories | [x] | P0 |
-| F1-004 | Create `src/pages/` directory | [x] | P0 |
-| F1-005 | Create `src/stores/` directory | [x] | P0 |
-| F1-006 | Create `src/utils/` directory | [x] | P0 |
-| F1-007 | Create `src/data/` subdirectories | [x] | P0 |
-| F1-008 | Create `src/styles/` subdirectories | [x] | P0 |
-| F1-009 | Create `src/config/` directory | [x] | P0 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| F1-001 | Create `src/` directory | [x] | N/A | N/A | P0 |
+| F1-002 | Create `src/components/` subdirectories | [x] | N/A | N/A | P0 |
+| F1-003 | Create `src/services/` subdirectories | [x] | N/A | N/A | P0 |
+| F1-004 | Create `src/pages/` directory | [x] | N/A | N/A | P0 |
+| F1-005 | Create `src/stores/` directory | [x] | N/A | N/A | P0 |
+| F1-006 | Create `src/utils/` directory | [x] | N/A | N/A | P0 |
+| F1-007 | Create `src/data/` subdirectories | [x] | N/A | N/A | P0 |
+| F1-008 | Create `src/styles/` subdirectories | [x] | N/A | N/A | P0 |
+| F1-009 | Create `src/config/` directory | [x] | N/A | N/A | P0 |
 
 ### 1.2 Extract Components from app.js
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| F1-010 | Extract navigation to `Sidebar.js` | [x] | P0 | 2 |
-| F1-011 | Extract lesson cards to `LessonCard.js` | [x] | P0 | 2 |
-| F1-012 | Extract modals to `Modal.js` | [x] | P0 | 2 |
-| F1-013 | Extract toast system to `Toast.js` | [x] | P0 | 1 |
-| F1-014 | Extract challenge types to `ChallengeRenderer.js` | [x] | P0 | 3 |
-| F1-015 | Extract word display to `WordCard.js` | [x] | P0 | 2 |
-| F1-016 | Extract progress UI to `ProgressChart.js` | [x] | P1 | 2 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| F1-010 | Extract navigation to `Sidebar.js` | [x] | [ ] | [ ] | P0 |
+| F1-011 | Extract lesson cards to `LessonCard.js` | [x] | [ ] | [ ] | P0 |
+| F1-012 | Extract modals to `Modal.js` | [x] | [ ] | [ ] | P0 |
+| F1-013 | Extract toast system to `Toast.js` | [x] | [ ] | [ ] | P0 |
+| F1-014 | Extract challenge types to `ChallengeRenderer.js` | [x] | [ ] | [ ] | P0 |
+| F1-015 | Extract word display to `WordCard.js` | [x] | [ ] | [ ] | P0 |
+| F1-016 | Extract progress UI to `ProgressChart.js` | [x] | [ ] | [ ] | P1 |
 
 ### 1.3 Create Service Layer
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| F1-020 | Create `AuthService.js` from auth.js | [x] | P0 | 2 |
-| F1-021 | Create `AIService.js` from ai-tutor.js | [x] | P0 | 3 |
-| F1-022 | Create `VoiceService.js` from audio.js | [x] | P0 | 3 |
-| F1-023 | Create `TTSService.js` from ai-tts.js | [x] | P0 | 2 |
-| F1-024 | Create `LessonService.js` for lesson logic | [x] | P0 | 4 |
-| F1-025 | Create `ProgressTracker.js` for progress | [x] | P0 | 3 |
-| F1-026 | Create `Logger.js` for logging | [x] | P0 | 2 |
-| F1-027 | Create `HealthChecker.js` for monitoring | [x] | P0 | 3 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| F1-020 | Create `AuthService.js` from auth.js | [x] | [ ] | [ ] | P0 |
+| F1-021 | Create `AIService.js` from ai-tutor.js | [x] | [ ] | [ ] | P0 |
+| F1-022 | Create `VoiceService.js` from audio.js | [x] | [ ] | [ ] | P0 |
+| F1-023 | Create `TTSService.js` from ai-tts.js | [x] | [ ] | [ ] | P0 |
+| F1-024 | Create `LessonService.js` for lesson logic | [x] | [ ] | [ ] | P0 |
+| F1-025 | Create `ProgressTracker.js` for progress | [x] | [ ] | [ ] | P0 |
+| F1-026 | Create `Logger.js` for logging | [x] | [ ] | [ ] | P0 |
+| F1-027 | Create `HealthChecker.js` for monitoring | [x] | [ ] | [ ] | P0 |
 
 ### 1.4 Modularize CSS
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| F1-030 | Create `variables.css` with CSS custom properties | [x] | P0 | 1 |
-| F1-031 | Create `reset.css` with normalizations | [x] | P0 | 0.5 |
-| F1-032 | Extract button styles to `buttons.css` | [x] | P1 | 1 |
-| F1-033 | Extract card styles to `cards.css` | [x] | P1 | 1 |
-| F1-034 | Extract modal styles to `modals.css` | [x] | P1 | 1 |
-| F1-035 | Extract nav styles to `navigation.css` | [x] | P1 | 1 |
-| F1-036 | Create `animations.css` for all animations | [x] | P1 | 2 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| F1-030 | Create `variables.css` with CSS custom properties | [x] | [ ] | [ ] | P0 |
+| F1-031 | Create `reset.css` with normalizations | [x] | [ ] | [ ] | P0 |
+| F1-032 | Extract button styles to `buttons.css` | [x] | [ ] | [ ] | P1 |
+| F1-033 | Extract card styles to `cards.css` | [x] | [ ] | [ ] | P1 |
+| F1-034 | Extract modal styles to `modals.css` | [x] | [ ] | [ ] | P1 |
+| F1-035 | Extract nav styles to `navigation.css` | [x] | [ ] | [ ] | P1 |
+| F1-036 | Create `animations.css` for all animations | [x] | [ ] | [ ] | P1 |
 
 ---
 
@@ -570,21 +570,21 @@ Lessons start with "Essential Greetings" but should start with **language buildi
 
 ### 2.3 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| L2-001 | Create `src/data/building-blocks/pronouns.js` | [ ] | P0 | 2 |
-| L2-002 | Create `src/data/building-blocks/verbs-ser.js` | [ ] | P0 | 2 |
-| L2-003 | Create `src/data/building-blocks/verbs-estar.js` | [ ] | P0 | 2 |
-| L2-004 | Create `src/data/building-blocks/verbs-ter.js` | [ ] | P0 | 2 |
-| L2-005 | Create `src/data/building-blocks/articles.js` | [ ] | P0 | 1 |
-| L2-006 | Create `src/data/building-blocks/connectors.js` | [ ] | P0 | 1 |
-| L2-007 | Create `src/data/building-blocks/prepositions.js` | [ ] | P0 | 1 |
-| L2-008 | Create `src/data/building-blocks/questions.js` | [ ] | P0 | 1 |
-| L2-009 | Create `src/data/building-blocks/negation.js` | [ ] | P0 | 1 |
-| L2-010 | Create `src/data/building-blocks/possessives.js` | [ ] | P0 | 1 |
-| L2-011 | Update lesson ordering system | [ ] | P0 | 2 |
-| L2-012 | Implement prerequisite system | [ ] | P1 | 3 |
-| L2-013 | Update tests for new lesson order | [ ] | P0 | 2 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| L2-001 | Create `src/data/building-blocks/pronouns.js` | [ ] | [ ] | N/A | P0 |
+| L2-002 | Create `src/data/building-blocks/verbs-ser.js` | [ ] | [ ] | N/A | P0 |
+| L2-003 | Create `src/data/building-blocks/verbs-estar.js` | [ ] | [ ] | N/A | P0 |
+| L2-004 | Create `src/data/building-blocks/verbs-ter.js` | [ ] | [ ] | N/A | P0 |
+| L2-005 | Create `src/data/building-blocks/articles.js` | [ ] | [ ] | N/A | P0 |
+| L2-006 | Create `src/data/building-blocks/connectors.js` | [ ] | [ ] | N/A | P0 |
+| L2-007 | Create `src/data/building-blocks/prepositions.js` | [ ] | [ ] | N/A | P0 |
+| L2-008 | Create `src/data/building-blocks/questions.js` | [ ] | [ ] | N/A | P0 |
+| L2-009 | Create `src/data/building-blocks/negation.js` | [ ] | [ ] | N/A | P0 |
+| L2-010 | Create `src/data/building-blocks/possessives.js` | [ ] | [ ] | N/A | P0 |
+| L2-011 | Update lesson ordering system | [ ] | [ ] | [ ] | P0 |
+| L2-012 | Implement prerequisite system | [ ] | [ ] | N/A | P1 |
+| L2-013 | Update tests for new lesson order | [ ] | [ ] | N/A | P0 |
 
 ---
 
@@ -642,20 +642,20 @@ Lessons start with "Essential Greetings" but should start with **language buildi
 
 ### 3.3 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| N3-001 | Create `Sidebar.js` component | [ ] | P0 | 4 |
-| N3-002 | Create `TopBar.js` component | [ ] | P0 | 3 |
-| N3-003 | Create `Breadcrumb.js` component | [ ] | P1 | 2 |
-| N3-004 | Implement collapsible sidebar | [ ] | P0 | 2 |
-| N3-005 | Create mobile drawer menu | [ ] | P0 | 3 |
-| N3-006 | Create mobile bottom nav | [ ] | P0 | 2 |
-| N3-007 | Implement responsive breakpoints | [ ] | P0 | 2 |
-| N3-008 | Add keyboard navigation (accessibility) | [ ] | P1 | 2 |
-| N3-009 | Create `routes.config.js` | [ ] | P0 | 1 |
-| N3-010 | Implement route management | [ ] | P0 | 3 |
-| N3-011 | Add navigation animations | [ ] | P2 | 2 |
-| N3-012 | Style sidebar with CSS module | [ ] | P0 | 2 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| N3-001 | Create `Sidebar.js` component | [ ] | [ ] | [ ] | P0 |
+| N3-002 | Create `TopBar.js` component | [ ] | [ ] | [ ] | P0 |
+| N3-003 | Create `Breadcrumb.js` component | [ ] | [ ] | N/A | P1 |
+| N3-004 | Implement collapsible sidebar | [ ] | [ ] | N/A | P0 |
+| N3-005 | Create mobile drawer menu | [ ] | [ ] | N/A | P0 |
+| N3-006 | Create mobile bottom nav | [ ] | [ ] | [ ] | P0 |
+| N3-007 | Implement responsive breakpoints | [ ] | [ ] | N/A | P0 |
+| N3-008 | Add keyboard navigation (accessibility) | [ ] | [ ] | N/A | P1 |
+| N3-009 | Create `routes.config.js` | [ ] | [ ] | N/A | P0 |
+| N3-010 | Implement route management | [ ] | [ ] | [ ] | P0 |
+| N3-011 | Add navigation animations | [ ] | [ ] | N/A | P2 |
+| N3-012 | Style sidebar with CSS module | [ ] | [ ] | [ ] | P0 |
 
 ---
 
@@ -709,18 +709,18 @@ Lessons start with "Essential Greetings" but should start with **language buildi
 
 ### 4.4 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| LP-001 | Create `Accordion.js` component | [ ] | P0 | 2 |
-| LP-002 | Create `ExpandablePanel.js` component | [ ] | P0 | 2 |
-| LP-003 | Implement single-open accordion behavior | [ ] | P0 | 2 |
-| LP-004 | Create right panel layout | [ ] | P0 | 3 |
-| LP-005 | Add smooth expand/collapse animations | [ ] | P1 | 2 |
-| LP-006 | Wire AI Tips to dynamic updates | [ ] | P0 | 4 |
-| LP-007 | Create mobile drawer variant | [ ] | P0 | 3 |
-| LP-008 | Persist user's last open section | [ ] | P2 | 1 |
-| LP-009 | Style options panel with CSS module | [ ] | P0 | 2 |
-| LP-010 | Add section icons | [ ] | P2 | 1 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| LP-001 | Create `Accordion.js` component | [ ] | [ ] | N/A | P0 |
+| LP-002 | Create `ExpandablePanel.js` component | [ ] | [ ] | N/A | P0 |
+| LP-003 | Implement single-open accordion behavior | [ ] | [ ] | N/A | P0 |
+| LP-004 | Create right panel layout | [ ] | [ ] | [ ] | P0 |
+| LP-005 | Add smooth expand/collapse animations | [ ] | [ ] | N/A | P1 |
+| LP-006 | Wire AI Tips to dynamic updates | [ ] | [ ] | N/A | P0 |
+| LP-007 | Create mobile drawer variant | [ ] | [ ] | N/A | P0 |
+| LP-008 | Persist user's last open section | [ ] | [ ] | N/A | P2 |
+| LP-009 | Style options panel with CSS module | [ ] | [ ] | [ ] | P0 |
+| LP-010 | Add section icons | [ ] | [ ] | N/A | P2 |
 
 ---
 
@@ -1024,22 +1024,22 @@ FORMAT:
 
 ### 5.7 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| AI-001 | Create `EventStream.js` - real-time event capture | [ ] | P0 | 4 |
-| AI-002 | Create `LearningTracker.js` - aggregation service | [ ] | P0 | 6 |
-| AI-003 | Implement pattern detection algorithms | [ ] | P0 | 5 |
-| AI-004 | Create `AIMemoryEngine.js` - tip generation | [ ] | P0 | 6 |
-| AI-005 | Create `CustomLessonGenerator.js` | [ ] | P0 | 8 |
-| AI-006 | Build mnemonic generation prompts | [ ] | P0 | 4 |
-| AI-007 | Implement pronunciation issue detection | [ ] | P0 | 4 |
-| AI-008 | Create confusion pair detection | [ ] | P0 | 3 |
-| AI-009 | Build user data isolation layer | [ ] | P0 | 4 |
-| AI-010 | Create AI configuration UI (admin) | [ ] | P1 | 3 |
-| AI-011 | Implement rate limiting | [ ] | P0 | 2 |
-| AI-012 | Build AI logging system | [ ] | P0 | 3 |
-| AI-013 | Create tip effectiveness tracking | [ ] | P1 | 3 |
-| AI-014 | Wire real-time updates to UI | [ ] | P0 | 4 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| AI-001 | Create `EventStream.js` - real-time event capture | [ ] | [ ] | N/A | P0 |
+| AI-002 | Create `LearningTracker.js` - aggregation service | [ ] | [ ] | [ ] | P0 |
+| AI-003 | Implement pattern detection algorithms | [ ] | [ ] | N/A | P0 |
+| AI-004 | Create `AIMemoryEngine.js` - tip generation | [ ] | [ ] | N/A | P0 |
+| AI-005 | Create `CustomLessonGenerator.js` | [ ] | [ ] | N/A | P0 |
+| AI-006 | Build mnemonic generation prompts | [ ] | [ ] | N/A | P0 |
+| AI-007 | Implement pronunciation issue detection | [ ] | [ ] | N/A | P0 |
+| AI-008 | Create confusion pair detection | [ ] | [ ] | N/A | P0 |
+| AI-009 | Build user data isolation layer | [ ] | [ ] | [ ] | P0 |
+| AI-010 | Create AI configuration UI (admin) | [ ] | [ ] | N/A | P1 |
+| AI-011 | Implement rate limiting | [ ] | [ ] | N/A | P0 |
+| AI-012 | Build AI logging system | [ ] | [ ] | N/A | P0 |
+| AI-013 | Create tip effectiveness tracking | [ ] | [ ] | N/A | P1 |
+| AI-014 | Wire real-time updates to UI | [ ] | [ ] | [ ] | P0 |
 
 ---
 
@@ -1154,22 +1154,22 @@ const voiceChatConfig = {
 
 ### 5B.5 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| CHAT-001 | Create floating button component | [ ] | P0 | 2 |
-| CHAT-002 | Create expandable chat window | [ ] | P0 | 4 |
-| CHAT-003 | Implement collapse/expand animation | [ ] | P0 | 2 |
-| CHAT-004 | Build message rendering system | [ ] | P0 | 3 |
-| CHAT-005 | Integrate Ollama for responses | [ ] | P0 | 4 |
-| CHAT-006 | Add context awareness (current lesson) | [ ] | P0 | 3 |
-| CHAT-007 | Implement voice input (speech-to-text) | [ ] | P0 | 4 |
-| CHAT-008 | Implement voice output (text-to-speech) | [ ] | P0 | 3 |
-| CHAT-009 | Create chat settings panel | [ ] | P1 | 2 |
-| CHAT-010 | Build command parser ("create lesson") | [ ] | P0 | 4 |
-| CHAT-011 | Implement "Create Lesson" action | [ ] | P0 | 4 |
-| CHAT-012 | Add audio playback buttons in chat | [ ] | P0 | 2 |
-| CHAT-013 | Persist chat history per user | [ ] | P1 | 2 |
-| CHAT-014 | Add chat minimized notification badge | [ ] | P2 | 1 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| CHAT-001 | Create floating button component | [ ] | [ ] | N/A | P0 |
+| CHAT-002 | Create expandable chat window | [ ] | [ ] | N/A | P0 |
+| CHAT-003 | Implement collapse/expand animation | [ ] | [ ] | N/A | P0 |
+| CHAT-004 | Build message rendering system | [ ] | [ ] | N/A | P0 |
+| CHAT-005 | Integrate Ollama for responses | [ ] | [ ] | [ ] | P0 |
+| CHAT-006 | Add context awareness (current lesson) | [ ] | [ ] | N/A | P0 |
+| CHAT-007 | Implement voice input (speech-to-text) | [ ] | [ ] | [ ] | P0 |
+| CHAT-008 | Implement voice output (text-to-speech) | [ ] | [ ] | [ ] | P0 |
+| CHAT-009 | Create chat settings panel | [ ] | [ ] | N/A | P1 |
+| CHAT-010 | Build command parser ("create lesson") | [ ] | [ ] | N/A | P0 |
+| CHAT-011 | Implement "Create Lesson" action | [ ] | [ ] | N/A | P0 |
+| CHAT-012 | Add audio playback buttons in chat | [ ] | [ ] | N/A | P0 |
+| CHAT-013 | Persist chat history per user | [ ] | [ ] | N/A | P1 |
+| CHAT-014 | Add chat minimized notification badge | [ ] | [ ] | N/A | P2 |
 
 ---
 
@@ -1240,16 +1240,16 @@ Create `docs/TEACHING_METHODOLOGY.md` with:
 
 ### 6.4 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| GOV-001 | Create AI Dashboard page | [ ] | P1 | 4 |
-| GOV-002 | Create `WhitelistManager.js` service | [ ] | P1 | 3 |
-| GOV-003 | Build whitelist CRUD UI | [ ] | P1 | 3 |
-| GOV-004 | Implement reference material viewer | [ ] | P1 | 2 |
-| GOV-005 | Add AI activity logging | [ ] | P1 | 2 |
-| GOV-006 | Create data control actions | [ ] | P1 | 3 |
-| GOV-007 | Write `TEACHING_METHODOLOGY.md` | [ ] | P1 | 4 |
-| GOV-008 | Implement web lookup for whitelisted sites | [ ] | P2 | 4 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| GOV-001 | Create AI Dashboard page | [ ] | [ ] | N/A | P1 |
+| GOV-002 | Create `WhitelistManager.js` service | [ ] | [ ] | N/A | P1 |
+| GOV-003 | Build whitelist CRUD UI | [ ] | [ ] | N/A | P1 |
+| GOV-004 | Implement reference material viewer | [ ] | [ ] | N/A | P1 |
+| GOV-005 | Add AI activity logging | [ ] | [ ] | N/A | P1 |
+| GOV-006 | Create data control actions | [ ] | [ ] | N/A | P1 |
+| GOV-007 | Write `TEACHING_METHODOLOGY.md` | [ ] | N/A | N/A | P1 |
+| GOV-008 | Implement web lookup for whitelisted sites | [ ] | [ ] | N/A | P2 |
 
 ---
 
@@ -1339,21 +1339,21 @@ Check localStorage for session
 
 ### 7.5 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| AUTH-001 | Create `LoginModal.js` component | [ ] | P0 | 3 |
-| AUTH-002 | Create `AuthService.js` (refactor auth.js) | [ ] | P0 | 3 |
-| AUTH-003 | Implement user registration | [ ] | P0 | 3 |
-| AUTH-004 | Add session management | [ ] | P0 | 2 |
-| AUTH-005 | Create guest mode | [ ] | P1 | 2 |
-| AUTH-006 | Implement data isolation by userId | [ ] | P0 | 4 |
-| AUTH-007 | Create admin user creation flow | [ ] | P0 | 3 |
-| AUTH-008 | Build Admin Panel page | [ ] | P0 | 4 |
-| AUTH-009 | Implement hearts/streak/XP manual adjust | [ ] | P0 | 2 |
-| AUTH-010 | Create user deletion with confirmation | [ ] | P1 | 2 |
-| AUTH-011 | Add learning data controls | [ ] | P1 | 3 |
-| AUTH-012 | Implement data export | [ ] | P2 | 2 |
-| AUTH-013 | Create logout functionality | [ ] | P0 | 1 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| AUTH-001 | Create `LoginModal.js` component | [ ] | [ ] | N/A | P0 |
+| AUTH-002 | Create `AuthService.js` (refactor auth.js) | [ ] | [ ] | [ ] | P0 |
+| AUTH-003 | Implement user registration | [ ] | [ ] | N/A | P0 |
+| AUTH-004 | Add session management | [ ] | [ ] | [ ] | P0 |
+| AUTH-005 | Create guest mode | [ ] | [ ] | N/A | P1 |
+| AUTH-006 | Implement data isolation by userId | [ ] | [ ] | [ ] | P0 |
+| AUTH-007 | Create admin user creation flow | [ ] | [ ] | N/A | P0 |
+| AUTH-008 | Build Admin Panel page | [ ] | [ ] | N/A | P0 |
+| AUTH-009 | Implement hearts/streak/XP manual adjust | [ ] | [ ] | N/A | P0 |
+| AUTH-010 | Create user deletion with confirmation | [ ] | [ ] | N/A | P1 |
+| AUTH-011 | Add learning data controls | [ ] | [ ] | N/A | P1 |
+| AUTH-012 | Implement data export | [ ] | [ ] | N/A | P2 |
+| AUTH-013 | Create logout functionality | [ ] | [ ] | [ ] | P0 |
 
 ---
 
@@ -1405,16 +1405,16 @@ function getDownloadableVoices(catalog, installed) {
 
 ### 8.3 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| VOICE-001 | Fix download → activate flow | [ ] | P0 | 4 |
-| VOICE-002 | Wire speed control properly | [ ] | P0 | 2 |
-| VOICE-003 | Implement voice catalog refresh | [ ] | P1 | 3 |
-| VOICE-004 | Filter installed from download list | [ ] | P1 | 1 |
-| VOICE-005 | Add download verification | [ ] | P1 | 2 |
-| VOICE-006 | Create voice test suite | [ ] | P1 | 2 |
-| VOICE-007 | Add Portuguese accent to AI chat | [ ] | P0 | 3 |
-| VOICE-008 | Create `VoiceDownloader.js` service | [ ] | P0 | 3 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| VOICE-001 | Fix download → activate flow | [ ] | [ ] | [ ] | P0 |
+| VOICE-002 | Wire speed control properly | [ ] | [ ] | [ ] | P0 |
+| VOICE-003 | Implement voice catalog refresh | [ ] | [ ] | N/A | P1 |
+| VOICE-004 | Filter installed from download list | [ ] | [ ] | N/A | P1 |
+| VOICE-005 | Add download verification | [ ] | [ ] | N/A | P1 |
+| VOICE-006 | Create voice test suite | [ ] | [ ] | N/A | P1 |
+| VOICE-007 | Add Portuguese accent to AI chat | [ ] | [ ] | N/A | P0 |
+| VOICE-008 | Create `VoiceDownloader.js` service | [ ] | [ ] | [ ] | P0 |
 
 ---
 
@@ -1849,28 +1849,28 @@ Admin must be able to see ALL data for any user:
 
 ### 9.6 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| MON-001 | Create component registry system | [ ] | P0 | 4 |
-| MON-002 | Build `HealthChecker.js` service | [ ] | P0 | 6 |
-| MON-003 | Create test runners for each test type | [ ] | P0 | 8 |
-| MON-004 | Implement 'exists' test | [ ] | P0 | 1 |
-| MON-005 | Implement 'visible' test | [ ] | P0 | 1 |
-| MON-006 | Implement 'clickable' test | [ ] | P0 | 1 |
-| MON-007 | Implement 'functionality' tests | [ ] | P0 | 6 |
-| MON-008 | Create `Logger.js` service | [ ] | P0 | 3 |
-| MON-009 | Build monitoring dashboard page | [ ] | P0 | 6 |
-| MON-010 | Create status grid component | [ ] | P0 | 3 |
-| MON-011 | Create broken component detail view | [ ] | P0 | 3 |
-| MON-012 | Create log viewer component | [ ] | P0 | 4 |
-| MON-013 | Add log filtering/search | [ ] | P1 | 2 |
-| MON-014 | Create user data view (admin) | [ ] | P0 | 4 |
-| MON-015 | Implement startup validation | [ ] | P0 | 4 |
-| MON-016 | Add "Why it's failing" analysis | [ ] | P0 | 4 |
-| MON-017 | Create health check scheduler | [ ] | P1 | 2 |
-| MON-018 | Add component retry functionality | [ ] | P1 | 2 |
-| MON-019 | Implement log export | [ ] | P2 | 1 |
-| MON-020 | Add real-time status updates | [ ] | P1 | 3 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| MON-001 | Create component registry system | [ ] | [ ] | N/A | P0 |
+| MON-002 | Build `HealthChecker.js` service | [ ] | [ ] | [ ] | P0 |
+| MON-003 | Create test runners for each test type | [ ] | [ ] | N/A | P0 |
+| MON-004 | Implement 'exists' test | [ ] | [ ] | N/A | P0 |
+| MON-005 | Implement 'visible' test | [ ] | [ ] | N/A | P0 |
+| MON-006 | Implement 'clickable' test | [ ] | [ ] | N/A | P0 |
+| MON-007 | Implement 'functionality' tests | [ ] | [ ] | N/A | P0 |
+| MON-008 | Create `Logger.js` service | [ ] | [ ] | [ ] | P0 |
+| MON-009 | Build monitoring dashboard page | [ ] | [ ] | N/A | P0 |
+| MON-010 | Create status grid component | [ ] | [ ] | N/A | P0 |
+| MON-011 | Create broken component detail view | [ ] | [ ] | N/A | P0 |
+| MON-012 | Create log viewer component | [ ] | [ ] | N/A | P0 |
+| MON-013 | Add log filtering/search | [ ] | [ ] | N/A | P1 |
+| MON-014 | Create user data view (admin) | [ ] | [ ] | N/A | P0 |
+| MON-015 | Implement startup validation | [ ] | [ ] | N/A | P0 |
+| MON-016 | Add "Why it's failing" analysis | [ ] | [ ] | N/A | P0 |
+| MON-017 | Create health check scheduler | [ ] | [ ] | N/A | P1 |
+| MON-018 | Add component retry functionality | [ ] | [ ] | N/A | P1 |
+| MON-019 | Implement log export | [ ] | [ ] | N/A | P2 |
+| MON-020 | Add real-time status updates | [ ] | [ ] | N/A | P1 |
 
 ---
 
@@ -1916,17 +1916,17 @@ const fontSizes = {
 
 ### 10.3 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| UI-001 | Create `animations.css` | [ ] | P1 | 3 |
-| UI-002 | Add page transitions | [ ] | P1 | 2 |
-| UI-003 | Implement modal animations | [ ] | P1 | 2 |
-| UI-004 | Add card hover/press effects | [ ] | P2 | 2 |
-| UI-005 | Create feedback animations | [ ] | P1 | 2 |
-| UI-006 | Implement font size control | [ ] | P1 | 2 |
-| UI-007 | Add accessibility settings panel | [ ] | P1 | 3 |
-| UI-008 | Create loading skeletons | [ ] | P2 | 2 |
-| UI-009 | Add confetti on lesson complete | [ ] | P2 | 1 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| UI-001 | Create `animations.css` | [ ] | N/A | [ ] | P1 |
+| UI-002 | Add page transitions | [ ] | [ ] | N/A | P1 |
+| UI-003 | Implement modal animations | [ ] | [ ] | N/A | P1 |
+| UI-004 | Add card hover/press effects | [ ] | [ ] | N/A | P2 |
+| UI-005 | Create feedback animations | [ ] | [ ] | N/A | P1 |
+| UI-006 | Implement font size control | [ ] | [ ] | N/A | P1 |
+| UI-007 | Add accessibility settings panel | [ ] | [ ] | N/A | P1 |
+| UI-008 | Create loading skeletons | [ ] | [ ] | N/A | P2 |
+| UI-009 | Add confetti on lesson complete | [ ] | [ ] | N/A | P2 |
 
 ---
 
@@ -1934,13 +1934,13 @@ const fontSizes = {
 
 ### 11.1 Flashcard Improvements (LOW PRIORITY)
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| FLASH-001 | Redesign flashcard UI | [ ] | P2 | 4 |
-| FLASH-002 | Add swipe gestures (mobile) | [ ] | P2 | 3 |
-| FLASH-003 | Improve spaced repetition | [ ] | P2 | 4 |
-| FLASH-004 | Add flashcard stats | [ ] | P2 | 3 |
-| FLASH-005 | Review practice section UX | [ ] | P2 | 4 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| FLASH-001 | Redesign flashcard UI | [ ] | [ ] | [ ] | P2 |
+| FLASH-002 | Add swipe gestures (mobile) | [ ] | [ ] | N/A | P2 |
+| FLASH-003 | Improve spaced repetition | [ ] | [ ] | N/A | P2 |
+| FLASH-004 | Add flashcard stats | [ ] | [ ] | N/A | P2 |
+| FLASH-005 | Review practice section UX | [ ] | [ ] | [ ] | P2 |
 
 ---
 
@@ -1978,14 +1978,14 @@ const degradationRules = {
 
 ### 12.2 Implementation Tasks
 
-| Task ID | Task | Status | Priority | Est. Hours |
-|---------|------|--------|----------|------------|
-| DEG-001 | Define all degradation rules | [ ] | P0 | 2 |
-| DEG-002 | Implement feature hiding | [ ] | P0 | 2 |
-| DEG-003 | Create fallback notices | [ ] | P0 | 2 |
-| DEG-004 | Add admin-only visibility | [ ] | P0 | 1 |
-| DEG-005 | Implement toast notification system | [ ] | P1 | 2 |
-| DEG-006 | Test all degradation paths | [ ] | P0 | 3 |
+| Task ID | Task | Status | Tests | Cleanup | Priority |
+|---------|------|--------|-------|---------|----------|
+| DEG-001 | Define all degradation rules | [ ] | N/A | N/A | P0 |
+| DEG-002 | Implement feature hiding | [ ] | [ ] | N/A | P0 |
+| DEG-003 | Create fallback notices | [ ] | [ ] | N/A | P0 |
+| DEG-004 | Add admin-only visibility | [ ] | [ ] | N/A | P0 |
+| DEG-005 | Implement toast notification system | [ ] | [ ] | [ ] | P1 |
+| DEG-006 | Test all degradation paths | [ ] | [ ] | N/A | P0 |
 
 ---
 
