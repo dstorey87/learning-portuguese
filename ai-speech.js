@@ -1,104 +1,223 @@
 /**
- * AI Speech Recognition using Whisper
+ * AI Speech Recognition Module
  * 
- * Uses @xenova/transformers for browser-based Whisper inference
- * Falls back to Web Speech API if WebGPU/WASM not available
+ * Unified speech recognition interface that coordinates:
+ * - Web Speech API (via WebSpeechService) for quick browser-native recognition
+ * - Whisper models (via Transformers.js) for high-accuracy offline recognition
+ * - PhoneticScorer for Portuguese-specific pronunciation scoring
  * 
- * Features:
- * - High accuracy Portuguese transcription
- * - Pronunciation scoring by comparing to expected text
- * - Word-level alignment for detailed feedback
+ * @module ai-speech
+ * @since Phase 14 - Pronunciation Assessment Excellence
  */
 
-// Whisper model options
-const WHISPER_MODELS = {
-    tiny: 'Xenova/whisper-tiny',
-    base: 'Xenova/whisper-base',
-    small: 'Xenova/whisper-small'
+import { 
+    getWebSpeechService, 
+    isWebSpeechAvailable,
+    detectPortugueseSupport,
+    WEBSPEECH_CONFIG
+} from './src/services/WebSpeechService.js';
+
+import {
+    calculateScore,
+    analyzePhonemes,
+    PHONETIC_CONFIG
+} from './src/services/PhoneticScorer.js';
+
+import { createLogger } from './src/services/Logger.js';
+
+const Logger = createLogger('ai-speech');
+
+// ============================================================================
+// WHISPER CONFIGURATION
+// ============================================================================
+
+/**
+ * Available Whisper models with metadata
+ */
+export const WHISPER_MODELS = {
+    tiny: {
+        id: 'tiny',
+        url: 'Xenova/whisper-tiny',
+        size: '75MB',
+        speed: 'fast',
+        accuracy: 'basic',
+        description: 'Fast, basic accuracy - good for testing'
+    },
+    base: {
+        id: 'base',
+        url: 'Xenova/whisper-base',
+        size: '150MB',
+        speed: 'medium',
+        accuracy: 'good',
+        description: 'Balanced speed and accuracy'
+    },
+    small: {
+        id: 'small',
+        url: 'Xenova/whisper-small',
+        size: '244MB',
+        speed: 'slow',
+        accuracy: 'excellent',
+        description: 'Best accuracy, slower loading'
+    }
 };
 
-// State
-let pipeline = null;
-let modelLoading = false;
-let modelLoaded = false;
-let selectedModel = 'tiny'; // Start with tiny for faster loading
+/**
+ * Whisper configuration
+ */
+export const WHISPER_CONFIG = {
+    defaultModel: 'tiny',
+    language: 'portuguese',
+    task: 'transcribe',
+    returnTimestamps: true,
+    chunkLengthS: 30,
+    strideLength: 5,
+    cacheName: 'whisper-models-v1'
+};
 
-// Audio recording state
+// ============================================================================
+// STATE
+// ============================================================================
+
+let whisperPipeline = null;
+let whisperModelLoading = false;
+let whisperModelLoaded = false;
+let currentWhisperModel = null;
+let webSpeechInstance = null;
+
+// Audio recording state (for Whisper)
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let recordingStream = null;
+
+// ============================================================================
+// WHISPER MODEL MANAGEMENT
+// ============================================================================
 
 /**
- * Initialize Whisper model
+ * Initialize Whisper model with improved caching and progress
  * @param {string} modelSize - 'tiny', 'base', or 'small'
- * @param {function} onProgress - Progress callback (0-100)
+ * @param {Function} onProgress - Progress callback (0-100)
+ * @returns {Promise<boolean>} Success status
  */
-export async function initializeWhisper(modelSize = 'tiny', onProgress = null) {
-    if (modelLoaded && selectedModel === modelSize) {
+export async function initializeWhisper(modelSize = WHISPER_CONFIG.defaultModel, onProgress = null) {
+    // Already loaded?
+    if (whisperModelLoaded && currentWhisperModel === modelSize) {
+        Logger.debug('Whisper model already loaded', { model: modelSize });
         return true;
     }
     
-    if (modelLoading) {
-        // Wait for current loading to finish
-        while (modelLoading) {
+    // Currently loading?
+    if (whisperModelLoading) {
+        Logger.debug('Whisper model loading in progress, waiting...');
+        // Wait for current loading to complete
+        while (whisperModelLoading) {
             await new Promise(r => setTimeout(r, 100));
         }
-        return modelLoaded;
+        return whisperModelLoaded;
     }
     
-    modelLoading = true;
-    selectedModel = modelSize;
+    whisperModelLoading = true;
+    currentWhisperModel = modelSize;
     
     try {
-        // Dynamic import to avoid loading Transformers if not needed
-        const { pipeline: createPipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+        Logger.info('Loading Whisper model', { model: modelSize });
         
-        const modelName = WHISPER_MODELS[modelSize] || WHISPER_MODELS.tiny;
+        // Dynamic import of Transformers.js
+        const { pipeline: createPipeline, env } = await import(
+            'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
+        );
         
-        console.log(`🎤 Loading Whisper model: ${modelName}`);
+        // Configure caching
+        env.cacheDir = './.cache/transformers';
+        env.allowLocalModels = true;
         
-        pipeline = await createPipeline('automatic-speech-recognition', modelName, {
-            progress_callback: (progress) => {
-                if (onProgress && progress.progress) {
-                    onProgress(Math.round(progress.progress));
-                }
+        const modelInfo = WHISPER_MODELS[modelSize] || WHISPER_MODELS.tiny;
+        
+        if (onProgress) onProgress(5);
+        
+        // Create pipeline with progress tracking
+        whisperPipeline = await createPipeline(
+            'automatic-speech-recognition',
+            modelInfo.url,
+            {
+                progress_callback: (progress) => {
+                    if (onProgress && progress.progress !== undefined) {
+                        // Scale from 5-95 to leave room for init/complete
+                        const scaledProgress = 5 + Math.round(progress.progress * 0.9);
+                        onProgress(Math.min(95, scaledProgress));
+                    }
+                },
+                // Enable quantization for faster loading
+                quantized: true
             }
-        });
+        );
         
-        modelLoaded = true;
-        console.log('✅ Whisper model loaded successfully');
+        if (onProgress) onProgress(100);
+        
+        whisperModelLoaded = true;
+        Logger.info('Whisper model loaded successfully', { model: modelSize });
         return true;
         
     } catch (error) {
-        console.error('Failed to load Whisper model:', error);
-        modelLoaded = false;
+        Logger.error('Failed to load Whisper model', { error: error.message, model: modelSize });
+        whisperModelLoaded = false;
+        whisperPipeline = null;
         return false;
     } finally {
-        modelLoading = false;
+        whisperModelLoading = false;
     }
 }
 
 /**
- * Check if Whisper is available and ready
+ * Check if Whisper is ready for use
+ * @returns {boolean}
  */
 export function isWhisperReady() {
-    return modelLoaded && pipeline !== null;
+    return whisperModelLoaded && whisperPipeline !== null;
 }
 
 /**
- * Check if Whisper can be used (browser support)
+ * Check if browser supports Whisper requirements
+ * @returns {boolean}
  */
 export function canUseWhisper() {
-    // Check for required APIs
     const hasWebWorker = typeof Worker !== 'undefined';
     const hasAudioContext = typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined';
     const hasMediaDevices = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    const hasWasm = typeof WebAssembly !== 'undefined';
     
-    return hasWebWorker && hasAudioContext && hasMediaDevices;
+    return hasWebWorker && hasAudioContext && hasMediaDevices && hasWasm;
 }
 
 /**
- * Start recording audio
+ * Get Whisper model info
+ * @returns {Object} Current model info or null
+ */
+export function getWhisperModelInfo() {
+    if (!whisperModelLoaded) return null;
+    return {
+        model: currentWhisperModel,
+        ...WHISPER_MODELS[currentWhisperModel]
+    };
+}
+
+/**
+ * Unload Whisper model to free memory
+ */
+export async function unloadWhisper() {
+    whisperPipeline = null;
+    whisperModelLoaded = false;
+    currentWhisperModel = null;
+    Logger.info('Whisper model unloaded');
+}
+
+// ============================================================================
+// AUDIO RECORDING (for Whisper)
+// ============================================================================
+
+/**
+ * Start recording audio for Whisper transcription
  * @returns {Promise<void>}
  */
 export async function startRecording() {
@@ -107,23 +226,26 @@ export async function startRecording() {
     }
     
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
+        recordingStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 sampleRate: 16000,
                 channelCount: 1,
                 echoCancellation: true,
-                noiseSuppression: true
+                noiseSuppression: true,
+                autoGainControl: true
             }
         });
         
         audioChunks = [];
         
-        // Use audio/webm for better browser support
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-            ? 'audio/webm;codecs=opus' 
-            : 'audio/webm';
+        // Select best available format
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : MediaRecorder.isTypeSupported('audio/webm')
+                ? 'audio/webm'
+                : 'audio/wav';
         
-        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        mediaRecorder = new MediaRecorder(recordingStream, { mimeType });
         
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -134,10 +256,10 @@ export async function startRecording() {
         mediaRecorder.start(100); // Collect in 100ms chunks
         isRecording = true;
         
-        console.log('🎙️ Recording started');
+        Logger.debug('Recording started', { mimeType });
         
     } catch (error) {
-        console.error('Failed to start recording:', error);
+        Logger.error('Failed to start recording', { error: error.message });
         throw new Error(`Microphone access denied: ${error.message}`);
     }
 }
@@ -153,15 +275,19 @@ export async function stopRecording() {
     
     return new Promise((resolve, reject) => {
         mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
             
             // Stop all tracks
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            if (recordingStream) {
+                recordingStream.getTracks().forEach(track => track.stop());
+                recordingStream = null;
+            }
             
             isRecording = false;
             mediaRecorder = null;
+            audioChunks = [];
             
-            console.log('🎙️ Recording stopped, blob size:', audioBlob.size);
+            Logger.debug('Recording stopped', { blobSize: audioBlob.size });
             resolve(audioBlob);
         };
         
@@ -175,11 +301,16 @@ export async function stopRecording() {
 }
 
 /**
- * Check if currently recording
+ * Get current recording state
+ * @returns {boolean}
  */
 export function getRecordingState() {
     return isRecording;
 }
+
+// ============================================================================
+// WHISPER TRANSCRIPTION
+// ============================================================================
 
 /**
  * Transcribe audio using Whisper
@@ -187,7 +318,7 @@ export function getRecordingState() {
  * @param {string} language - Language code (default: 'portuguese')
  * @returns {Promise<{text: string, segments: Array}>}
  */
-export async function transcribe(audio, language = 'portuguese') {
+export async function transcribe(audio, language = WHISPER_CONFIG.language) {
     if (!isWhisperReady()) {
         throw new Error('Whisper model not loaded. Call initializeWhisper() first.');
     }
@@ -199,45 +330,57 @@ export async function transcribe(audio, language = 'portuguese') {
             audioData = await audio.arrayBuffer();
         }
         
-        // Decode audio
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        // Decode audio to Float32Array
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContextClass({ sampleRate: 16000 });
         const audioBuffer = await audioContext.decodeAudioData(audioData);
-        
-        // Get audio data as Float32Array
         const audioArray = audioBuffer.getChannelData(0);
         
+        // Close audio context to free resources
+        await audioContext.close();
+        
         // Run Whisper inference
-        const result = await pipeline(audioArray, {
+        const result = await whisperPipeline(audioArray, {
             language,
-            task: 'transcribe',
-            return_timestamps: true
+            task: WHISPER_CONFIG.task,
+            return_timestamps: WHISPER_CONFIG.returnTimestamps,
+            chunk_length_s: WHISPER_CONFIG.chunkLengthS,
+            stride_length_s: WHISPER_CONFIG.strideLength
         });
         
-        console.log('📝 Transcription result:', result);
+        Logger.debug('Whisper transcription complete', { text: result.text });
         
         return {
             text: result.text?.trim() || '',
-            segments: result.chunks || []
+            segments: result.chunks || [],
+            language: result.language
         };
         
     } catch (error) {
-        console.error('Transcription failed:', error);
+        Logger.error('Transcription failed', { error: error.message });
         throw error;
     }
 }
 
 /**
- * Record and transcribe in one call
+ * Record and transcribe with Whisper in one call
  * @param {number} maxDurationMs - Maximum recording duration
- * @param {function} onStart - Called when recording starts
- * @param {function} onProgress - Called with recording progress
- * @returns {Promise<{text: string, duration: number}>}
+ * @param {Object} callbacks - onStart, onProgress, onComplete
+ * @returns {Promise<{text: string, duration: number, segments: Array}>}
  */
-export async function recordAndTranscribe(maxDurationMs = 10000, { onStart, onProgress } = {}) {
+export async function recordAndTranscribe(maxDurationMs = 10000, callbacks = {}) {
+    const { onStart, onProgress, onComplete } = callbacks;
+    
     // Initialize Whisper if not ready
     if (!isWhisperReady()) {
-        console.log('Loading Whisper model...');
-        await initializeWhisper(selectedModel, onProgress);
+        Logger.info('Whisper not ready, initializing...');
+        const loaded = await initializeWhisper(
+            currentWhisperModel || WHISPER_CONFIG.defaultModel,
+            onProgress
+        );
+        if (!loaded) {
+            throw new Error('Failed to load Whisper model');
+        }
     }
     
     await startRecording();
@@ -245,22 +388,11 @@ export async function recordAndTranscribe(maxDurationMs = 10000, { onStart, onPr
     
     const startTime = Date.now();
     
-    // Recording loop with progress
     return new Promise((resolve, reject) => {
-        const progressInterval = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            if (onProgress) {
-                onProgress(Math.min(100, Math.round((elapsed / maxDurationMs) * 100)));
-            }
-            
-            if (elapsed >= maxDurationMs) {
-                clearInterval(progressInterval);
-                finishRecording();
-            }
-        }, 100);
+        let progressInterval = null;
         
         const finishRecording = async () => {
-            clearInterval(progressInterval);
+            if (progressInterval) clearInterval(progressInterval);
             
             try {
                 const audioBlob = await stopRecording();
@@ -268,371 +400,125 @@ export async function recordAndTranscribe(maxDurationMs = 10000, { onStart, onPr
                 
                 const result = await transcribe(audioBlob);
                 
-                resolve({
+                const finalResult = {
                     text: result.text,
                     segments: result.segments,
                     duration
-                });
+                };
+                
+                if (onComplete) onComplete(finalResult);
+                resolve(finalResult);
                 
             } catch (error) {
                 reject(error);
             }
         };
         
-        // Allow early stop
+        // Progress updates
+        progressInterval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            if (onProgress) {
+                onProgress(Math.min(100, Math.round((elapsed / maxDurationMs) * 100)));
+            }
+            
+            if (elapsed >= maxDurationMs) {
+                finishRecording();
+            }
+        }, 100);
+        
+        // Allow early stop via global function
         window._stopWhisperRecording = finishRecording;
     });
 }
 
 /**
- * Stop current recording early
+ * Stop current Whisper recording early
  */
 export function stopRecordingEarly() {
     if (window._stopWhisperRecording) {
         window._stopWhisperRecording();
+        window._stopWhisperRecording = null;
     }
 }
 
+// ============================================================================
+// WEB SPEECH API (using WebSpeechService)
+// ============================================================================
+
 /**
- * Portuguese phoneme patterns for detailed pronunciation analysis
+ * Listen and transcribe using Web Speech API
+ * @param {number} timeoutMs - Maximum listening time
+ * @param {Object} options - Additional options
+ * @returns {Promise<{text: string, confidence: number, alternatives: Array}>}
  */
-const PORTUGUESE_PHONEME_PATTERNS = {
-    // Nasal vowels and combinations
-    nasals: {
-        pattern: /[ãõ]|ão|ões|ãe|ões|[aeiou][mn](?![aeiouáéíóúâêô])/gi,
-        name: 'nasal vowels',
-        description: 'Nasal sounds (ão, ã, õ, -am, -em, -om)',
-        tip: 'Let air flow through your nose. The "ão" sound is like "owng" with a nasal quality.',
-        commonErrors: ['Saying "ow" without nasalization', 'Over-emphasizing the final consonant']
-    },
-    // S → SH transformation (EU-PT specific)
-    sibilants: {
-        pattern: /s(?=[tpkfçc])|s$/gi,
-        name: 'S sounds',
-        description: 'S becomes "SH" before consonants and at word end',
-        tip: 'In European Portuguese, "s" sounds like "sh" at the end of words and before certain consonants.',
-        commonErrors: ['Using American "s" sound instead of "sh"', 'Forgetting the SH in plural words']
-    },
-    // Vowel reduction (EU-PT specific)
-    reduction: {
-        pattern: /(?:^|[^aeiouáéíóúâêô])e(?=[^aeiouáéíóúâêô]|$)/gi,
-        name: 'vowel reduction',
-        description: 'Unstressed "e" is nearly silent in EU-PT',
-        tip: 'Unstressed vowels are very soft or "swallowed" - much more than in Brazilian Portuguese.',
-        commonErrors: ['Pronouncing every vowel clearly', 'Over-articulating unstressed syllables']
-    },
-    // LH and NH digraphs
-    digraphs: {
-        pattern: /lh|nh/gi,
-        name: 'digraphs',
-        description: 'LH sounds like "ly", NH sounds like Spanish "ñ"',
-        tip: 'LH = tongue against roof of mouth + "y". NH = like "ny" in "canyon".',
-        commonErrors: ['Saying "L" + "H" separately', 'Not using palatal sounds']
-    },
-    // R sounds
-    rhotics: {
-        pattern: /rr|^r|r$/gi,
-        name: 'R sounds',
-        description: 'RR and initial R are guttural; final R is very soft',
-        tip: 'Double RR is stronger/guttural. Single R at end of word is very soft.',
-        commonErrors: ['Using English R sound', 'Rolling R too much like Spanish']
-    },
-    // Accent/stress patterns
-    stress: {
-        pattern: /[áéíóú]/gi,
-        name: 'stress markers',
-        description: 'Accented vowels indicate stress',
-        tip: 'The accent mark shows which syllable to emphasize. This changes the word meaning!',
-        commonErrors: ['Ignoring stress marks', 'Stressing wrong syllable']
-    },
-    // Cedilla
-    cedilla: {
-        pattern: /ç/gi,
-        name: 'cedilla',
-        description: 'Ç always makes an "S" sound, never "K"',
-        tip: 'Ç is like "S" in "sun". It exists to keep the "S" sound before A, O, U.',
-        commonErrors: ['Saying "K" sound', 'Over-emphasizing']
+export async function listenAndTranscribe(timeoutMs = 5000, options = {}) {
+    // Get or create WebSpeechService instance
+    if (!webSpeechInstance) {
+        webSpeechInstance = getWebSpeechService();
     }
-};
-
-/**
- * Analyze Portuguese-specific pronunciation features in a word
- * @param {string} text - Portuguese text to analyze
- * @returns {Object} Analysis of phoneme features
- */
-export function analyzePortuguesePhonemes(text) {
-    const features = [];
-    const challenges = [];
     
-    Object.entries(PORTUGUESE_PHONEME_PATTERNS).forEach(([key, pattern]) => {
-        const matches = text.match(pattern.pattern);
-        if (matches && matches.length > 0) {
-            features.push({
-                type: key,
-                matches: matches,
-                count: matches.length,
-                ...pattern
-            });
-            challenges.push(key);
-        }
-    });
-    
-    return {
-        features,
-        challenges,
-        primaryChallenge: challenges[0] || 'general',
-        hasDifficultSounds: features.length > 0,
-        difficultyLevel: Math.min(features.length, 3) // 0-3 scale
-    };
-}
-
-/**
- * Calculate pronunciation score by comparing transcribed text to expected
- * Enhanced with phoneme-level analysis and specific feedback
- * @param {string} transcribed - What the user said
- * @param {string} expected - What they should have said
- * @param {Object} wordKnowledge - Optional word knowledge for better feedback
- * @returns {Object} Score and detailed feedback
- */
-export function scorePronunciation(transcribed, expected, wordKnowledge = null) {
-    // Normalize for comparison
-    const normalize = (text) => text
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Remove diacritics for comparison
-        .replace(/[^\w\s]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    
-    const normalizePreserveDiacritics = (text) => text
-        .toLowerCase()
-        .replace(/[^\w\s\u00C0-\u017F]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    
-    const transcribedNorm = normalize(transcribed);
-    const expectedNorm = normalize(expected);
-    const expectedWithDiacritics = normalizePreserveDiacritics(expected);
-    
-    // Handle empty transcription
-    if (!transcribedNorm) {
+    try {
+        const result = await webSpeechInstance.listen({
+            timeout: timeoutMs,
+            language: options.lang || WEBSPEECH_CONFIG.language
+        });
+        
         return {
-            score: 0,
-            rating: 'no-speech',
-            feedback: 'We didn\'t hear anything. Make sure your microphone is working.',
-            specificIssues: [],
-            tips: ['Speak clearly and close to your microphone'],
-            transcribed,
-            expected
+            text: result.text?.trim() || '',
+            confidence: result.confidence || 0,
+            alternatives: result.alternatives || [],
+            noSpeech: !result.text
         };
+        
+    } catch (error) {
+        // Handle specific error types gracefully
+        if (error.message?.includes('no-speech') || error.code === 'no-speech') {
+            return { text: '', confidence: 0, alternatives: [], noSpeech: true };
+        }
+        throw error;
     }
-    
-    const transcribedWords = transcribedNorm.split(' ').filter(Boolean);
-    const expectedWords = expectedNorm.split(' ').filter(Boolean);
-    
-    // Calculate word-level matches with fuzzy matching
-    const matchedWords = [];
-    const missedWords = [];
-    const closeMatches = [];
-    const extraWords = [];
-    
-    expectedWords.forEach(word => {
-        const exactMatch = transcribedWords.includes(word);
-        if (exactMatch) {
-            matchedWords.push(word);
-        } else {
-            // Check for close matches (Levenshtein distance <= 2)
-            const closeMatch = transcribedWords.find(tw => 
-                levenshteinDistance(tw, word) <= Math.max(2, Math.floor(word.length * 0.3))
-            );
-            if (closeMatch) {
-                closeMatches.push({ expected: word, heard: closeMatch });
-                matchedWords.push(word); // Count as partial match
-            } else {
-                missedWords.push(word);
-            }
-        }
-    });
-    
-    transcribedWords.forEach(word => {
-        if (!expectedWords.includes(word) && !closeMatches.find(cm => cm.heard === word)) {
-            extraWords.push(word);
-        }
-    });
-    
-    // Calculate base word score
-    const wordScore = expectedWords.length > 0 
-        ? Math.round((matchedWords.length / expectedWords.length) * 100)
-        : 0;
-    
-    // Calculate Levenshtein distance for overall similarity
-    const levenshteinScore = Math.round(
-        (1 - levenshteinDistance(transcribedNorm, expectedNorm) / 
-         Math.max(transcribedNorm.length, expectedNorm.length, 1)) * 100
-    );
-    
-    // Phonetic similarity bonus - reward close but not exact matches
-    const phoneticsBonus = closeMatches.length > 0 ? 
-        Math.round((closeMatches.length / expectedWords.length) * 15) : 0;
-    
-    // Combined score with phonetic bonus
-    let score = Math.round((wordScore * 0.5) + (levenshteinScore * 0.4) + phoneticsBonus);
-    score = Math.min(100, Math.max(0, score));
-    
-    // Analyze phoneme-specific challenges
-    const expectedAnalysis = analyzePortuguesePhonemes(expectedWithDiacritics);
-    const specificIssues = [];
-    const tips = [];
-    
-    // Check which phoneme patterns might be causing issues
-    if (missedWords.length > 0 || closeMatches.length > 0) {
-        expectedAnalysis.features.forEach(feature => {
-            // Check if the problem words contain this feature
-            const problematicWords = [...missedWords, ...closeMatches.map(cm => cm.expected)];
-            const hasFeature = problematicWords.some(w => 
-                w.match(feature.pattern)
-            );
-            if (hasFeature) {
-                specificIssues.push({
-                    type: feature.type,
-                    name: feature.name,
-                    tip: feature.tip
-                });
-            }
-        });
-    }
-    
-    // Add word knowledge tips if available
-    if (wordKnowledge?.pronunciation) {
-        if (score < 80 && wordKnowledge.pronunciation.tip) {
-            tips.push(wordKnowledge.pronunciation.tip);
-        }
-        if (score < 60 && wordKnowledge.pronunciation.commonMistake) {
-            tips.push(`Avoid: ${wordKnowledge.pronunciation.commonMistake}`);
-        }
-    }
-    
-    // Add generic tips based on detected issues
-    if (specificIssues.length > 0 && tips.length < 2) {
-        specificIssues.slice(0, 2).forEach(issue => {
-            if (!tips.includes(issue.tip)) {
-                tips.push(issue.tip);
-            }
-        });
-    }
-    
-    // Determine rating and generate feedback
-    let rating = '';
-    let feedback = '';
-    let emoji = '';
-    
-    if (score >= 90) {
-        rating = 'excellent';
-        emoji = '🎉';
-        feedback = 'Excelente! Your pronunciation is spot on!';
-    } else if (score >= 75) {
-        rating = 'good';
-        emoji = '👍';
-        feedback = 'Muito bom! Very good pronunciation.';
-        if (closeMatches.length > 0) {
-            feedback += ' Just small refinements needed.';
-        }
-    } else if (score >= 60) {
-        rating = 'fair';
-        emoji = '💪';
-        feedback = 'Bom progresso! You\'re getting closer.';
-        if (missedWords.length > 0) {
-            feedback += ` Focus on: "${missedWords.slice(0, 2).join('", "')}".`;
-        }
-    } else if (score >= 40) {
-        rating = 'needs-work';
-        emoji = '🔄';
-        feedback = 'Keep practicing! Listen carefully to the sounds.';
-        if (specificIssues.length > 0) {
-            feedback += ` Watch out for ${specificIssues[0].name}.`;
-        }
-    } else {
-        rating = 'try-again';
-        emoji = '🎯';
-        feedback = 'Let\'s try again. Listen to the audio first.';
-        tips.unshift('Play the audio and repeat exactly what you hear');
-    }
-    
-    return {
-        score,
-        wordScore,
-        levenshteinScore,
-        phoneticsBonus,
-        rating,
-        emoji,
-        feedback,
-        matchedWords,
-        missedWords,
-        closeMatches,
-        extraWords,
-        specificIssues,
-        tips,
-        transcribed,
-        expected,
-        analysis: expectedAnalysis
-    };
 }
 
 /**
- * Levenshtein distance calculation
+ * Use Web Speech API with callback handlers (legacy support)
+ * @param {string} expectedText - Expected text for comparison
+ * @param {Object} handlers - onResult, onError, onEnd callbacks
+ * @returns {Object} Controller with stop/abort methods
  */
-function levenshteinDistance(s1, s2) {
-    const m = s1.length;
-    const n = s2.length;
-    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+export function useWebSpeechRecognition(expectedText, handlers = {}) {
+    const { onResult, onError, onEnd } = handlers;
     
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-    
-    for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-            if (s1[i-1] === s2[j-1]) {
-                dp[i][j] = dp[i-1][j-1];
-            } else {
-                dp[i][j] = 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-            }
-        }
-    }
-    
-    return dp[m][n];
-}
-
-/**
- * Fallback to Web Speech API if Whisper not available
- */
-export function useWebSpeechRecognition(expectedText, { onResult, onError, onEnd }) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-        onError(new Error('Speech recognition not supported in this browser'));
+    if (!isWebSpeechAvailable()) {
+        if (onError) onError(new Error('Speech recognition not supported'));
         return null;
     }
     
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-PT';
+    
+    recognition.lang = WEBSPEECH_CONFIG.language;
     recognition.continuous = false;
     recognition.interimResults = false;
+    recognition.maxAlternatives = WEBSPEECH_CONFIG.maxAlternatives;
     
     recognition.onresult = (event) => {
         const transcript = event.results[0]?.[0]?.transcript || '';
         const confidence = event.results[0]?.[0]?.confidence || 0;
         
+        // Use PhoneticScorer for scoring
         const score = scorePronunciation(transcript, expectedText);
         
-        onResult({
-            text: transcript,
-            confidence: Math.round(confidence * 100),
-            ...score
-        });
+        if (onResult) {
+            onResult({
+                text: transcript,
+                confidence: Math.round(confidence * 100),
+                ...score
+            });
+        }
     };
     
     recognition.onerror = (event) => {
-        onError(new Error(event.error || 'Recognition failed'));
+        if (onError) onError(new Error(event.error || 'Recognition failed'));
     };
     
     recognition.onend = () => {
@@ -647,107 +533,49 @@ export function useWebSpeechRecognition(expectedText, { onResult, onError, onEnd
     };
 }
 
+// ============================================================================
+// PRONUNCIATION SCORING (using PhoneticScorer)
+// ============================================================================
+
 /**
- * Robust listen and transcribe function using Web Speech API
- * Designed for pronunciation practice with multiple retry handling
- * @param {number} timeoutMs - Maximum listening time (default 5000ms)
- * @param {Object} options - Additional options
- * @returns {Promise<{text: string, confidence: number, alternatives: Array}>}
+ * Score pronunciation comparing transcribed to expected text
+ * @param {string} transcribed - What the user said
+ * @param {string} expected - What they should have said
+ * @param {Object} wordKnowledge - Optional word knowledge for better feedback
+ * @returns {Object} Score and detailed feedback
  */
-export function listenAndTranscribe(timeoutMs = 5000, options = {}) {
-    return new Promise((resolve, reject) => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            reject(new Error('Speech recognition not supported in this browser'));
-            return;
+export function scorePronunciation(transcribed, expected, wordKnowledge = null) {
+    // Use PhoneticScorer for main scoring
+    const result = calculateScore(transcribed, expected);
+    
+    // Add word knowledge tips if available
+    if (wordKnowledge?.pronunciation && result.score < 80) {
+        if (wordKnowledge.pronunciation.tip && !result.tips.includes(wordKnowledge.pronunciation.tip)) {
+            result.tips.unshift(wordKnowledge.pronunciation.tip);
         }
-        
-        const recognition = new SpeechRecognition();
-        recognition.lang = options.lang || 'pt-PT';
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 3; // Get multiple interpretations
-        
-        let timeout = null;
-        let hasResult = false;
-        
-        recognition.onresult = (event) => {
-            hasResult = true;
-            if (timeout) clearTimeout(timeout);
-            
-            const result = event.results[0];
-            const transcript = result[0]?.transcript || '';
-            const confidence = result[0]?.confidence || 0;
-            
-            // Collect alternatives for better matching
-            const alternatives = [];
-            for (let i = 0; i < result.length; i++) {
-                alternatives.push({
-                    text: result[i].transcript,
-                    confidence: result[i].confidence
-                });
-            }
-            
-            resolve({ 
-                text: transcript.trim(), 
-                confidence: Math.round(confidence * 100),
-                alternatives: alternatives.slice(1) // Exclude primary
-            });
-        };
-        
-        recognition.onerror = (event) => {
-            if (timeout) clearTimeout(timeout);
-            
-            // Handle different error types gracefully
-            const errorType = event.error;
-            
-            if (errorType === 'no-speech') {
-                // User didn't say anything - return empty but don't reject
-                resolve({ text: '', confidence: 0, alternatives: [], noSpeech: true });
-            } else if (errorType === 'audio-capture') {
-                reject(new Error('No microphone detected. Please check your audio settings.'));
-            } else if (errorType === 'not-allowed') {
-                reject(new Error('Microphone access denied. Please allow microphone access to practice pronunciation.'));
-            } else if (errorType === 'network') {
-                reject(new Error('Network error. Please check your internet connection.'));
-            } else if (errorType === 'aborted') {
-                // User or system aborted - treat as no speech
-                resolve({ text: '', confidence: 0, alternatives: [], aborted: true });
-            } else {
-                reject(new Error(`Speech recognition error: ${errorType}`));
-            }
-        };
-        
-        recognition.onend = () => {
-            if (timeout) clearTimeout(timeout);
-            // If we ended without a result, resolve with empty
-            if (!hasResult) {
-                resolve({ text: '', confidence: 0, alternatives: [], ended: true });
-            }
-        };
-        
-        // Start listening
-        try {
-            recognition.start();
-        } catch (err) {
-            reject(new Error(`Failed to start speech recognition: ${err.message}`));
-            return;
+        if (result.score < 60 && wordKnowledge.pronunciation.commonMistake) {
+            result.tips.push(`Avoid: ${wordKnowledge.pronunciation.commonMistake}`);
         }
-        
-        // Set timeout
-        timeout = setTimeout(() => {
-            try {
-                recognition.stop();
-            } catch (e) {
-                // Ignore stop errors
-            }
-        }, timeoutMs);
-    });
+    }
+    
+    return result;
 }
 
 /**
- * Advanced pronunciation test with multiple attempts and best score selection
+ * Analyze Portuguese phoneme patterns in text
+ * @param {string} text - Text to analyze
+ * @returns {Object} Phoneme analysis
+ */
+export function analyzePortuguesePhonemes(text) {
+    return analyzePhonemes(text);
+}
+
+// ============================================================================
+// ADVANCED PRONUNCIATION TESTING
+// ============================================================================
+
+/**
+ * Test pronunciation with multiple attempts and best score selection
  * @param {string} expected - Expected Portuguese text
  * @param {Object} options - Options including maxAttempts, timeoutMs, wordKnowledge
  * @returns {Promise<Object>} Best score result with all attempts
@@ -778,15 +606,14 @@ export async function testPronunciation(expected, options = {}) {
                 
                 // Check alternatives for better matches
                 if (result.alternatives && result.alternatives.length > 0) {
-                    result.alternatives.forEach(alt => {
-                        const altScore = scorePronunciation(alt.text, expected, wordKnowledge);
+                    for (const alt of result.alternatives) {
+                        const altScore = scorePronunciation(alt.text || alt, expected, wordKnowledge);
                         if (altScore.score > score.score) {
-                            // Use better alternative
                             Object.assign(score, altScore);
                             score.usedAlternative = true;
                             score.originalTranscript = result.text;
                         }
-                    });
+                    }
                 }
                 
                 attempts.push(score);
@@ -796,7 +623,7 @@ export async function testPronunciation(expected, options = {}) {
                 }
                 
                 // If excellent, no need for more attempts
-                if (score.score >= 90) {
+                if (score.score >= PHONETIC_CONFIG.excellentScore) {
                     break;
                 }
             } else {
@@ -808,6 +635,7 @@ export async function testPronunciation(expected, options = {}) {
                 });
             }
         } catch (err) {
+            Logger.error('Pronunciation test attempt failed', { attempt: i + 1, error: err.message });
             attempts.push({
                 score: 0,
                 rating: 'error',
@@ -824,15 +652,18 @@ export async function testPronunciation(expected, options = {}) {
         bestScore: bestScore || { score: 0, rating: 'no-speech', feedback: 'No speech detected' },
         attempts,
         totalAttempts: attempts.length,
-        improved: attempts.length > 1 && bestScore && 
+        improved: attempts.length > 1 && bestScore &&
             bestScore.score > (attempts[0]?.score || 0)
     };
 }
 
+// ============================================================================
+// DIAGNOSTICS
+// ============================================================================
+
 /**
  * Run comprehensive speech recognition diagnostics
- * Tests all components needed for speech recognition to work
- * @returns {Promise<Object>} Diagnostic results with status and recommendations
+ * @returns {Promise<Object>} Diagnostic results
  */
 export async function runSpeechDiagnostics() {
     const results = {
@@ -843,186 +674,87 @@ export async function runSpeechDiagnostics() {
         canUseSpeech: false
     };
     
-    // 1. Check browser support for SpeechRecognition API
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // 1. Web Speech API support
+    const hasSpeechRecognition = isWebSpeechAvailable();
     results.checks.push({
         name: 'Web Speech API',
-        status: SpeechRecognition ? 'pass' : 'fail',
-        detail: SpeechRecognition 
-            ? 'SpeechRecognition API is available' 
-            : 'SpeechRecognition API not supported',
+        status: hasSpeechRecognition ? 'pass' : 'fail',
+        detail: hasSpeechRecognition ? 'Available' : 'Not supported',
         critical: true
     });
     
-    if (!SpeechRecognition) {
-        results.recommendations.push('Your browser does not support speech recognition. Please use Chrome, Edge, or Safari.');
-    }
+    // 2. Portuguese support
+    const ptSupport = detectPortugueseSupport();
+    results.checks.push({
+        name: 'Portuguese Support',
+        status: ptSupport.length > 0 ? 'pass' : 'warning',
+        detail: ptSupport.length > 0 ? `Supports: ${ptSupport.join(', ')}` : 'May use fallback',
+        critical: false
+    });
     
-    // 2. Check MediaDevices API (for microphone access)
+    // 3. MediaDevices API
     const hasMediaDevices = navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
     results.checks.push({
         name: 'MediaDevices API',
         status: hasMediaDevices ? 'pass' : 'fail',
-        detail: hasMediaDevices 
-            ? 'MediaDevices API is available' 
-            : 'MediaDevices API not supported',
+        detail: hasMediaDevices ? 'Available' : 'Not supported',
         critical: true
     });
     
-    // 3. Check if running on HTTPS or localhost (required for getUserMedia)
-    const isSecureContext = window.isSecureContext;
-    const isLocalhost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    // 4. Secure context
+    const isSecure = window.isSecureContext || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
     results.checks.push({
         name: 'Secure Context',
-        status: (isSecureContext || isLocalhost) ? 'pass' : 'fail',
-        detail: isSecureContext 
-            ? 'Running in secure context (HTTPS)' 
-            : isLocalhost 
-                ? 'Running on localhost (microphone access allowed)' 
-                : 'Not running in secure context',
+        status: isSecure ? 'pass' : 'fail',
+        detail: isSecure ? 'HTTPS or localhost' : 'Requires HTTPS',
         critical: true
     });
     
-    if (!isSecureContext && !isLocalhost) {
-        results.recommendations.push('Microphone access requires HTTPS. Please access this site via https://');
-    }
-    
-    // 4. Check AudioContext support
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    results.checks.push({
-        name: 'AudioContext',
-        status: AudioContextClass ? 'pass' : 'fail',
-        detail: AudioContextClass 
-            ? 'AudioContext is available' 
-            : 'AudioContext not supported',
-        critical: false
-    });
-    
-    // 5. Check microphone permission
+    // 5. Microphone permission
     let micPermission = 'unknown';
     try {
-        if (navigator.permissions && navigator.permissions.query) {
+        if (navigator.permissions?.query) {
             const permission = await navigator.permissions.query({ name: 'microphone' });
-            micPermission = permission.state; // 'granted', 'denied', 'prompt'
+            micPermission = permission.state;
         }
     } catch (e) {
-        // Some browsers don't support permission query for microphone
-        micPermission = 'unknown';
+        // Permission query not supported
     }
     
     results.checks.push({
         name: 'Microphone Permission',
         status: micPermission === 'granted' ? 'pass' : micPermission === 'denied' ? 'fail' : 'warning',
-        detail: micPermission === 'granted' 
-            ? 'Microphone access granted' 
-            : micPermission === 'denied' 
-                ? 'Microphone access denied' 
-                : 'Microphone permission not yet requested',
+        detail: micPermission === 'granted' ? 'Granted' : micPermission === 'denied' ? 'Denied' : 'Not yet requested',
         critical: true
     });
     
-    if (micPermission === 'denied') {
-        results.recommendations.push('Microphone access is denied. Click the lock/site settings icon in your browser\'s address bar and allow microphone access.');
-    } else if (micPermission === 'prompt' || micPermission === 'unknown') {
-        results.recommendations.push('Click the "Practice Saying It" button and allow microphone access when prompted.');
-    }
-    
-    // 6. Test microphone access directly
-    if (hasMediaDevices && (isSecureContext || isLocalhost)) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Get audio track info
-            const audioTrack = stream.getAudioTracks()[0];
-            const trackSettings = audioTrack.getSettings();
-            
-            results.checks.push({
-                name: 'Microphone Access',
-                status: 'pass',
-                detail: `Microphone connected: ${audioTrack.label || 'Default microphone'}`,
-                extra: {
-                    deviceId: trackSettings.deviceId,
-                    sampleRate: trackSettings.sampleRate,
-                    channelCount: trackSettings.channelCount
-                },
-                critical: true
-            });
-            
-            // Stop the stream
-            stream.getTracks().forEach(track => track.stop());
-        } catch (err) {
-            results.checks.push({
-                name: 'Microphone Access',
-                status: 'fail',
-                detail: `Microphone test failed: ${err.message}`,
-                error: err.name,
-                critical: true
-            });
-            
-            if (err.name === 'NotAllowedError') {
-                results.recommendations.push('Please grant microphone permission when prompted, or check your browser settings.');
-            } else if (err.name === 'NotFoundError') {
-                results.recommendations.push('No microphone found. Please connect a microphone and try again.');
-            } else if (err.name === 'NotReadableError') {
-                results.recommendations.push('Microphone is in use by another application. Please close other apps using your microphone.');
-            } else {
-                results.recommendations.push(`Microphone error: ${err.message}`);
-            }
-        }
-    }
-    
-    // 7. Test Speech Recognition instantiation
-    if (SpeechRecognition) {
-        try {
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'pt-PT';
-            
-            // Test if Portuguese is supported
-            results.checks.push({
-                name: 'Portuguese (pt-PT) Support',
-                status: 'pass',
-                detail: 'Portuguese language configured',
-                critical: false
-            });
-            
-            // Clean up
-            recognition.abort();
-        } catch (err) {
-            results.checks.push({
-                name: 'Speech Recognition Init',
-                status: 'fail',
-                detail: `Failed to initialize: ${err.message}`,
-                critical: true
-            });
-        }
-    }
-    
-    // 8. Check network connectivity (speech recognition needs internet)
+    // 6. Network connectivity
     const isOnline = navigator.onLine;
     results.checks.push({
-        name: 'Network Connection',
+        name: 'Network',
         status: isOnline ? 'pass' : 'fail',
-        detail: isOnline 
-            ? 'Internet connection available' 
-            : 'No internet connection detected',
+        detail: isOnline ? 'Online' : 'Offline',
         critical: true
     });
     
-    if (!isOnline) {
-        results.recommendations.push('Speech recognition requires an internet connection. Please check your network.');
-    }
-    
-    // 9. Check Web Workers (needed for Whisper)
-    const hasWebWorkers = typeof Worker !== 'undefined';
+    // 7. Whisper support
+    const whisperSupport = canUseWhisper();
     results.checks.push({
-        name: 'Web Workers',
-        status: hasWebWorkers ? 'pass' : 'warning',
-        detail: hasWebWorkers 
-            ? 'Web Workers available (needed for advanced features)' 
-            : 'Web Workers not available',
+        name: 'Whisper Support',
+        status: whisperSupport ? 'pass' : 'warning',
+        detail: whisperSupport ? 'Browser supports Whisper' : 'Whisper not available',
         critical: false
     });
     
-    // Calculate overall status
+    // 8. Whisper loaded
+    results.checks.push({
+        name: 'Whisper Model',
+        status: isWhisperReady() ? 'pass' : 'warning',
+        detail: isWhisperReady() ? `Loaded: ${currentWhisperModel}` : 'Not loaded',
+        critical: false
+    });
+    
+    // Calculate overall
     const criticalChecks = results.checks.filter(c => c.critical);
     const criticalPasses = criticalChecks.filter(c => c.status === 'pass').length;
     const criticalFails = criticalChecks.filter(c => c.status === 'fail').length;
@@ -1030,67 +762,95 @@ export async function runSpeechDiagnostics() {
     if (criticalFails === 0) {
         results.overall = 'ready';
         results.canUseSpeech = true;
+        results.summary = '✅ Speech recognition is ready!';
     } else if (criticalPasses > criticalFails) {
         results.overall = 'partial';
         results.canUseSpeech = false;
+        results.summary = '⚠️ Some issues detected.';
     } else {
         results.overall = 'not-ready';
         results.canUseSpeech = false;
+        results.summary = '❌ Speech recognition unavailable.';
     }
     
-    // Add summary recommendation
-    if (results.overall === 'ready') {
-        results.summary = '✅ Speech recognition is ready to use!';
-    } else if (results.overall === 'partial') {
-        results.summary = '⚠️ Some issues detected. Speech recognition may not work properly.';
-    } else {
-        results.summary = '❌ Speech recognition is not available. See recommendations below.';
+    // Add recommendations
+    if (!hasSpeechRecognition) {
+        results.recommendations.push('Use Chrome, Edge, or Safari for speech recognition.');
+    }
+    if (micPermission === 'denied') {
+        results.recommendations.push('Allow microphone access in browser settings.');
+    }
+    if (!isSecure) {
+        results.recommendations.push('Access the site via HTTPS.');
+    }
+    if (!isOnline) {
+        results.recommendations.push('Check your internet connection.');
     }
     
-    console.log('🎤 Speech Diagnostics:', results);
+    Logger.info('Speech diagnostics complete', results);
     return results;
 }
 
 /**
  * Quick check if speech recognition is available
- * @returns {Object} Quick status check
+ * @returns {Object} Quick status
  */
 export function quickSpeechCheck() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const available = isWebSpeechAvailable();
     const hasMediaDevices = navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
-    const isSecureContext = window.isSecureContext || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    const isSecure = window.isSecureContext || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
     const isOnline = navigator.onLine;
     
-    const canUse = SpeechRecognition && hasMediaDevices && isSecureContext && isOnline;
+    const canUse = available && hasMediaDevices && isSecure && isOnline;
     
     return {
         available: canUse,
+        webSpeech: available,
+        whisper: canUseWhisper(),
+        whisperReady: isWhisperReady(),
         reasons: [
-            !SpeechRecognition && 'Browser does not support speech recognition',
+            !available && 'Browser does not support speech recognition',
             !hasMediaDevices && 'Microphone access not available',
-            !isSecureContext && 'Must be on HTTPS or localhost',
+            !isSecure && 'Must be on HTTPS or localhost',
             !isOnline && 'No internet connection'
         ].filter(Boolean)
     };
 }
 
-// Export for use in other modules
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
 export default {
+    // Whisper
     initializeWhisper,
     isWhisperReady,
     canUseWhisper,
+    getWhisperModelInfo,
+    unloadWhisper,
+    WHISPER_MODELS,
+    WHISPER_CONFIG,
+    
+    // Recording (for Whisper)
     startRecording,
     stopRecording,
     getRecordingState,
     transcribe,
     recordAndTranscribe,
     stopRecordingEarly,
+    
+    // Web Speech API
+    listenAndTranscribe,
+    useWebSpeechRecognition,
+    
+    // Scoring
     scorePronunciation,
     analyzePortuguesePhonemes,
-    useWebSpeechRecognition,
-    listenAndTranscribe,
+    
+    // Testing
     testPronunciation,
+    
+    // Diagnostics
     runSpeechDiagnostics,
-    quickSpeechCheck,
-    WHISPER_MODELS
+    quickSpeechCheck
 };
