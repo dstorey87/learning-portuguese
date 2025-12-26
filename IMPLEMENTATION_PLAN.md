@@ -3679,9 +3679,9 @@ const visualFeedback = {
 | SPEECH-023 | Implement fluency/prosody scoring | [ ] | [ ] | N/A | P1 |
 | SPEECH-024 | Create Portuguese phoneme pattern matcher | [ ] | [ ] | [ ] | P0 |
 | **Visual Feedback** |
-| SPEECH-030 | Create waveform visualizer component | [ ] | [ ] | N/A | P0 |
-| SPEECH-031 | Add volume level indicator | [ ] | [ ] | N/A | P0 |
-| SPEECH-032 | Implement recording state animations | [ ] | [ ] | N/A | P0 |
+| SPEECH-030 | Create waveform visualizer component | [x] | [x] | N/A | P0 |
+| SPEECH-031 | Add volume level indicator | [x] | [x] | N/A | P0 |
+| SPEECH-032 | Implement recording state animations | [x] | [x] | N/A | P0 |
 | SPEECH-033 | Create phoneme-by-phoneme display | [ ] | [ ] | N/A | P1 |
 | SPEECH-034 | Add pronunciation progress animation | [ ] | [ ] | N/A | P1 |
 | **UI Integration** |

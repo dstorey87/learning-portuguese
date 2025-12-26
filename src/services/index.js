@@ -257,4 +257,42 @@ export {
     default as HealthChecker
 } from './HealthChecker.js';
 
+// Audio Recorder Service
+export {
+    AudioRecorder,
+    RECORDER_CONFIG,
+    RECORDER_STATES,
+    RECORDER_EVENTS,
+    getAudioRecorder,
+    resetAudioRecorder,
+    quickRecord,
+    canRecord,
+    requestMicrophonePermission,
+    default as AudioRecorderService
+} from './AudioRecorder.js';
+
+// Audio Preprocessor Service
+export {
+    AudioPreprocessor,
+    PREPROCESSOR_CONFIG,
+    getAudioPreprocessor,
+    prepareForRecognition,
+    convertToWAV,
+    hasSpeech,
+    default as AudioPreprocessorService
+} from './AudioPreprocessor.js';
+
+// Pronunciation Service
+export {
+    PronunciationService,
+    PRONUNCIATION_CONFIG,
+    PRONUNCIATION_EVENTS,
+    ENGINE_STATUS,
+    getPronunciationService,
+    resetPronunciationService,
+    testPronunciation,
+    canTestPronunciation,
+    default as PronunciationServiceModule
+} from './PronunciationService.js';
+
 export const SERVICES_VERSION = '0.1.0';
