@@ -39,6 +39,15 @@ import * as Logger from './src/services/Logger.js';
 // HealthChecker - service health monitoring
 import * as HealthChecker from './src/services/HealthChecker.js';
 
+// Components - UI building blocks
+import * as Toast from './src/components/common/Toast.js';
+import * as Modal from './src/components/common/Modal.js';
+import * as ProgressChart from './src/components/common/ProgressChart.js';
+import * as LessonCard from './src/components/lesson/LessonCard.js';
+import * as WordCard from './src/components/lesson/WordCard.js';
+import * as ChallengeRenderer from './src/components/lesson/ChallengeRenderer.js';
+import * as Navigation from './src/components/navigation/Navigation.js';
+
 const APP_VERSION = '0.9.0';
 const STORAGE_KEY = 'portugueseLearningData';
 const VOICE_STORAGE_KEY = 'portugueseVoiceSettings';
@@ -455,6 +464,20 @@ document.addEventListener('DOMContentLoaded', () => {
     Logger.debug('Progress loaded', { 
         learnedWords: ProgressTracker.getLearnedWordCount(),
         completedLessons: ProgressTracker.getCompletedLessonCount()
+    });
+    
+    // Initialize UI components
+    Toast.initToast();
+    Logger.debug('Toast system initialized');
+    
+    // Log component availability for future use
+    Logger.debug('Components loaded', {
+        Modal: typeof Modal.createModal === 'function',
+        ProgressChart: typeof ProgressChart.createChart === 'function',
+        LessonCard: typeof LessonCard.renderLessonCard === 'function',
+        WordCard: typeof WordCard.renderWordCard === 'function',
+        ChallengeRenderer: typeof ChallengeRenderer.renderChallenge === 'function',
+        Navigation: typeof Navigation.initNavigation === 'function'
     });
     
     renderVersion();
@@ -4803,33 +4826,12 @@ function handleAdminLogin() {
 function handleLogout() {
     logout();
     updateHeaderStats();
-    showNotification('Logged out', 'info');
+    Toast.showNotification('Logged out', 'info');
 }
 
+// showNotification now delegates to Toast component
 function showNotification(message, type = 'info') {
-    // Simple notification - could be enhanced later
-    const existing = document.querySelector('.notification-toast');
-    if (existing) existing.remove();
-    
-    const toast = document.createElement('div');
-    toast.className = `notification-toast notification-${type}`;
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        top: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 0.8rem 1.5rem;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : 'var(--accent)'};
-        color: white;
-        border-radius: 12px;
-        font-weight: 600;
-        z-index: 9999;
-        animation: slideDown 0.3s ease;
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => toast.remove(), 3000);
+    Toast.showNotification(message, type);
 }
 
 function setupNavigation() {
