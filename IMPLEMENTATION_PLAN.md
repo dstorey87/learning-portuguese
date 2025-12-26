@@ -205,7 +205,7 @@ learning_portuguese/
 
 | Task ID | Task | Status | Priority | Est. Hours |
 |---------|------|--------|----------|------------|
-| F1-010 | Extract navigation to `Sidebar.js` | [ ] | P0 | 2 |
+| F1-010 | Extract navigation to `Sidebar.js` | [x] | P0 | 2 |
 | F1-011 | Extract lesson cards to `LessonCard.js` | [ ] | P0 | 2 |
 | F1-012 | Extract modals to `Modal.js` | [ ] | P0 | 2 |
 | F1-013 | Extract toast system to `Toast.js` | [ ] | P0 | 1 |
