@@ -1,9 +1,98 @@
 # PortuLingo Complete Implementation Plan
 
-> **Version:** 2.0.0  
+> **Version:** 2.2.0  
 > **Created:** December 26, 2025  
+> **Last Updated:** December 26, 2025  
 > **Status:** Active Planning Document  
 > **Tracking:** Use checkboxes to mark completion `[ ]` → `[x]`
+
+---
+
+## 🎯 QUICK REFERENCE - Implementation Status Dashboard
+
+### Summary Statistics
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **Overall Progress** | **~65%** | Services created; integration & cleanup lagging |
+| **Phases Complete** | 3 / 15 | Phase 1, 4, 7 done |
+| **Phases In Progress** | 7 / 15 | 1B, 2, 3, 5, 5B, 8, 14 |
+| **Phases Not Started** | 5 / 15 | 6, 9, 10, 11, 12 |
+| **Test Coverage** | 640 tests | Playwright E2E + Unit |
+| **Critical Blockers** | 2 | app.js/styles.css not modularized |
+
+### Top 5 Blockers / Issues
+
+| # | Blocker | Severity | Owner | ETA |
+|---|---------|----------|-------|-----|
+| 1 | `app.js` at 5,562 lines (target: <500) | 🔴 Critical | Phase 1B | — |
+| 2 | `styles.css` at 5,186 lines (target: <2000) | 🔴 Critical | Phase 1B | — |
+| 3 | Mic hangs on "Listening..." in AIChat | 🟡 High | Phase 8 | — |
+| 4 | FSRSEngine / LearnerProfiler not wired | 🟠 Medium | Phase 5 | — |
+| 5 | Building-blocks lessons not in grid | 🟠 Medium | Phase 2 | — |
+
+### Next 5 Actions (Priority Order)
+
+| # | Action | Task ID | Files |
+|---|--------|---------|-------|
+| 1 | Wire LessonService into app.js, remove duplicates | INT-005 | app.js, LessonService.js |
+| 2 | Wire VoiceService into app.js, remove duplicates | INT-003 | app.js, VoiceService.js |
+| 3 | Update LessonLoader to include building-blocks | LESSON-BB-001 | LessonLoader.js |
+| 4 | Fix mic hang: use WebSpeechService directly in AIChat | VOICE-FIX-005 | AIChat.js |
+| 5 | Wire FSRSEngine into lesson completion flow | ADAPT-001 | ProgressTracker.js, FSRSEngine.js |
+
+### Phase Progress
+
+| Area | Progress | Status |
+|------|----------|--------|
+| **Foundation (Phase 1)** | ████████████████████ 100% | ✅ COMPLETE |
+| **Service Integration (Phase 1B)** | ████████░░░░░░░░░░░░ 40% | 🔄 IN PROGRESS |
+| **Lesson Reordering (Phase 2)** | ████████░░░░░░░░░░░░ 40% | 🔄 IN PROGRESS |
+| **Navigation (Phase 3)** | ████████████████░░░░ 80% | 🔄 IN PROGRESS |
+| **Lesson Layout (Phase 4)** | ████████████████████ 100% | ✅ COMPLETE |
+| **AI Pipeline (Phase 5)** | ████████████████░░░░ 80% | 🔄 IN PROGRESS |
+| **AI Chat (Phase 5B)** | ████████████████░░░░ 80% | 🔄 IN PROGRESS |
+| **AI Governance (Phase 6)** | ░░░░░░░░░░░░░░░░░░░░ 0% | ⏳ NOT STARTED |
+| **Authentication (Phase 7)** | ████████████████████ 100% | ✅ COMPLETE |
+| **Voice System (Phase 8)** | ████████████░░░░░░░░ 55% | 🔄 IN PROGRESS |
+| **Monitoring (Phase 9)** | ░░░░░░░░░░░░░░░░░░░░ 0% | ⏳ NOT STARTED |
+| **UI Polish (Phase 10)** | ░░░░░░░░░░░░░░░░░░░░ 0% | ⏳ NOT STARTED |
+| **Practice Mode (Phase 11)** | ░░░░░░░░░░░░░░░░░░░░ 0% | ⏳ NOT STARTED |
+| **Graceful Degradation (Phase 12)** | ░░░░░░░░░░░░░░░░░░░░ 0% | ⏳ NOT STARTED |
+| **Pronunciation (Phase 14)** | ████████████████░░░░ 80% | 🔄 IN PROGRESS |
+
+### Critical Components Status
+
+| Component | Exists | Tested | Integrated | Status |
+|-----------|--------|--------|------------|--------|
+| AuthService.js | ✅ | ✅ | ✅ | ✅ Working |
+| AIService.js | ✅ | ✅ | ⚠️ | ⚠️ Needs wiring |
+| AIAgent.js | ✅ | ⚠️ | ⚠️ | ⚠️ Partial |
+| VoiceService.js | ✅ | ✅ | ⚠️ | ⚠️ Not integrated to app.js |
+| TTSService.js | ✅ | ✅ | ✅ | ✅ Working |
+| WebSpeechService.js | ✅ | ✅ | ✅ | ✅ Working |
+| PronunciationService.js | ✅ | ✅ | ✅ | ✅ Working |
+| LessonService.js | ✅ | ✅ | ⚠️ | ⚠️ Not integrated to app.js |
+| ProgressTracker.js | ✅ | ✅ | ⚠️ | ⚠️ Not integrated to app.js |
+| Logger.js | ✅ | ✅ | ✅ | ✅ Working |
+| HealthChecker.js | ✅ | ✅ | ⚠️ | ⚠️ Partial |
+| FSRSEngine.js | ✅ | ✅ | ❌ | ❌ Not integrated |
+| LearnerProfiler.js | ✅ | ⚠️ | ❌ | ❌ Not integrated |
+| AIChat.js | ✅ | ✅ | ✅ | ✅ Working |
+| VoiceConversation.js | ✅ | ⚠️ | ⚠️ | ⚠️ VAD issues |
+
+### 🚨 PROBLEMS SECTION
+
+| Issue ID | Severity | Description | Root Cause | Resolution |
+|----------|----------|-------------|------------|------------|
+| PROB-001 | 🔴 Critical | app.js still 5562 lines | Services not integrated | Complete Phase 1B INT tasks |
+| PROB-002 | 🔴 Critical | styles.css still 5186 lines | CSS not deduplicated | Remove duplicate styles after import |
+| PROB-003 | 🟡 High | VoiceConversation requires ONNX model | Missing /models/silero_vad.onnx | Either download model or use WebSpeech fallback |
+| PROB-004 | 🟡 High | Mic hangs on "Listening..." | VoiceConversation.js requires STT server on port 5000 | Use WebSpeechService directly in AIChat |
+| PROB-005 | 🟡 High | Services exist but app.js still has duplicates | Phase 1B cleanup not done | Remove redundant functions from app.js |
+| PROB-006 | 🟠 Medium | FSRSEngine not connected | LearnerProfiler not wired | Wire to lesson completion flow |
+| PROB-007 | 🟠 Medium | Building block lessons not in lesson grid | LessonLoader not fetching src/data | Update LessonLoader to load building-blocks |
+| PROB-008 | 🟠 Medium | Rich challenge data not used | ChallengeRenderer ignores challenges array | Implement custom challenge rendering |
 
 ---
 
@@ -3921,3 +4010,88 @@ This phase was designed based on 20+ sources from 2023-2024:
 
 *Phase 14 added: December 26, 2025*
 *Last Updated: December 26, 2025*
+
+---
+
+## 📋 NEXT FIXES CHECKLIST
+
+> **Purpose:** Actionable, ordered list of immediate fixes needed  
+> **Updated:** December 26, 2025  
+> **Usage:** Work through in order; check off when PR merged
+
+### 🔴 Critical (Do First)
+
+- [ ] **NFC-001:** Wire LessonService into app.js, remove duplicate lesson functions
+  - Files: `app.js`, `src/services/LessonService.js`
+  - Goal: Reduce app.js by ~500 lines
+  - Test: `npm test -- --grep "LESSON-E"`
+
+- [ ] **NFC-002:** Wire VoiceService into app.js, remove duplicate voice functions
+  - Files: `app.js`, `src/services/VoiceService.js`
+  - Goal: Reduce app.js by ~300 lines
+  - Test: `npm test -- --grep "VOICE"`
+
+- [ ] **NFC-003:** Wire ProgressTracker into app.js, remove duplicate progress functions
+  - Files: `app.js`, `src/services/ProgressTracker.js`
+  - Goal: Reduce app.js by ~200 lines
+  - Test: `npm test -- --grep "PROG"`
+
+- [ ] **NFC-004:** Deduplicate styles.css after CSS modules import
+  - Files: `styles.css`, `src/styles/*.css`
+  - Goal: Reduce styles.css from 5186 to <2000 lines
+  - Test: Visual regression check
+
+### 🟡 High Priority
+
+- [ ] **NFC-005:** Fix mic hang in AIChat - use WebSpeechService directly
+  - Files: `src/components/ai/AIChat.js`, `src/services/WebSpeechService.js`
+  - Issue: VoiceConversation.js requires missing ONNX model
+  - Test: Manual test + `npm test -- --grep "AICHAT-VOICE"`
+
+- [ ] **NFC-006:** Update LessonLoader to include building-blocks from src/data
+  - Files: `src/data/LessonLoader.js`
+  - Issue: Building block lessons not appearing in grid
+  - Test: `npm test -- --grep "LESSON"`
+
+- [ ] **NFC-007:** Wire FSRSEngine into lesson completion flow
+  - Files: `src/services/ProgressTracker.js`, `src/services/learning/FSRSEngine.js`
+  - Issue: Modern spaced repetition not used
+  - Test: Unit test for FSRSEngine integration
+
+### 🟠 Medium Priority
+
+- [ ] **NFC-008:** Implement inline audio playback for Portuguese words in AI responses
+  - Files: `src/components/ai/AIChat.js`
+  - Requirement: VOICE_IMPLEMENTATION_PLAN.md VOICE-014
+  - Test: E2E test for 🔊 buttons
+
+- [ ] **NFC-009:** Wire LearnerProfiler to AI context
+  - Files: `src/services/ai/AIAgent.js`, `src/services/learning/LearnerProfiler.js`
+  - Issue: AI doesn't know user's weak areas
+  - Test: Integration test
+
+- [ ] **NFC-010:** Implement ChallengeRenderer custom challenge types
+  - Files: `src/components/lesson/ChallengeRenderer.js`
+  - Issue: Rich challenge data from building-blocks ignored
+  - Test: E2E challenge rendering tests
+
+### 🟢 Low Priority (Polish)
+
+- [ ] **NFC-011:** Create AI Governance Dashboard (Phase 6)
+- [ ] **NFC-012:** Add voice download verification
+- [ ] **NFC-013:** Create JSON lesson schema
+- [ ] **NFC-014:** Implement LessonGenerator service
+- [ ] **NFC-015:** Add monitoring dashboard (Phase 9)
+
+---
+
+## 🔍 AUDIT LOG
+
+| Date | Auditor | Changes Made |
+|------|---------|--------------|
+| 2025-12-26 | Background Agent | Initial Quick Reference + Problems section added |
+| 2025-12-26 | Background Agent | Added Next Fixes Checklist |
+
+---
+
+*End of Implementation Plan*
