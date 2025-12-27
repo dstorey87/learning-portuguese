@@ -1,228 +1,180 @@
-# PortuLingo Complete Implementation Plan
+# PortuLingo Implementation Plan
 
-> **Version:** 2.4.0  
-> **Created:** December 26, 2025  
-> **Last Updated:** 2025-12-27T01:10:00Z  
-> **Status:** Active Planning Document  
-> **Tracking:** Use checkboxes to mark completion `[ ]` → `[x]`
+> **Version:** 3.0.0 | **Updated:** 2025-12-27T01:15:00Z | **For:** AI Agents
 
 ---
 
-## 🎯 QUICK REFERENCE - Complete Workspace Audit
+## 📊 STATUS DASHBOARD
 
-**Audit Timestamp:** 2025-12-27T00:47:00Z
+| Metric | Value | Target |
+|--------|-------|--------|
+| **Total Code** | 53,018 lines | — |
+| **Completion** | ~25% | 100% |
+| **Tasks Done** | 152 | 612 |
+| **Tasks Todo** | 460 | 0 |
+| **Critical Bugs** | 5 | 0 |
 
-### 🔴 EXECUTIVE SUMMARY OF FINDINGS
+### Current Blockers (Fix These First)
 
-| Finding | Severity | Impact |
-|---------|----------|--------|
-| **11 services created but NEVER imported** | 🔴 CRITICAL | 5,418 lines of dead code |
-| **CSS modules exist but NOT imported** | 🔴 CRITICAL | styles.css still 6,051 lines |
-| **models/ directory MISSING** | 🔴 CRITICAL | VoiceConversation will crash |
-| **Plan shows [ ] but code EXISTS** | 🟡 HIGH | Plan out of sync with reality |
-| **LearnerProfiler has NO tests** | 🟠 MEDIUM | Untested service |
-
-### TRUE COMPLETION STATUS
-
-| Phase | Plan Says | Reality | Gap |
-|-------|-----------|---------|-----|
-| Phase 1 (Foundation) | 100% | 100% | ✅ None |
-| Phase 1B (Integration) | ~30% | **~5%** | Services not wired |
-| Phase 2 (Lessons) | ~40% | ~80% | Building blocks done |
-| Phase 3 (Navigation) | 0% | **~90%** | All components exist |
-| Phase 4 (Lesson Layout) | 0% | **~80%** | Components exist |
-| Phase 5 (AI Pipeline) | 0% | ~30% | Files exist, not wired |
-| Phase 5B (AI Chat) | 0% | **~70%** | AIChat.js working |
-| Phase 7 (Auth) | 100% | **~60%** | AuthService not wired |
-| Phase 8 (Voice) | 0% | ~40% | Missing model files |
-| Phase 14 (Pronunciation) | 0% | **~70%** | Services + tests exist |
-
-### Code Inventory (Exact Counts)
-
-| Category | Files | Lines | Notes |
-|----------|-------|-------|-------|
-| **Root JS** | 5 | 8,098 | app.js, server.js, data.js, ai-chat.js, ai-speech.js |
-| **src/** | 74 | 30,942 | Services, Components, Data, Utils |
-| **tests/** | 35 | 13,978 | E2E + Unit tests |
-| **CSS** | 2 | 6,087 | styles.css + src/styles |
-| **TOTAL CODE** | — | **53,018** | All JavaScript + CSS |
-
-### Critical File Sizes
-
-| File | Lines | Target | Status |
-|------|-------|--------|--------|
-| app.js | 5,103 | <500 | 🔴 10.2x over |
-| styles.css | 6,051 | <2,000 | 🔴 3x over |
-| ChallengeRenderer.js | 2,694 | <500 | 🔴 5.4x over |
-| AIChat.js | 1,805 | <500 | 🔴 3.6x over |
-| ProgressTracker.js | 1,066 | <500 | 🔴 2.1x over |
-| ai-speech.js | 1,068 | <500 | 🔴 2.1x over |
-| VoiceService.js | 1,053 | <500 | 🔴 2.1x over |
-| LessonOptionsPanel.js | 1,044 | <500 | 🔴 2.1x over |
-
-### 🔴 UNUSED SERVICES (Created but never imported)
-
-| Service | Lines | Status |
-|---------|-------|--------|
-| FSRSEngine.js | 472 | ❌ NOT IMPORTED ANYWHERE |
-| LearnerProfiler.js | 323 | ❌ NOT IMPORTED ANYWHERE |
-| VoiceConversation.js | 231 | ❌ NOT IMPORTED ANYWHERE |
-| SileroVAD.js | 195 | ❌ NOT IMPORTED ANYWHERE |
-| MemoryManager.js | 248 | ❌ NOT IMPORTED ANYWHERE |
-| WebSearchTool.js | 174 | ❌ NOT IMPORTED ANYWHERE |
-| LessonService.js | 613 | ❌ NOT IMPORTED ANYWHERE |
-| VoiceService.js | 1,053 | ❌ NOT IMPORTED ANYWHERE |
-| AuthService.js | 681 | ❌ NOT IMPORTED ANYWHERE |
-| PronunciationService.js | 778 | ❌ NOT IMPORTED ANYWHERE |
-| LessonValidator.js | 650 | ❌ NOT IMPORTED ANYWHERE |
-| **TOTAL DEAD CODE** | **5,418** | 🔴 Lines written but unused |
-
-### 🔴 MISSING FILES / DEPENDENCIES
-
-| Missing | Required By | Impact |
-|---------|-------------|--------|
-| models/silero_vad.onnx | SileroVAD.js:42 | VoiceConversation broken |
-| models/ directory | VAD system | Voice detection disabled |
-| images/ directory | Lesson images | No lesson images |
-
-### Task Progress (from IMPLEMENTATION_PLAN.md)
-
-| Metric | Count |
-|--------|-------|
-| Tasks [x] Done | 152 |
-| Tasks [ ] Todo | 460 |
-| **Total Tasks** | **612** |
-| **Completion** | **24.8%** |
-
-### Requirements from docs/*.md
-
-| Document | [x] Done | [ ] Todo | Task IDs |
-|----------|----------|----------|----------|
-| AI_TUTOR_ARCHITECTURE.md | 0 | 60 | 78 |
-| VOICE_IMPLEMENTATION_PLAN.md | 0 | 21 | 21 |
-| LESSON_ARCHITECTURE_REVIEW.md | 0 | 0 | 4 |
-| TTS_RESEARCH_2025.md | 0 | 0 | 0 |
-| AGENT_RUNBOOK.md | 0 | 8 | 0 |
-
-### Services Actually Used (verified by grep)
-
-| Service | Import Count | Status |
-|---------|--------------|--------|
-| PhoneticScorer | 2 | ✅ Used |
-| AudioPreprocessor | 1 | ✅ Used |
-| AudioRecorder | 1 | ✅ Used |
-| TTSService | 1 (app.js) | ✅ Used |
-| AIService | 1 (app.js) | ✅ Used |
-| ProgressTracker | 1 (app.js) | ✅ Used |
-| Logger | 1 (app.js) | ✅ Used |
-| HealthChecker | 1 (app.js) | ✅ Used |
-
-### TODO Comments in Code
-
-| File | Line | Comment |
-|------|------|---------|
-| PronunciationService.js | 590 | `// TODO: Implement Azure Speech SDK integration` |
-
-### 🚨 TOP BLOCKERS (Priority Order)
-
-| # | Blocker | Impact | Fix Required |
-|---|---------|--------|--------------|
-| 1 | 11 services (5,418 lines) never imported | Dead code | Wire into app.js or delete |
-| 2 | app.js at 5,103 lines | Unmaintainable | Extract to services |
-| 3 | styles.css at 6,051 lines | Unmaintainable | Split into modules |
-| 4 | models/silero_vad.onnx missing | Voice broken | Download or remove VAD |
-| 5 | 460 tasks still [ ] todo | 75% incomplete | Execute tasks |
+| ID | Issue | File | Action |
+|----|-------|------|--------|
+| BUG-001 | app.js too large (5,103 lines) | app.js | Extract to services |
+| BUG-002 | styles.css too large (6,051 lines) | styles.css | Use @import |
+| BUG-003 | 11 services never imported | src/services/* | Wire into app.js |
+| BUG-004 | models/ directory missing | — | Create + download VAD |
+| BUG-005 | CSS modules not imported | src/styles/* | Add @import to styles.css |
 
 ---
 
-## 📋 COMPLETED TASKS REFERENCE
+## 🔴 BUGS (Must Fix)
 
-> **All completed tasks with full verification details are in [docs/COMPLETED_FEATURES.md](docs/COMPLETED_FEATURES.md)**
->
-> That document contains:
-> - Phase 1: Foundation (32 services, 22 components, 12 CSS modules) ✅
-> - Phase 2: Building Blocks (10 lesson files) ✅
-> - Phase 3: Navigation (8 components) ✅
-> - Phase 4: Lesson Layout (6 components) ✅
-> - Phase 5B: AI Chat (voice + TTS + streaming) ✅
-> - Phase 7: AuthService (8 functions, 23 tests) ✅
-> - Phase 14: Pronunciation (5 services, 55 tests) ✅
-> - Detailed function audit (180+ exported functions)
-> - Test coverage summary (300+ tests)
-
----
-
-## 🚨 REMAINING WORK - WHAT NEEDS TO BE DONE
-
-### CRITICAL: Service Integration Tasks
-
-| Task ID | Task | Status | Issue |
-|---------|------|--------|-------|
-| INT-001 | Wire AuthService into app.js | [ ] | AuthService exists but not imported |
-| INT-002 | Wire AIService into app.js | [ ] | AIService exists but not imported |
-| INT-003 | Wire VoiceService into app.js | [ ] | VoiceService exists but not imported |
-| INT-004 | Wire TTSService into app.js | [ ] | TTSService exists but not imported |
-| INT-005 | Wire LessonService into app.js | [ ] | LessonService exists but not imported |
-| INT-006 | Wire FSRSEngine into app | [ ] | FSRSEngine exists but not imported anywhere |
-| INT-007 | Wire LearnerProfiler into app | [ ] | LearnerProfiler exists but not imported anywhere |
-
-### CRITICAL: CSS Integration Tasks
-
-| Task ID | Task | Status | Issue |
-|---------|------|--------|-------|
-| INT-020 | Add @import statements to styles.css | [ ] | CSS modules exist but not imported |
-| INT-021 | Remove duplicate styles from styles.css | [ ] | styles.css still 6,051 lines |
-| INT-022 | Verify styles after modularization | [ ] | Blocked by INT-020 |
-
-### CRITICAL: Missing Dependencies
-
-| Task ID | Task | Status | Issue |
-|---------|------|--------|-------|
-| DEP-001 | Create models/ directory | [ ] | Directory does not exist |
-| DEP-002 | Download silero_vad.onnx | [ ] | Required for VoiceConversation |
-
-### CRITICAL: Code Reduction Targets
-
-| File | Current | Target | Reduction Needed |
-|------|---------|--------|------------------|
-| app.js | 5,103 | <500 | Remove 4,600+ lines |
-| styles.css | 6,051 | <2,000 | Remove 4,000+ lines |
-| ChallengeRenderer.js | 2,694 | <500 | Split into smaller components |
+| ID | Bug | File | Line | Fix |
+|----|-----|------|------|-----|
+| BUG-001 | app.js 10x over size limit | app.js | all | Extract functions to services |
+| BUG-002 | styles.css 3x over size limit | styles.css | all | Add @import for modules |
+| BUG-003 | AuthService not imported | app.js | imports | Add `import * as AuthService` |
+| BUG-004 | LessonService not imported | app.js | imports | Add `import * as LessonService` |
+| BUG-005 | VoiceService not imported | app.js | imports | Add `import * as VoiceService` |
+| BUG-006 | FSRSEngine not imported | — | — | Import in relevant file |
+| BUG-007 | LearnerProfiler not imported | — | — | Import in relevant file |
+| BUG-008 | models/silero_vad.onnx missing | models/ | — | Download from Silero |
+| BUG-009 | CSS @import missing | styles.css | top | Add imports for modules |
+| BUG-010 | LearnerProfiler has no tests | tests/ | — | Create tests |
 
 ---
 
-## 📄 DOCS SYNC NEEDED
+## ✅ NEXT TASKS (Priority Order)
 
-These docs show [ ] but code EXISTS - need to update checkboxes:
+### Immediate (Do Now)
 
-| Document | Todos | Done | Out of Sync Tasks |
-|----------|-------|------|-------------------|
-| AI_TUTOR_ARCHITECTURE.md | 60 | 0 | AI-ARCH-001 to 005 need [x] |
-| VOICE_IMPLEMENTATION_PLAN.md | 21 | 0 | VOICE-001,002,007,008,009 need [x] |
+| Task ID | Task | Status | File |
+|---------|------|--------|------|
+| INT-001 | Import AuthService in app.js | [ ] | app.js |
+| INT-002 | Import LessonService in app.js | [ ] | app.js |
+| INT-003 | Import VoiceService in app.js | [ ] | app.js |
+| INT-020 | Add CSS @import statements | [ ] | styles.css |
+| DEP-001 | Create models/ directory | [ ] | — |
+
+### This Week
+
+| Task ID | Task | Status | File |
+|---------|------|--------|------|
+| INT-004 | Import FSRSEngine | [ ] | TBD |
+| INT-005 | Import LearnerProfiler | [ ] | TBD |
+| INT-021 | Remove duplicate CSS | [ ] | styles.css |
+| DEP-002 | Download silero_vad.onnx | [ ] | models/ |
+| TEST-001 | Add LearnerProfiler tests | [ ] | tests/ |
 
 ---
 
-## Table of Contents
+## 📁 ARCHITECTURE
 
-1. [Executive Summary](#executive-summary)
-2. [MANDATORY: Task Completion Workflow](#-mandatory-task-completion-workflow)
-3. [MANDATORY: Real-Time AI Data Logging](#-mandatory-real-time-ai-data-logging)
-4. [Lesson Data Architecture](#lesson-data-architecture)
-5. [Architecture & File Structure](#architecture--file-structure)
-6. [Phase 1: Foundation & Structure](#phase-1-foundation--structure)
-7. [Phase 1B: Integration & Cleanup](#phase-1b-integration--cleanup)
-8. [Phase 2: Lesson Reordering](#phase-2-lesson-reordering)
-9. [Phase 3: Navigation Redesign](#phase-3-navigation-redesign)
-10. [Phase 4: Lesson Layout & Options Panel](#phase-4-lesson-layout--options-panel)
-11. [Phase 5: Real-Time AI Pipeline](#phase-5-real-time-ai-pipeline)
-12. [Phase 6: AI Governance Dashboard](#phase-6-ai-governance-dashboard)
-13. [Phase 7: Authentication System](#phase-7-authentication-system)
-14. [Phase 8: Voice System Fixes](#phase-8-voice-system-fixes)
-15. [Phase 9: Monitoring & Health Checks](#phase-9-monitoring--health-checks)
-16. [Phase 10: UI Polish & Animations](#phase-10-ui-polish--animations)
-17. [Phase 11: Practice & Flashcards](#phase-11-practice--flashcards)
-18. [Phase 12: Graceful Degradation](#phase-12-graceful-degradation)
-19. [Copilot Instructions Additions](#copilot-instructions-additions)
+```
+learning_portuguese/
+├── app.js              # Main app (NEEDS REDUCTION: 5,103 → <500 lines)
+├── server.js           # TTS backend (290 lines) ✅
+├── index.html          # Entry point ✅
+├── styles.css          # Main CSS (NEEDS REDUCTION: 6,051 → <2,000 lines)
+├── src/
+│   ├── components/     # 22 components ✅
+│   ├── services/       # 32 services ✅ (but 11 NOT IMPORTED)
+│   ├── data/           # 16 data files ✅
+│   ├── styles/         # 12 CSS modules ✅ (but NOT IMPORTED)
+│   ├── config/         # 3 config files ✅
+│   ├── utils/          # 1 file ✅
+│   └── stores/         # 1 file ✅
+├── tests/              # 35 test files ✅
+└── docs/               # Documentation
+```
+
+---
+
+## 🎯 FEATURES TO IMPLEMENT
+
+### Phase 1B: Integration (Current Priority)
+
+Wire all existing services into the app:
+
+| Feature | Status | Service File | Import In |
+|---------|--------|--------------|-----------|
+| Authentication | [ ] | AuthService.js | app.js |
+| Lessons | [ ] | LessonService.js | app.js |
+| Voice | [ ] | VoiceService.js | app.js |
+| TTS | [ ] | TTSService.js | app.js |
+| Spaced Repetition | [ ] | FSRSEngine.js | TBD |
+| Learner Profiling | [ ] | LearnerProfiler.js | TBD |
+| CSS Modules | [ ] | src/styles/*.css | styles.css |
+
+### Phase 5: AI Pipeline (Not Started)
+
+| Feature | Status | Files |
+|---------|--------|-------|
+| AI Agent | [ ] | AIAgent.js, ToolRegistry.js |
+| Memory Manager | [ ] | MemoryManager.js |
+| Web Search | [ ] | WebSearchTool.js |
+| Tool Handlers | [ ] | ToolHandlers.js |
+
+### Phase 6: AI Governance (Not Started)
+
+| Feature | Status | Files |
+|---------|--------|-------|
+| Dashboard | [ ] | TBD |
+| Logging | [ ] | TBD |
+
+### Phase 8: Voice System (Partially Done)
+
+| Feature | Status | Files |
+|---------|--------|-------|
+| Web Speech | [x] | WebSpeechService.js |
+| Voice Conversation | [ ] | VoiceConversation.js (blocked by VAD) |
+| Silero VAD | [ ] | SileroVAD.js (blocked by model) |
+
+### Phase 9-14: Future
+
+See detailed sections below.
+
+---
+
+## 📋 COMPLETED (Reference Only)
+
+> **Full details:** [docs/COMPLETED_FEATURES.md](docs/COMPLETED_FEATURES.md)
+
+- ✅ Phase 1: Foundation (32 services, 22 components, 12 CSS modules)
+- ✅ Phase 2: Building Blocks (10 lesson files)
+- ✅ Phase 3: Navigation (8 components)
+- ✅ Phase 4: Lesson Layout (6 components)
+- ✅ Phase 5B: AI Chat (voice + TTS + streaming)
+- ✅ Phase 7: AuthService (8 functions, 23 tests)
+- ✅ Phase 14: Pronunciation (5 services, 55 tests)
+
+---
+
+## 🔧 AI AGENT INSTRUCTIONS
+
+When implementing tasks:
+
+1. **Check status** - Look at STATUS DASHBOARD above
+2. **Fix bugs first** - See BUGS section
+3. **Then features** - See NEXT TASKS section
+4. **Update this file** - Mark `[ ]` → `[x]` when done
+5. **Verify** - Run tests, check imports work
+
+### Task Completion Template
+
+```markdown
+Task: [TASK-ID]
+Status: DONE
+Files Changed: [list files]
+Tests: [pass/fail]
+Notes: [any issues]
+```
+
+---
+
+## DETAILED PHASE SPECIFICATIONS
+
+> Below are the original detailed phase specifications. 
+> Refer to these for specific task requirements and code patterns.
 
 ---
 
