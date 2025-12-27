@@ -1,9 +1,419 @@
 # PortuLingo Complete Implementation Plan
 
-> **Version:** 2.0.0  
+> **Version:** 2.3.0  
 > **Created:** December 26, 2025  
+> **Last Updated:** 2025-12-27T00:47:00Z  
 > **Status:** Active Planning Document  
 > **Tracking:** Use checkboxes to mark completion `[ ]` → `[x]`
+
+---
+
+## 🎯 QUICK REFERENCE - Complete Workspace Audit
+
+**Audit Timestamp:** 2025-12-27T00:47:00Z
+
+### 🔴 EXECUTIVE SUMMARY OF FINDINGS
+
+| Finding | Severity | Impact |
+|---------|----------|--------|
+| **11 services created but NEVER imported** | 🔴 CRITICAL | 5,418 lines of dead code |
+| **CSS modules exist but NOT imported** | 🔴 CRITICAL | styles.css still 6,051 lines |
+| **models/ directory MISSING** | 🔴 CRITICAL | VoiceConversation will crash |
+| **Plan shows [ ] but code EXISTS** | 🟡 HIGH | Plan out of sync with reality |
+| **LearnerProfiler has NO tests** | 🟠 MEDIUM | Untested service |
+
+### TRUE COMPLETION STATUS
+
+| Phase | Plan Says | Reality | Gap |
+|-------|-----------|---------|-----|
+| Phase 1 (Foundation) | 100% | 100% | ✅ None |
+| Phase 1B (Integration) | ~30% | **~5%** | Services not wired |
+| Phase 2 (Lessons) | ~40% | ~80% | Building blocks done |
+| Phase 3 (Navigation) | 0% | **~90%** | All components exist |
+| Phase 4 (Lesson Layout) | 0% | **~80%** | Components exist |
+| Phase 5 (AI Pipeline) | 0% | ~30% | Files exist, not wired |
+| Phase 5B (AI Chat) | 0% | **~70%** | AIChat.js working |
+| Phase 7 (Auth) | 100% | **~60%** | AuthService not wired |
+| Phase 8 (Voice) | 0% | ~40% | Missing model files |
+| Phase 14 (Pronunciation) | 0% | **~70%** | Services + tests exist |
+
+### Code Inventory (Exact Counts)
+
+| Category | Files | Lines | Notes |
+|----------|-------|-------|-------|
+| **Root JS** | 5 | 8,098 | app.js, server.js, data.js, ai-chat.js, ai-speech.js |
+| **src/** | 74 | 30,942 | Services, Components, Data, Utils |
+| **tests/** | 35 | 13,978 | E2E + Unit tests |
+| **CSS** | 2 | 6,087 | styles.css + src/styles |
+| **TOTAL CODE** | — | **53,018** | All JavaScript + CSS |
+
+### Critical File Sizes
+
+| File | Lines | Target | Status |
+|------|-------|--------|--------|
+| app.js | 5,103 | <500 | 🔴 10.2x over |
+| styles.css | 6,051 | <2,000 | 🔴 3x over |
+| ChallengeRenderer.js | 2,694 | <500 | 🔴 5.4x over |
+| AIChat.js | 1,805 | <500 | 🔴 3.6x over |
+| ProgressTracker.js | 1,066 | <500 | 🔴 2.1x over |
+| ai-speech.js | 1,068 | <500 | 🔴 2.1x over |
+| VoiceService.js | 1,053 | <500 | 🔴 2.1x over |
+| LessonOptionsPanel.js | 1,044 | <500 | 🔴 2.1x over |
+
+### 🔴 UNUSED SERVICES (Created but never imported)
+
+| Service | Lines | Status |
+|---------|-------|--------|
+| FSRSEngine.js | 472 | ❌ NOT IMPORTED ANYWHERE |
+| LearnerProfiler.js | 323 | ❌ NOT IMPORTED ANYWHERE |
+| VoiceConversation.js | 231 | ❌ NOT IMPORTED ANYWHERE |
+| SileroVAD.js | 195 | ❌ NOT IMPORTED ANYWHERE |
+| MemoryManager.js | 248 | ❌ NOT IMPORTED ANYWHERE |
+| WebSearchTool.js | 174 | ❌ NOT IMPORTED ANYWHERE |
+| LessonService.js | 613 | ❌ NOT IMPORTED ANYWHERE |
+| VoiceService.js | 1,053 | ❌ NOT IMPORTED ANYWHERE |
+| AuthService.js | 681 | ❌ NOT IMPORTED ANYWHERE |
+| PronunciationService.js | 778 | ❌ NOT IMPORTED ANYWHERE |
+| LessonValidator.js | 650 | ❌ NOT IMPORTED ANYWHERE |
+| **TOTAL DEAD CODE** | **5,418** | 🔴 Lines written but unused |
+
+### 🔴 MISSING FILES / DEPENDENCIES
+
+| Missing | Required By | Impact |
+|---------|-------------|--------|
+| models/silero_vad.onnx | SileroVAD.js:42 | VoiceConversation broken |
+| models/ directory | VAD system | Voice detection disabled |
+| images/ directory | Lesson images | No lesson images |
+
+### Task Progress (from IMPLEMENTATION_PLAN.md)
+
+| Metric | Count |
+|--------|-------|
+| Tasks [x] Done | 152 |
+| Tasks [ ] Todo | 460 |
+| **Total Tasks** | **612** |
+| **Completion** | **24.8%** |
+
+### Requirements from docs/*.md
+
+| Document | [x] Done | [ ] Todo | Task IDs |
+|----------|----------|----------|----------|
+| AI_TUTOR_ARCHITECTURE.md | 0 | 60 | 78 |
+| VOICE_IMPLEMENTATION_PLAN.md | 0 | 21 | 21 |
+| LESSON_ARCHITECTURE_REVIEW.md | 0 | 0 | 4 |
+| TTS_RESEARCH_2025.md | 0 | 0 | 0 |
+| AGENT_RUNBOOK.md | 0 | 8 | 0 |
+
+### Services Actually Used (verified by grep)
+
+| Service | Import Count | Status |
+|---------|--------------|--------|
+| PhoneticScorer | 2 | ✅ Used |
+| AudioPreprocessor | 1 | ✅ Used |
+| AudioRecorder | 1 | ✅ Used |
+| TTSService | 1 (app.js) | ✅ Used |
+| AIService | 1 (app.js) | ✅ Used |
+| ProgressTracker | 1 (app.js) | ✅ Used |
+| Logger | 1 (app.js) | ✅ Used |
+| HealthChecker | 1 (app.js) | ✅ Used |
+
+### TODO Comments in Code
+
+| File | Line | Comment |
+|------|------|---------|
+| PronunciationService.js | 590 | `// TODO: Implement Azure Speech SDK integration` |
+
+### 🚨 TOP BLOCKERS (Priority Order)
+
+| # | Blocker | Impact | Fix Required |
+|---|---------|--------|--------------|
+| 1 | 11 services (5,418 lines) never imported | Dead code | Wire into app.js or delete |
+| 2 | app.js at 5,103 lines | Unmaintainable | Extract to services |
+| 3 | styles.css at 6,051 lines | Unmaintainable | Split into modules |
+| 4 | models/silero_vad.onnx missing | Voice broken | Download or remove VAD |
+| 5 | 460 tasks still [ ] todo | 75% incomplete | Execute tasks |
+
+---
+
+## 📋 TASK-BY-TASK VERIFICATION LOG
+
+**Last Full Audit:** 2025-12-27T00:43:30Z
+
+### Phase 1: Foundation & Structure
+
+#### 1.1 Folder Structure (Last Checked: 2025-12-27T00:40:59Z)
+
+| Task ID | Task | Plan Status | VERIFIED Status | Files | Notes |
+|---------|------|-------------|-----------------|-------|-------|
+| F1-001 | Create src/ directory | [x] | ✅ VERIFIED | 89 files | Exists with content |
+| F1-002 | Create src/components/ | [x] | ✅ VERIFIED | 22 files | All component subdirs exist |
+| F1-003 | Create src/services/ | [x] | ✅ VERIFIED | 32 files | All services created |
+| F1-004 | Create src/pages/ | [x] | ✅ VERIFIED | 1 file | Minimal content |
+| F1-005 | Create src/stores/ | [x] | ✅ VERIFIED | 1 file | Minimal content |
+| F1-006 | Create src/utils/ | [x] | ✅ VERIFIED | 1 file | Minimal content |
+| F1-007 | Create src/data/ | [x] | ✅ VERIFIED | 16 files | Building blocks + loaders |
+| F1-008 | Create src/styles/ | [x] | ✅ VERIFIED | 12 files | CSS modules exist |
+| F1-009 | Create src/config/ | [x] | ✅ VERIFIED | 3 files | Config files exist |
+
+#### 1.2 Component Extraction (Last Checked: 2025-12-27T00:41:11Z)
+
+| Task ID | Task | Plan Status | VERIFIED Status | Lines | Has Exports | Issues |
+|---------|------|-------------|-----------------|-------|-------------|--------|
+| F1-010 | Extract Sidebar.js | [x] | ✅ VERIFIED | 349 | Yes | None |
+| F1-011 | Extract LessonCard.js | [x] | ✅ VERIFIED | 281 | Yes | None |
+| F1-012 | Extract Modal.js | [x] | ✅ VERIFIED | 505 | Yes | None |
+| F1-013 | Extract Toast.js | [x] | ✅ VERIFIED | 499 | Yes | None |
+| F1-014 | Extract ChallengeRenderer.js | [x] | ✅ VERIFIED | 2,694 | Yes | 🔴 TOO LARGE (target <500) |
+| F1-015 | Extract WordCard.js | [x] | ✅ VERIFIED | 550 | Yes | ⚠️ Slightly over 500 |
+| F1-016 | Extract ProgressChart.js | [x] | ✅ VERIFIED | 766 | Yes | ⚠️ Over 500 |
+
+#### 1.3 Service Layer (Last Checked: 2025-12-27T00:41:25Z)
+
+| Task ID | Task | Plan Status | VERIFIED Status | Lines | Imported? | Issues |
+|---------|------|-------------|-----------------|-------|-----------|--------|
+| F1-020 | Create AuthService.js | [x] | ⚠️ EXISTS BUT UNUSED | 681 | ❌ NO | Not integrated into app |
+| F1-021 | Create AIService.js | [x] | ⚠️ EXISTS BUT UNUSED | 816 | ❌ NO | Not integrated into app |
+| F1-022 | Create VoiceService.js | [x] | ⚠️ EXISTS BUT UNUSED | 1,053 | ❌ NO | Not integrated into app |
+| F1-023 | Create TTSService.js | [x] | ⚠️ EXISTS BUT UNUSED | 645 | ❌ NO | Not integrated into app |
+| F1-024 | Create LessonService.js | [x] | ⚠️ EXISTS BUT UNUSED | 613 | ❌ NO | Not integrated into app |
+| F1-025 | Create ProgressTracker.js | [x] | ⚠️ EXISTS BUT UNUSED | 1,066 | ❌ NO | Not integrated into app |
+| F1-026 | Create Logger.js | [x] | ✅ VERIFIED WORKING | 604 | ✅ YES (7) | Used in multiple files |
+| F1-027 | Create HealthChecker.js | [x] | ⚠️ EXISTS BUT UNUSED | 712 | ❌ NO | Not integrated into app |
+
+#### 1.4 CSS Modularization (Last Checked: 2025-12-27T00:41:40Z)
+
+| Task ID | Task | Plan Status | VERIFIED Status | Lines | Imported in styles.css? |
+|---------|------|-------------|-----------------|-------|------------------------|
+| F1-030 | Create variables.css | [x] | ✅ EXISTS | 287 | ❌ NO @import |
+| F1-031 | Create reset.css | [x] | ✅ EXISTS | 334 | ❌ NO @import |
+| F1-032 | Create buttons.css | [x] | ✅ EXISTS | 257 | ❌ NO @import |
+| F1-033 | Create cards.css | [x] | ✅ EXISTS | 301 | ❌ NO @import |
+| F1-034 | Create modals.css | [x] | ✅ EXISTS | 264 | ❌ NO @import |
+| F1-035 | Create navigation.css | [x] | ✅ EXISTS | 912 | ❌ NO @import |
+| F1-036 | Create animations.css | [x] | ✅ EXISTS | 352 | ❌ NO @import |
+
+**🔴 CRITICAL CSS ISSUE:** CSS modules exist but styles.css has NO @import statements. CSS is not actually modularized!
+
+### Phase 1B: Integration & Cleanup (Last Checked: 2025-12-27T00:42:32Z)
+
+#### Critical Finding: OLD FILES STILL IN USE
+
+| Old File | Still Exists? | Loaded in index.html? | Should Be |
+|----------|---------------|----------------------|-----------|
+| auth.js | ❌ No | ❌ No | Deleted ✅ |
+| ai-tts.js | ❌ No | ❌ No | Deleted ✅ |
+| ai-tutor.js | ❌ No | ❌ No | Deleted ✅ |
+| ai-speech.js | ✅ YES (1,068 lines) | ✅ YES | Keep (has Whisper code) |
+
+#### index.html Script Tags (Current State)
+
+```html
+<script type="module" src="./ai-speech.js"></script>
+<script type="module" src="./app.js"></script>
+<script type="module" src="./ai-chat.js"></script>
+```
+
+#### Integration Task Status
+
+| Task ID | Task | Plan Status | VERIFIED Status | Issue |
+|---------|------|-------------|-----------------|-------|
+| INT-001 | Wire AuthService into app.js | [ ] | ❌ NOT DONE | AuthService not imported in app.js |
+| INT-002 | Wire AIService into app.js | [ ] | ❌ NOT DONE | AIService not imported in app.js |
+| INT-003 | Wire VoiceService into app.js | [ ] | ❌ NOT DONE | VoiceService not imported in app.js |
+| INT-004 | Wire TTSService into app.js | [ ] | ❌ NOT DONE | TTSService not imported in app.js |
+| INT-005 | Wire LessonService into app.js | [ ] | ❌ NOT DONE | LessonService not imported in app.js |
+| INT-006 | Wire ProgressTracker into app.js | [ ] | ❌ NOT DONE | ProgressTracker not imported in app.js |
+| INT-020 | Add CSS imports to index.html | [x] | ❌ INCORRECT | styles.css has NO @import statements |
+| INT-021 | Remove duplicate styles | [ ] | ❌ NOT DONE | styles.css still 6,051 lines |
+
+### Phase 2: Lesson Reordering (Last Checked: 2025-12-27T00:43:30Z)
+
+#### Building Blocks Files
+
+| Task ID | Task | Plan Status | VERIFIED Status | Lines | Has Words |
+|---------|------|-------------|-----------------|-------|-----------|
+| L2-001 | pronouns.js | [x] | ✅ VERIFIED | 241 | ✅ Yes |
+| L2-002 | verbs-ser.js | [x] | ✅ VERIFIED | 291 | ✅ Yes |
+| L2-003 | verbs-estar.js | [x] | ✅ VERIFIED | 310 | ✅ Yes |
+| L2-004 | verbs-ter.js | [x] | ✅ VERIFIED | 292 | ✅ Yes |
+| L2-005 | articles.js | [x] | ✅ VERIFIED | 319 | ✅ Yes |
+| L2-006 | connectors.js | [x] | ✅ VERIFIED | 261 | ✅ Yes |
+| L2-007 | prepositions.js | [x] | ✅ VERIFIED | 289 | ✅ Yes |
+| L2-008 | questions.js | [x] | ✅ VERIFIED | 288 | ✅ Yes |
+| L2-009 | negation.js | [x] | ✅ VERIFIED | 297 | ✅ Yes |
+| L2-010 | possessives.js | [x] | ✅ VERIFIED | 264 | ✅ Yes |
+
+#### Building Blocks Index
+
+- ✅ src/data/building-blocks/index.js EXISTS (8 exports)
+- ⚠️ Need to verify building-blocks appear in lesson grid
+
+### Test Coverage (Last Checked: 2025-12-27T00:43:05Z)
+
+| Service | Test File | Test Count | Status |
+|---------|-----------|------------|--------|
+| AuthService | authService.test.js | 18 | ✅ Has tests |
+| AIService | aiService.test.js | 11 | ✅ Has tests |
+| VoiceService | voiceService.test.js | 19 | ✅ Has tests |
+| TTSService | ttsService.test.js | 11 | ✅ Has tests |
+| LessonService | lessonService.test.js | 42 | ✅ Has tests |
+| ProgressTracker | progressTracker.test.js | 47 | ✅ Has tests |
+| Logger | logger.test.js | 39 | ✅ Has tests |
+| HealthChecker | healthChecker.test.js | 30 | ✅ Has tests |
+| FSRSEngine | fsrsEngine.test.js | 23 | ✅ Has tests |
+| LearnerProfiler | — | 0 | ❌ NO TESTS |
+| WebSpeechService | webSpeechService.test.js | 18 | ✅ Has tests |
+| PronunciationService | pronunciationService.test.js | 13 | ✅ Has tests |
+
+### Phase 3: Navigation (Last Checked: 2025-12-27T00:44:46Z)
+
+| Task ID | File | Plan Status | VERIFIED | Lines |
+|---------|------|-------------|----------|-------|
+| N3-001 | Sidebar.js | [ ] | ✅ EXISTS | 349 |
+| N3-002 | TopBar.js | [ ] | ✅ EXISTS | 276 |
+| N3-003 | Breadcrumb.js | [ ] | ✅ EXISTS | 164 |
+| N3-005 | MobileDrawer.js | [ ] | ✅ EXISTS | 335 |
+| N3-006 | BottomNav.js | [ ] | ✅ EXISTS | 209 |
+| N3-009 | routes.config.js | [ ] | ✅ EXISTS | 405 |
+| — | Navigation.js | — | ✅ EXISTS | 343 |
+| — | NavigationManager.js | — | ✅ EXISTS | 492 |
+
+**Note:** All Phase 3 components EXIST but plan shows [ ] not started. Plan status needs update.
+
+### Phase 4: Lesson Layout (Last Checked: 2025-12-27T00:44:59Z)
+
+| Component | Plan Status | VERIFIED | Lines | Issues |
+|-----------|-------------|----------|-------|--------|
+| LessonOptionsPanel.js | [ ] | ✅ EXISTS | 1,044 | 🔴 TOO LARGE |
+| AudioVisualizer.js | [ ] | ✅ EXISTS | 594 | ⚠️ Over target |
+| Accordion.js | [ ] | ✅ EXISTS | 586 | ⚠️ Over target |
+| ChallengeRenderer.js | [x] | ✅ EXISTS | 2,694 | 🔴 TOO LARGE |
+
+### Phase 5: AI Pipeline (Last Checked: 2025-12-27T00:45:13Z)
+
+| File | Plan Status | VERIFIED | Lines | Imported? |
+|------|-------------|----------|-------|-----------|
+| AIAgent.js | [ ] | ✅ EXISTS | 221 | ❌ NO |
+| ToolRegistry.js | [ ] | ✅ EXISTS | 222 | ❌ NO |
+| ToolHandlers.js | [ ] | ✅ EXISTS | 319 | ❌ NO |
+| MemoryManager.js | [ ] | ✅ EXISTS | 248 | ❌ NO |
+| WebSearchTool.js | [ ] | ✅ EXISTS | 174 | ❌ NO |
+| eventStreaming.js | [ ] | ✅ EXISTS | 232 | ✅ YES (3) |
+| aiPipeline.js | [ ] | ✅ EXISTS | 366 | ✅ YES (1) |
+
+### Phase 5B: AI Chat (Last Checked: 2025-12-27T00:45:25Z)
+
+| File | Lines | Voice Input | TTS Output | Streaming |
+|------|-------|-------------|------------|-----------|
+| AIChat.js | 1,809 | ✅ Yes | ✅ Yes | ✅ Yes |
+| ai-chat.js | 262 | ❌ No | ❌ No | ✅ Yes |
+
+### Phase 7: Authentication (Last Checked: 2025-12-27T00:45:39Z)
+
+**AuthService.js Features:**
+- ✅ login()
+- ✅ logout()
+- ✅ getUser()
+- ✅ isAdmin()
+- ✅ getHearts()
+- ✅ loseHeart()
+- ✅ addXP()
+- ✅ updateStreak()
+
+**Tests:** 18 unit + 5 E2E = 23 total
+
+**Issue:** AuthService NOT imported in app.js - features exist but not wired!
+
+### Phase 8: Voice System (Last Checked: 2025-12-27T00:45:55Z)
+
+| File | Lines | Status |
+|------|-------|--------|
+| VoiceService.js | 1,053 | ✅ EXISTS but NOT imported |
+| TTSService.js | 645 | ✅ EXISTS but NOT imported |
+| WebSpeechService.js | 851 | ✅ EXISTS |
+| VoiceConversation.js | 231 | ✅ EXISTS |
+| SileroVAD.js | 195 | ✅ EXISTS |
+
+**🔴 CRITICAL:** 
+- models/ directory MISSING
+- silero_vad.onnx MISSING - VoiceConversation will FAIL
+- Piper ONNX model exists (60.27 MB)
+
+### Phase 14: Pronunciation (Last Checked: 2025-12-27T00:46:09Z)
+
+| File | Lines | Status |
+|------|-------|--------|
+| PronunciationService.js | 778 | ✅ EXISTS |
+| PronunciationAssessor.js | 601 | ✅ EXISTS |
+| PhoneticScorer.js | 768 | ✅ EXISTS |
+| AudioPreprocessor.js | 612 | ✅ EXISTS |
+| AudioRecorder.js | 724 | ✅ EXISTS |
+
+**Tests:** 18 E2E + 24 + 13 = 55 total
+
+---
+
+## 🎯 QUICK REFERENCE - Implementation Status Dashboard
+
+### Verified Code Metrics (Exact Counts as of 2025-12-27T00:26:00Z)
+
+| Metric | Exact Value | Target | Status |
+|--------|-------------|--------|--------|
+| **app.js lines** | 5,862 | <500 | 🔴 11.7x over target |
+| **styles.css lines** | 6,051 | <2,000 | 🔴 3x over target |
+| **Service files** | 32 total | — | ✅ Created |
+| **Component files** | 22 | — | ✅ Created |
+| **Test files** | 35 | — | ✅ Exists |
+
+### Top 5 Blockers (Code-Verified)
+
+| # | Blocker | Severity | Evidence |
+|---|---------|----------|----------|
+| 1 | app.js at 5,862 lines | 🔴 Critical | `(Get-Content app.js).Count` = 5862 |
+| 2 | styles.css at 6,051 lines | 🔴 Critical | `(Get-Content styles.css).Count` = 6051 |
+| 3 | SileroVAD requires missing ONNX | 🟡 High | `Test-Path "models/silero_vad.onnx"` = False |
+| 4 | FSRSEngine not wired | 🟠 Medium | grep shows 0 imports outside own file |
+| 5 | LearnerProfiler not wired | 🟠 Medium | grep shows 0 imports outside own file |
+
+### Services Integration Status (Verified by grep of app.js line 1-50)
+
+| Service | In app.js? | Evidence (line number) |
+|---------|------------|------------------------|
+| LessonLoader | ✅ Yes | Line 2: `import * as LessonLoader` |
+| TTSService | ✅ Yes | Line 12: `import * as aiTts` |
+| AIService | ✅ Yes | Line 16: `import * as aiTutor` |
+| ProgressTracker | ✅ Yes | Line 37: `import * as ProgressTracker` |
+| Logger | ✅ Yes | Line 39: `import * as Logger` |
+| HealthChecker | ✅ Yes | Line 41: `import * as HealthChecker` |
+| Toast | ✅ Yes | Line 44: `import * as Toast` |
+| Modal | ✅ Yes | Line 45: `import * as Modal` |
+| ChallengeRenderer | ✅ Yes | Line 49: `import * as ChallengeRenderer` |
+| Navigation | ✅ Yes | Line 50: `import * as Navigation` |
+| LessonService | ❌ No | Not found in app.js imports |
+| VoiceService | ❌ No | Not found in app.js imports |
+| AuthService | ❌ No | Not found in app.js imports |
+| FSRSEngine | ❌ No | Not imported anywhere |
+| LearnerProfiler | ❌ No | Not imported anywhere |
+
+### 🚨 VERIFIED PROBLEMS
+
+| ID | Problem | Evidence | File:Line |
+|----|---------|----------|-----------|
+| PROB-001 | app.js too large | 5,862 lines counted | app.js |
+| PROB-002 | styles.css too large | 6,051 lines counted | styles.css |
+| PROB-003 | Silero VAD model missing | `Test-Path = False` | models/silero_vad.onnx |
+| PROB-004 | FSRSEngine unused | No imports found via grep | src/services/learning/FSRSEngine.js |
+| PROB-005 | LearnerProfiler unused | No imports found via grep | src/services/learning/LearnerProfiler.js |
+
+### Phase Progress (Based on file existence + integration checks)
+
+| Phase | Status | Evidence |
+|-------|--------|----------|
+| Phase 1: Foundation | ✅ 100% | 32 service files exist in src/services |
+| Phase 1B: Integration | 🔄 ~40% | 10 of 15 services imported in app.js |
+| Phase 4: Lesson Layout | ✅ 100% | src/components/lesson/*.js all exist |
+| Phase 7: Auth | ⚠️ 80% | AuthService.js exists but not imported in app.js |
+| Phase 8: Voice | 🔄 ~50% | WebSpeechService works, VoiceConversation blocked by missing ONNX |
 
 ---
 
@@ -1488,6 +1898,7 @@ The lesson system had two incompatible data formats (legacy data.js vs rich buil
 | LESSON-001 | Rich challenge data flows to accordion panel | [x] | 2b5f16c |
 | LESSON-002 | New challenge type renderers (multiple-choice, translate, fill-blank) | [x] | 415b630 |
 | LESSON-003 | Dynamic topic/lesson tiers + image fallbacks | [x] | 076fc41 |
+| LESSON-004 | app.js lesson flow uses ChallengeRenderer + LessonLoader (rich `lesson.challenges` rendered at runtime) | [x] | N/A |
 
 ### 4B.3 Technical Changes
 
@@ -1506,6 +1917,10 @@ The lesson system had two incompatible data formats (legacy data.js vs rich buil
 - `getAllLessons()`: Priority: lesson.tier > topic.tier > map > default
 - `getLessonImage()`: 4-level fallback chain (lesson → topic → tier default → category default)
 - New: TIER_DEFAULT_IMAGES, CATEGORY_FALLBACK_IMAGES maps
+
+**app.js:**
+- Lesson list/topic filters prefer `LessonLoader` (building blocks included)
+- Lesson runtime uses `ChallengeRenderer.buildLessonChallenges()` and `new ChallengeRenderer.ChallengeRenderer()` so `lesson.challenges` is honored end-to-end
 
 **Phase 4B Complete** - Merged to main (commit 076fc41)
 
