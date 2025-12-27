@@ -349,6 +349,34 @@
 | AudioPreprocessor.js | 612 | ✅ EXISTS |
 | AudioRecorder.js | 724 | ✅ EXISTS |
 
+---
+
+### 📄 DOCS/*.md Sync Status (Last Checked: 2025-12-27T00:57:00Z)
+
+#### AI_TUTOR_ARCHITECTURE.md (60 todos, 0 done)
+
+| Task ID | Task | Doc Status | Code Status | Action Needed |
+|---------|------|------------|-------------|---------------|
+| AI-ARCH-001 | Create src/services/ai/ | [ ] | ✅ EXISTS | Update doc to [x] |
+| AI-ARCH-002 | ToolRegistry.js | [ ] | ✅ EXISTS (222 lines) | Update doc to [x] |
+| AI-ARCH-003 | AIAgent.js | [ ] | ✅ EXISTS (221 lines) | Update doc to [x] |
+| AI-ARCH-004 | MemoryManager.js | [ ] | ✅ EXISTS (248 lines) | Update doc to [x] |
+| AI-ARCH-005 | LearnerProfiler.js | [ ] | ✅ EXISTS (323 lines) | Update doc to [x] |
+
+**5+ tasks in doc show [ ] but code EXISTS**
+
+#### VOICE_IMPLEMENTATION_PLAN.md (21 todos, 0 done)
+
+| Task ID | Task | Doc Status | Code Status | Action Needed |
+|---------|------|------------|-------------|---------------|
+| VOICE-001 | Use WebSpeechService in AIChat | [ ] | ✅ DONE | Update doc to [x] |
+| VOICE-002 | toggleVoiceMode() | [ ] | ✅ DONE | Update doc to [x] |
+| VOICE-007 | PronunciationAssessor.js | [ ] | ✅ EXISTS (601 lines) | Update doc to [x] |
+| VOICE-008 | assess() method | [ ] | ✅ EXISTS | Update doc to [x] |
+| VOICE-009 | phoneme mapping | [ ] | ✅ EXISTS | Update doc to [x] |
+
+**5+ tasks in doc show [ ] but code EXISTS**
+
 **Tests:** 18 E2E + 24 + 13 = 55 total
 
 ---

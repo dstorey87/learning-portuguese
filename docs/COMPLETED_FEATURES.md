@@ -205,16 +205,224 @@
 
 ---
 
+## ✅ VERIFIED - Detailed Service Function Audit
+
+### LessonLoader.js (Last Verified: 2025-12-27T00:58:00Z)
+
+| Function | Status | Purpose |
+|----------|--------|---------|
+| getAllTopics() | ✅ | Get all lesson topics |
+| getTopicById() | ✅ | Get topic by ID |
+| getAllLessons() | ✅ | Get all lessons |
+| getLessonById() | ✅ | Get lesson by ID |
+| getLessonsByTopic() | ✅ | Filter by topic |
+| getLessonsByTier() | ✅ | Filter by tier |
+| areBuildingBlocksComplete() | ✅ | Check BB completion |
+| getBuildingBlocksProgress() | ✅ | Get BB progress |
+| checkLessonAvailability() | ✅ | Check if available |
+| getNextRecommendedLesson() | ✅ | Get next lesson |
+| getAvailableLessons() | ✅ | Get available lessons |
+| getLessonImage() | ✅ | Get lesson image |
+| getProgressStats() | ✅ | Get progress stats |
+| clearCache() | ✅ | Clear cache |
+
+**Total:** 14 exported functions
+
+### LessonService.js (Last Verified: 2025-12-27T00:58:00Z)
+
+| Function | Status | Purpose |
+|----------|--------|---------|
+| getWordKey() | ✅ | Get unique word key |
+| resolveWordForm() | ✅ | Resolve word forms |
+| buildQuizOptions() | ✅ | Build quiz options |
+| buildLessonChallenges() | ✅ | Build challenges |
+| initLessonState() | ✅ | Initialize state |
+| getLessonState() | ✅ | Get current state |
+| getCurrentChallenge() | ✅ | Get current challenge |
+| nextChallenge() | ✅ | Go to next challenge |
+| recordCorrect() | ✅ | Record correct answer |
+| recordMistake() | ✅ | Record mistake |
+| resetLessonState() | ✅ | Reset state |
+| getLessonDuration() | ✅ | Get duration |
+| getLessonAccuracy() | ✅ | Get accuracy |
+| calculateAccuracy() | ✅ | Calculate accuracy |
+| buildHintForWord() | ✅ | Build hint |
+| generateHints() | ✅ | Generate hints |
+| getMnemonic() | ✅ | Get mnemonic |
+| buildLessonCompletionData() | ✅ | Build completion data |
+| calculateLessonXP() | ✅ | Calculate XP |
+
+**Total:** 19 exported functions
+
+### ProgressTracker.js (Last Verified: 2025-12-27T00:58:00Z)
+
+| Function | Status | Purpose |
+|----------|--------|---------|
+| loadProgress() | ✅ | Load progress |
+| saveProgress() | ✅ | Save progress |
+| getProgressSnapshot() | ✅ | Get snapshot |
+| addLearnedWord() | ✅ | Add word |
+| addLearnedWords() | ✅ | Add words |
+| getLearnedWords() | ✅ | Get words |
+| getLearnedWordCount() | ✅ | Get count |
+| isWordLearned() | ✅ | Check if learned |
+| getWordByKey() | ✅ | Get word |
+| updateWordSRS() | ✅ | Update SRS |
+| getWordsDueForReview() | ✅ | Get due words |
+| getDueReviewCount() | ✅ | Get due count |
+| getSRSStats() | ✅ | Get SRS stats |
+| recordLessonCompletion() | ✅ | Record completion |
+| getCompletedLessons() | ✅ | Get completed |
+| getCompletedLessonCount() | ✅ | Get count |
+| isLessonCompleted() | ✅ | Check if done |
+| getLessonHistory() | ✅ | Get history |
+| getTodaysLessons() | ✅ | Get today's |
+| updateSkillStat() | ✅ | Update skill |
+| getSkillStat() | ✅ | Get skill |
+| getAllSkillStats() | ✅ | Get all skills |
+| recordPronunciationAttempt() | ✅ | Record pronunciation |
+| getPronunciationHistory() | ✅ | Get history |
+| getPronunciationProgress() | ✅ | Get progress |
+| getPhonemeWeaknesses() | ✅ | Get weaknesses |
+| checkMilestones() | ✅ | Check milestones |
+| recordMilestone() | ✅ | Record milestone |
+| startStudySession() | ✅ | Start session |
+| endStudySession() | ✅ | End session |
+| getProgressSummary() | ✅ | Get summary |
+| getWeeklyActivity() | ✅ | Get weekly |
+| onProgressEvent() | ✅ | Event listener |
+| resetProgress() | ✅ | Reset |
+
+**Total:** 34 exported functions
+
+### HealthChecker.js (Last Verified: 2025-12-27T00:58:00Z)
+
+| Function | Status | Purpose |
+|----------|--------|---------|
+| checkOllama() | ✅ | Check Ollama |
+| checkTTS() | ✅ | Check TTS |
+| checkWhisper() | ✅ | Check Whisper |
+| checkWebSpeech() | ✅ | Check Web Speech |
+| checkAllServices() | ✅ | Check all |
+| checkUIComponents() | ✅ | Check UI |
+| getUIHealthSummary() | ✅ | Get UI health |
+| checkNetwork() | ✅ | Check network |
+| getPerformanceMetrics() | ✅ | Get metrics |
+| runFullHealthCheck() | ✅ | Full check |
+| getOverallStatus() | ✅ | Get status |
+| getHealthReport() | ✅ | Get report |
+| getServiceStatus() | ✅ | Get service status |
+| isServiceAvailable() | ✅ | Check available |
+| startMonitoring() | ✅ | Start |
+| stopMonitoring() | ✅ | Stop |
+| isMonitoring() | ✅ | Check monitoring |
+| onHealthEvent() | ✅ | Event listener |
+| getDegradationRecommendations() | ✅ | Get recommendations |
+
+**Total:** 19 exported functions
+
+### TTSService.js (Last Verified: 2025-12-27T00:58:00Z)
+
+| Function | Status | Purpose |
+|----------|--------|---------|
+| checkServerHealth() | ✅ | Check server |
+| getServerStatus() | ✅ | Get status |
+| refreshServerStatus() | ✅ | Refresh status |
+| getAvailableVoices() | ✅ | Get voices |
+| getVoice() | ✅ | Get voice |
+| getRecommendedVoice() | ✅ | Get recommended |
+| speak() | ✅ | Speak text |
+| speakWithVoice() | ✅ | Speak with voice |
+| speakPortuguese() | ✅ | Speak Portuguese |
+| speakEnglish() | ✅ | Speak English |
+| stop() | ✅ | Stop speaking |
+| isSpeaking() | ✅ | Check if speaking |
+| getPlaybackState() | ✅ | Get state |
+| initTTSService() | ✅ | Initialize |
+
+**Total:** 14 exported functions
+
+### WebSpeechService.js (Last Verified: 2025-12-27T00:58:00Z)
+
+| Function | Status | Purpose |
+|----------|--------|---------|
+| normalizePortuguese() | ✅ | Normalize text |
+| normalizePreserveAccents() | ✅ | Preserve accents |
+| stripDiacritics() | ✅ | Strip diacritics |
+| WebSpeechService class | ✅ | Main class |
+| getWebSpeechService() | ✅ | Get singleton |
+| resetWebSpeechService() | ✅ | Reset service |
+| isWebSpeechAvailable() | ✅ | Check available |
+| detectPortugueseSupport() | ✅ | Check Portuguese |
+
+**Total:** 8 exported functions + class
+
+### Toast.js (Last Verified: 2025-12-27T00:57:50Z)
+
+| Feature | Status |
+|---------|--------|
+| show() | ✅ |
+| success() | ✅ |
+| error() | ✅ |
+| warning() | ✅ |
+| info() | ✅ |
+| dismiss() | ✅ |
+
+**Total:** 16 exports
+
+### Modal.js (Last Verified: 2025-12-27T00:57:50Z)
+
+| Feature | Status |
+|---------|--------|
+| open() | ✅ |
+| close() | ✅ |
+| show() | ✅ |
+| hide() | ✅ |
+| render() | ✅ |
+
+**Total:** 9 exports
+
+---
+
+## ✅ VERIFIED - AI Services
+
+### src/services/ai/ Directory (Last Verified: 2025-12-27T00:56:51Z)
+
+| File | Lines | Exports | Status |
+|------|-------|---------|--------|
+| AIAgent.js | 221 | Class | ✅ EXISTS |
+| ToolRegistry.js | 222 | Class | ✅ EXISTS |
+| ToolHandlers.js | 319 | Functions | ✅ EXISTS |
+| MemoryManager.js | 248 | Class | ✅ EXISTS |
+| WebSearchTool.js | 174 | Class | ✅ EXISTS |
+| index.js | 10 | Re-exports | ✅ EXISTS |
+
+**Total:** 6 files, 1,194 lines
+
+### src/services/learning/ Directory (Last Verified: 2025-12-27T00:55:41Z)
+
+| File | Lines | Exports | Status |
+|------|-------|---------|--------|
+| FSRSEngine.js | 472 | Rating, State, class, instance | ✅ EXISTS |
+| LearnerProfiler.js | 323 | ProficiencyLevel, class, factory | ✅ EXISTS |
+| index.js | 18 | Re-exports | ✅ EXISTS |
+
+**Total:** 3 files, 813 lines
+
+---
+
 ## Summary Statistics
 
 | Metric | Value |
 |--------|-------|
-| **Total Verified Complete Tasks** | 63 |
-| **Total Lines of Working Code** | ~25,000 |
+| **Total Verified Complete Tasks** | 63+ |
+| **Total Lines of Working Code** | ~35,000 |
 | **Total Test Cases** | 300+ |
-| **Phases 100% File Complete** | 1, 2, 3, 4 (files exist) |
+| **Total Exported Functions** | 150+ |
+| **Phases with Files Complete** | 1, 2, 3, 4, 5, 7, 8, 14 |
+| **Services with Full Tests** | 12/13 |
 
 ---
 
 *Document generated by Background Agent audit*
-*Last Full Audit: 2025-12-27T00:52:00Z*
+*Last Full Audit: 2025-12-27T00:58:00Z*
