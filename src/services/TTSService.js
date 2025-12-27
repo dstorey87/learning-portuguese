@@ -22,12 +22,34 @@
 export const TTS_CONFIG = {
     serverUrl: 'http://localhost:3001',
     timeout: 15000,
-    healthCheckInterval: 30000,
-    defaultVoice: 'pt-PT-RaquelNeural',
+    // Recheck more frequently so we recover quickly when the TTS server starts.
+    healthCheckInterval: 5000,
+    // Default to a clear EU-PT male voice to match the learner experience.
+    defaultVoice: 'pt-PT-DuarteNeural',
     defaultRate: 1.0,
-    minRate: 0.5,
+    // Allow slower speech for pronunciation-focused learning.
+    minRate: 0.35,
     maxRate: 2.0
 };
+
+// Defaults for AI tutor voice (consistent male English + male EU-PT).
+export const DEFAULT_ENGLISH_VOICE = 'en-US-GuyNeural';
+export const DEFAULT_PORTUGUESE_VOICE = 'pt-PT-DuarteNeural';
+// Slower is better for learning pronunciation (especially EU-PT vowel reduction).
+export const DEFAULT_PORTUGUESE_RATE = 0.58;
+
+function applyPortugueseLearnerClarity(text) {
+    const raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!raw) return '';
+
+    // For single words, rate control is usually enough.
+    const words = raw.split(' ').filter(Boolean);
+    if (words.length <= 1) return raw;
+
+    // For learners, add mild pauses between words without changing the visible text.
+    // Commas create a short pause in most neural voices and help intelligibility.
+    return words.join(', ');
+}
 
 /**
  * TTS Engines
@@ -63,6 +85,16 @@ export const EDGE_VOICES = {
         quality: 'neural',
         recommended: true,
         description: 'Clear British English voice for explanations'
+    },
+    'en-US-GuyNeural': {
+        id: 'en-US-GuyNeural',
+        name: 'Guy',
+        gender: 'male',
+        locale: 'en-US',
+        region: 'US',
+        quality: 'neural',
+        recommended: true,
+        description: 'Clear American English male voice'
     },
     'en-US-JennyNeural': {
         id: 'en-US-JennyNeural',
@@ -137,6 +169,8 @@ let state = {
     serverAvailable: null, // null = unknown, true/false = tested
     lastServerCheck: 0,
     currentAudio: null,
+    currentAudioResolve: null,
+    currentAudioReject: null,
     lastUsedVoice: null,
     lastUsedEngine: null
 };
@@ -215,11 +249,13 @@ export async function refreshServerStatus() {
  */
 export function getAvailableVoices() {
     const voices = Object.values(EDGE_VOICES);
+    const english = voices.filter(v => typeof v.locale === 'string' && v.locale.startsWith('en-'));
     const portugal = voices.filter(v => v.locale === TTS_LOCALES.PORTUGAL);
     const brazil = voices.filter(v => v.locale === TTS_LOCALES.BRAZIL);
     
     return {
         all: voices,
+        english,
         portugal,
         brazil,
         byGender: {
@@ -325,6 +361,8 @@ async function speakWithEdgeTTS(text, options = {}) {
         
         return new Promise((resolve, reject) => {
             state.currentAudio = new Audio(audioUrl);
+            state.currentAudioResolve = resolve;
+            state.currentAudioReject = reject;
             
             state.currentAudio.onloadedmetadata = () => {
                 if (typeof onStart === 'function') onStart();
@@ -333,6 +371,8 @@ async function speakWithEdgeTTS(text, options = {}) {
             state.currentAudio.onended = () => {
                 URL.revokeObjectURL(audioUrl);
                 state.currentAudio = null;
+                state.currentAudioResolve = null;
+                state.currentAudioReject = null;
                 if (typeof onEnd === 'function') onEnd();
                 resolve();
             };
@@ -340,6 +380,8 @@ async function speakWithEdgeTTS(text, options = {}) {
             state.currentAudio.onerror = () => {
                 URL.revokeObjectURL(audioUrl);
                 state.currentAudio = null;
+                state.currentAudioResolve = null;
+                state.currentAudioReject = null;
                 reject(new Error('Audio playback failed'));
             };
             
@@ -363,7 +405,7 @@ async function speakWithEdgeTTS(text, options = {}) {
  * @returns {Promise<Object>} Result
  */
 function speakWithWebSpeech(text, options = {}) {
-    const { rate = TTS_CONFIG.defaultRate, onStart, onEnd, onError } = options;
+    const { language = TTS_LOCALES.PORTUGAL, rate = TTS_CONFIG.defaultRate, onStart, onEnd, onError, preferGender } = options;
     
     return new Promise((resolve, reject) => {
         if (!('speechSynthesis' in window)) {
@@ -374,15 +416,33 @@ function speakWithWebSpeech(text, options = {}) {
         }
         
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = TTS_LOCALES.PORTUGAL;
+        utterance.lang = language;
         utterance.rate = rate;
         
-        // Try to find a Portuguese voice
+        // Try to find a voice matching the requested language.
+        // NOTE: Web Speech voices do not reliably expose gender; we use a best-effort name heuristic.
         const voices = speechSynthesis.getVoices();
-        const ptVoice = voices.find(v => v.lang.startsWith('pt-PT')) ||
-                        voices.find(v => v.lang.startsWith('pt'));
-        if (ptVoice) {
-            utterance.voice = ptVoice;
+        const langPrefix = language.split('-')[0];
+        const matchesLanguage = (v) => v.lang === language || v.lang?.startsWith(`${langPrefix}-`) || v.lang === langPrefix;
+
+        // Comprehensive male/female voice name heuristics for Web Speech fallback
+        const genderRe = preferGender === 'male'
+            ? /(\bmale\b|guy|david|mark|ryan|james|george|daniel|michael|jorge|joa[oã]o|duarte|ant[oó]nio|miguel|pedro|richard|brian|paul)/i
+            : preferGender === 'female'
+                ? /(\bfemale\b|jenny|sonia|raquel|maria|ana|francisca|thalita|samantha|susan|sarah|emily|linda|zira|helena)/i
+                : null;
+
+        const candidates = Array.isArray(voices) ? voices : [];
+        const preferredByGender = genderRe
+            ? candidates.filter(v => matchesLanguage(v) && genderRe.test(v.name || ''))
+            : [];
+
+        const targetVoice = preferredByGender[0] ||
+            candidates.find(v => matchesLanguage(v)) ||
+            candidates.find(v => v.lang?.startsWith('en')) ||
+            candidates.find(v => v.lang?.startsWith('pt'));
+        if (targetVoice) {
+            utterance.voice = targetVoice;
         }
         
         utterance.onstart = () => {
@@ -391,7 +451,7 @@ function speakWithWebSpeech(text, options = {}) {
         
         utterance.onend = () => {
             if (typeof onEnd === 'function') onEnd();
-            resolve({ engine: TTS_ENGINES.WEB_SPEECH, voice: ptVoice?.name || 'default' });
+            resolve({ engine: TTS_ENGINES.WEB_SPEECH, voice: targetVoice?.name || 'default', language });
         };
         
         utterance.onerror = (e) => {
@@ -418,35 +478,55 @@ export async function speak(text, options = {}) {
     const {
         voice = TTS_CONFIG.defaultVoice,
         rate = TTS_CONFIG.defaultRate,
+        language,
         onStart,
         onEnd,
         onError,
         fallbackToWebSpeech = true
     } = options;
     
+    // DEBUG: Log what voice is being requested
+    console.log('[TTS] speak() called:', { 
+        text: text?.substring(0, 50) + (text?.length > 50 ? '...' : ''),
+        voice, 
+        rate, 
+        language,
+        fallbackToWebSpeech 
+    });
+    
     // Stop any current audio
     stop();
     
     // Try Edge-TTS first
     const serverOk = await checkServerHealth();
+    console.log('[TTS] Server health:', serverOk);
     
     if (serverOk) {
         try {
+            console.log('[TTS] Using Edge-TTS with voice:', voice);
             await speakWithEdgeTTS(text, { voice, rate, onStart, onEnd });
             state.lastUsedVoice = voice;
             state.lastUsedEngine = TTS_ENGINES.EDGE_TTS;
+            console.log('[TTS] ✅ Edge-TTS succeeded:', { engine: 'edge-tts', voice });
             return { engine: TTS_ENGINES.EDGE_TTS, voice };
         } catch (error) {
-            console.warn('Edge-TTS failed, trying fallback:', error);
+            console.warn('[TTS] Edge-TTS failed, trying fallback:', error);
             if (typeof onError === 'function') onError(error);
         }
     }
     
     // Fallback to Web Speech API
     if (fallbackToWebSpeech) {
-        const result = await speakWithWebSpeech(text, { rate, onStart, onEnd, onError });
+        const inferredLanguage = language || (typeof voice === 'string' ? voice.split('-').slice(0, 2).join('-') : undefined) || TTS_LOCALES.PORTUGAL;
+        // Infer preferGender from voice ID if not explicitly provided
+        const { preferGender } = options;
+        const genderFromVoice = typeof voice === 'string' && /guy|duarte|ant[oó]nio|david|ryan|mark|jorge|maceri/i.test(voice) ? 'male' : undefined;
+        const effectiveGender = preferGender || genderFromVoice;
+        console.log('[TTS] ⚠️ Falling back to WebSpeech:', { language: inferredLanguage, preferGender: effectiveGender });
+        const result = await speakWithWebSpeech(text, { language: inferredLanguage, rate, onStart, onEnd, onError, preferGender: effectiveGender });
         state.lastUsedVoice = result.voice;
         state.lastUsedEngine = TTS_ENGINES.WEB_SPEECH;
+        console.log('[TTS] WebSpeech result:', result);
         return result;
     }
     
@@ -471,11 +551,12 @@ export async function speakWithVoice(text, voiceId, options = {}) {
  * @returns {Promise<Object>} Result
  */
 export async function speakPortuguese(text, options = {}) {
-    const voice = options.gender === 'male' 
-        ? 'pt-PT-DuarteNeural' 
-        : 'pt-PT-RaquelNeural';
-    // Use VERY slow rate (0.7) for clear pronunciation learning
-    return speak(text, { rate: 0.7, ...options, voice });
+    const voice = options.voice || (options.gender === 'male' ? 'pt-PT-DuarteNeural' : DEFAULT_PORTUGUESE_VOICE);
+    const rate = typeof options.rate === 'number' ? options.rate : DEFAULT_PORTUGUESE_RATE;
+    const clarity = options.clarity === true || options.clarity === 'learner';
+    const finalText = clarity ? applyPortugueseLearnerClarity(text) : text;
+    console.log('[TTS] speakPortuguese:', { voice, rate, text: text?.substring(0, 30) });
+    return speak(finalText, { ...options, voice, rate, language: TTS_LOCALES.PORTUGAL });
 }
 
 /**
@@ -485,9 +566,12 @@ export async function speakPortuguese(text, options = {}) {
  * @returns {Promise<Object>} Result
  */
 export async function speakEnglish(text, options = {}) {
-    // Use American English - clearer for most learners
-    const voice = 'en-US-JennyNeural';
-    return speak(text, { rate: 1.0, ...options, voice });
+    const voice = options.voice || DEFAULT_ENGLISH_VOICE;
+    const rate = typeof options.rate === 'number' ? options.rate : 1.0;
+    console.log('[TTS] speakEnglish:', { voice, rate, text: text?.substring(0, 30) });
+    // Prefer a matching Web Speech fallback language when Edge-TTS is unavailable
+    const language = typeof voice === 'string' && voice.startsWith('en-GB') ? 'en-GB' : 'en-US';
+    return speak(text, { ...options, voice, rate, language });
 }
 
 // ============================================================================
@@ -501,6 +585,12 @@ export function stop() {
     if (state.currentAudio) {
         state.currentAudio.pause();
         state.currentAudio = null;
+        // Resolve any pending await so callers don't hang when stop is user-initiated.
+        if (typeof state.currentAudioResolve === 'function') {
+            try { state.currentAudioResolve(); } catch { /* ignore */ }
+        }
+        state.currentAudioResolve = null;
+        state.currentAudioReject = null;
     }
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();

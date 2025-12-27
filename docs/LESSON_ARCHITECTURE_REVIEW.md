@@ -19,6 +19,10 @@
 
 **Solution:** Data-driven architecture with JSON schema validation
 
+## Status Update (Implementation)
+
+- The runtime lesson flow in `app.js` now builds and renders challenges via `src/components/lesson/ChallengeRenderer.js`, so rich `lesson.challenges` (translate/fill-blank/match/etc.) are no longer ignored.
+
 ---
 
 ## Current Architecture Problems

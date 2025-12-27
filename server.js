@@ -114,8 +114,8 @@ const VOICE_CATALOG = {
     }
 };
 
-// Default to European Portuguese female voice
-const DEFAULT_VOICE = 'pt-PT-RaquelNeural';
+// Default to European Portuguese male voice (learner preference: consistent male voices)
+const DEFAULT_VOICE = 'pt-PT-DuarteNeural';
 
 // Temp directory for audio files
 const TEMP_DIR = path.join(os.tmpdir(), 'portulingo-tts');

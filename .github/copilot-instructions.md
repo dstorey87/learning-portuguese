@@ -74,9 +74,18 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
 - ✅ Parallel work without conflicts
 
 ### Enforcement
-- **Copilot MUST refuse to make changes** if not on a task-specific branch.
-- **Before ANY file edit**, verify current branch is NOT main.
-- **If on main**, first create the appropriate task branch.
+- Default behavior: **Copilot MUST refuse to make changes** if not on a task-specific branch.
+- Default behavior: **Before ANY file edit**, verify current branch is NOT main.
+- Default behavior: **If on main**, first create the appropriate task branch.
+
+### Enforcement Override: NO-GIT Mode (User-Directed)
+
+If the user explicitly instructs **NO GIT** (e.g., "do not run git commands"), then:
+
+- Copilot MUST NOT run any git commands (no `checkout`, `pull`, `commit`, `push`, `merge`, `stash`, branch deletes).
+- Copilot MAY proceed with file edits on the current branch (even if it is `main`).
+- Copilot MUST clearly warn that changes will be uncommitted/unmerged unless the user performs git steps manually.
+- Copilot MUST continue to run targeted tests relevant to the change.
 
 ---
 

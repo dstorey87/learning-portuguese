@@ -21,6 +21,122 @@ export const MODAL_CONFIG = {
  */
 const modalStack = [];
 
+function parseCssColorToRgb(color) {
+    const c = String(color || '').trim().toLowerCase();
+    if (!c || c === 'transparent') return null;
+
+    // rgb()/rgba()
+    const rgbMatch = c.match(/^rgba?\(([^)]+)\)$/);
+    if (rgbMatch) {
+        const parts = rgbMatch[1].split(',').map(s => s.trim());
+        const r = Number(parts[0]);
+        const g = Number(parts[1]);
+        const b = Number(parts[2]);
+        const a = parts.length >= 4 ? Number(parts[3]) : 1;
+        if ([r, g, b, a].some(n => Number.isNaN(n))) return null;
+        return { r, g, b, a };
+    }
+
+    // hex (#rgb, #rrggbb)
+    const hexMatch = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hexMatch) {
+        const hex = hexMatch[1];
+        const full = hex.length === 3
+            ? hex.split('').map(ch => ch + ch).join('')
+            : hex;
+        const r = parseInt(full.slice(0, 2), 16);
+        const g = parseInt(full.slice(2, 4), 16);
+        const b = parseInt(full.slice(4, 6), 16);
+        return { r, g, b, a: 1 };
+    }
+
+    return null;
+}
+
+function relativeLuminance({ r, g, b }) {
+    const toLinear = (v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    const R = toLinear(r);
+    const G = toLinear(g);
+    const B = toLinear(b);
+    return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+function findEffectiveBackgroundColor(element) {
+    // Walk up DOM until we find a non-transparent background.
+    let el = element;
+    while (el && el !== document.documentElement) {
+        const bg = window.getComputedStyle(el).backgroundColor;
+        const rgba = parseCssColorToRgb(bg);
+        if (rgba && rgba.a > 0.05) return rgba;
+        el = el.parentElement;
+    }
+
+    // Fallback to body background.
+    const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+    const bodyRgba = parseCssColorToRgb(bodyBg);
+    return bodyRgba || { r: 255, g: 255, b: 255, a: 1 };
+}
+
+function applyAutoModalContrast(modalOverlayEl) {
+    const container = modalOverlayEl?.querySelector?.('.modal-container');
+    if (!container || typeof window === 'undefined') return;
+
+    const bg = findEffectiveBackgroundColor(container);
+    const lum = relativeLuminance(bg);
+    const isDark = lum < 0.45;
+
+    // Colors for dark and light backgrounds
+    const titleColor = isDark ? '#f9fafb' : '#111827';
+    const textColor = isDark ? '#f3f4f6' : '#111827';
+    const textSecondary = isDark ? 'rgba(243,244,246,0.86)' : '#4b5563';
+    const borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#e5e7eb';
+    const closeColor = isDark ? 'rgba(243,244,246,0.8)' : '#6b7280';
+    const closeHoverBg = isDark ? 'rgba(255,255,255,0.10)' : '#f3f4f6';
+    const inputBg = isDark ? 'rgba(255,255,255,0.06)' : '#ffffff';
+    const inputText = isDark ? '#f9fafb' : '#111827';
+    const inputBorder = isDark ? 'rgba(255,255,255,0.18)' : '#e5e7eb';
+
+    // Set CSS vars on the container so existing CSS can use them.
+    container.style.setProperty('--modal-title-color', titleColor);
+    container.style.setProperty('--modal-text-color', textColor);
+    container.style.setProperty('--modal-text-secondary', textSecondary);
+    container.style.setProperty('--modal-border-color', borderColor);
+    container.style.setProperty('--modal-close-color', closeColor);
+    container.style.setProperty('--modal-close-hover-bg', closeHoverBg);
+    container.style.setProperty('--modal-input-bg', inputBg);
+    container.style.setProperty('--modal-input-text', inputText);
+    container.style.setProperty('--modal-input-border', inputBorder);
+    container.dataset.contrast = isDark ? 'dark' : 'light';
+
+    // FORCE inline styles on actual elements to guarantee visibility
+    const title = container.querySelector('.modal-title');
+    if (title) title.style.color = titleColor;
+
+    const body = container.querySelector('.modal-body');
+    if (body) body.style.color = textColor;
+
+    const closeBtn = container.querySelector('.modal-close');
+    if (closeBtn) closeBtn.style.color = closeColor;
+
+    // Apply to ALL text-containing elements inside the modal
+    container.querySelectorAll('p, span, label, div, li, h1, h2, h3, h4, h5, h6').forEach(el => {
+        // Skip elements that already have explicit color via class that should stay
+        if (!el.style.color && !el.classList.contains('btn') && !el.classList.contains('modal-btn')) {
+            el.style.color = textColor;
+        }
+    });
+
+    // Style inputs
+    container.querySelectorAll('input, select, textarea').forEach(el => {
+        el.style.backgroundColor = inputBg;
+        el.style.color = inputText;
+        el.style.borderColor = inputBorder;
+    });
+}
+
 /**
  * Modal types for predefined styling
  */
@@ -178,6 +294,13 @@ export function createModal(options = {}) {
         // Add to DOM
         document.body.appendChild(modalElement);
         modalStack.push(id);
+
+        // Auto-pick readable text colors based on computed background (light/dark).
+        try {
+            applyAutoModalContrast(modalElement);
+        } catch {
+            // ignore
+        }
 
         // Update z-index based on stack position
         modalElement.style.zIndex = MODAL_CONFIG.zIndex + modalStack.length;

@@ -1,649 +1,111 @@
-import { topics, getAllLessonsFlat } from './data.js';
-// VoiceService - audio playback and voice management
+import { topics as legacyTopics, getAllLessonsFlat } from './data.js';
+import { 
+    getAllTopics, 
+    getAllLessons, 
+    getLessonById as loaderGetLessonById, 
+    getLessonImage,
+    LESSON_TIERS 
+} from './src/data/LessonLoader.js';
 import {
-    speakWithEngine,
-    getPortugueseVoiceOptions,
-    startBundledVoiceDownload,
-    getDownloadableVoices,
-    markVoiceDownloaded
-} from './src/services/VoiceService.js';
-// TTSService - text-to-speech server integration
-import * as aiTts from './src/services/TTSService.js';
-// Speech recognition (Whisper/Web Speech API)
-import * as aiSpeech from './ai-speech.js';
-// AIService - Ollama AI integration
-import * as aiTutor from './src/services/AIService.js';
-import { getWordKnowledge, generateBasicPronunciationTip, getPronunciationChallengeType } from './word-knowledge.js';
-// AuthService - authentication, hearts, XP, streaks
+    ChallengeRenderer,
+    buildLessonChallenges
+} from './src/components/lesson/ChallengeRenderer.js';
 import {
+    AUTH_CONSTANTS,
     getHearts,
     hasHearts,
     loseHeart,
-    addXP,
-    updateStreak,
-    getXP,
+    addHeart,
     getStreak,
+    getXP,
+    formatRefillTime,
+    getTimeToNextHeart,
+    startHeartRefillTimer,
     loginAdmin,
     logout,
-    isAdmin,
-    startHeartRefillTimer,
-    getTimeToNextHeart,
-    formatRefillTime,
-    completeLesson as authCompleteLesson,
-    AUTH_CONFIG as AUTH_CONSTANTS
+    isAdmin
 } from './src/services/AuthService.js';
-// ProgressTracker - learning progress, SRS, milestones
-import * as ProgressTracker from './src/services/ProgressTracker.js';
-// Logger - centralized logging service
-import * as Logger from './src/services/Logger.js';
-// HealthChecker - service health monitoring
-import * as HealthChecker from './src/services/HealthChecker.js';
+import { getLearnedWords } from './src/services/ProgressTracker.js';
+import Toast from './src/components/common/Toast.js';
 
-// Components - UI building blocks
-import * as Toast from './src/components/common/Toast.js';
-import * as Modal from './src/components/common/Modal.js';
-import * as ProgressChart from './src/components/common/ProgressChart.js';
-import * as LessonCard from './src/components/lesson/LessonCard.js';
-import * as WordCard from './src/components/lesson/WordCard.js';
-import * as ChallengeRenderer from './src/components/lesson/ChallengeRenderer.js';
-import * as Navigation from './src/components/navigation/Navigation.js';
-
-const APP_VERSION = '0.9.0';
-const STORAGE_KEY = 'portugueseLearningData';
-const VOICE_STORAGE_KEY = 'portugueseVoiceSettings';
-const THEME_STORAGE_KEY = 'portugueseTheme';
-const NOTEPAD_STORAGE_KEY = 'portugueseNotepad';
-const FLASHCARDS_STORAGE_KEY = 'portugueseFlashcards';
-const DEMO_PHRASE = 'Olá! Vamos praticar português europeu: pão, coração, obrigado, vinte e oito.';
-
-// Debounce utility to prevent UI flicker from frequent updates
-const debounceTimers = {};
-function debounce(key, fn, delay = 100) {
-    if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
-    debounceTimers[key] = setTimeout(() => {
-        debounceTimers[key] = null;
-        fn();
-    }, delay);
-}
-
-// Throttle utility for frequent operations (reserved for future use)
-// eslint-disable-next-line no-unused-vars
-function throttle(fn, limit = 200) {
-    let inThrottle = false;
-    return function(...args) {
-        if (!inThrottle) {
-            fn.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
-}
-const lessonImages = {
-    1: 'https://images.unsplash.com/photo-1527863280610-12192d6dc2e7?auto=format&fit=crop&w=1200&q=80',  // Essential Greetings - handshake
-    9: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',  // Polite Starts - thank you hands
-    10: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80', // Numbers - counting blocks
-    11: 'https://images.unsplash.com/photo-1432107294469-414527cb5c65?auto=format&fit=crop&w=1200&q=80', // Cafe Survival - coffee cup
-    12: 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&fit=crop&w=1200&q=80', // Getting Around - Lisbon street
-    13: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80', // Rapid Replies - conversation
-    14: 'https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=1200&q=80', // Mini Dialogues - cafe chat
-    15: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1200&q=80', // Travel Phrases - suitcase
-    16: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80', // Restaurant - dining table
-    2: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80',  // At the Airport - airplane
-    3: 'https://images.unsplash.com/photo-1543783207-ec64e4d95325?auto=format&fit=crop&w=1200&q=80',  // Getting Around - metro
-    4: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80',  // Ordering Coffee - espresso
-    5: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1200&q=80',  // Rotina - morning routine
-    6: 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&w=1200&q=80',  // Shopping - market
-    7: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80',  // Office - workspace
-    8: 'https://images.unsplash.com/photo-1507537509458-b8312d35a233?auto=format&fit=crop&w=1200&q=80'   // Career - interview
-};
-const speechState = {
-    initialized: false,
-    supported: false,
-    reason: 'Not initialized',
-    listening: false,
-    recognizer: null
-};
-
-function normalizeText(value) {
-    return (value || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function scoreSpeechTranscript(transcript, target) {
-    const tWords = normalizeText(transcript).split(' ').filter(Boolean);
-    const targetWords = normalizeText(target).split(' ').filter(Boolean);
-    if (!tWords.length || !targetWords.length) return 0;
-    const matches = targetWords.filter(word => tWords.includes(word)).length;
-    return Math.round((matches / targetWords.length) * 100);
-}
-
-function ensureSpeechRecognition() {
-    if (speechState.initialized) return speechState.supported;
-    const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SpeechRecognition) {
-        speechState.initialized = true;
-        speechState.supported = false;
-        speechState.reason = 'Speech recognition not supported in this browser.';
-        return false;
-    }
-    try {
-        const recognizer = new SpeechRecognition();
-        recognizer.lang = 'pt-PT';
-        recognizer.continuous = false;
-        recognizer.interimResults = false;
-        speechState.recognizer = recognizer;
-        speechState.supported = true;
-        speechState.reason = 'Ready';
-    } catch (error) {
-        speechState.supported = false;
-        speechState.reason = error?.message || 'Speech recognition unavailable.';
-    }
-    speechState.initialized = true;
-    return speechState.supported;
-}
-
-const userData = {
-    learnedWords: [],
-    streak: 0,
-    isPremium: false,
-    speakerGender: 'male',
-    lessonsCompleted: 0,
-    activeLesson: null,
-    mistakes: [],
-    successes: [],
-    lessonDurations: [],
-    lessonAccuracy: [],
-    lessonAttempts: [],
-    lessonCorrect: [],
-    lastLessonId: null,
-    lastStudyDate: null
-};
-
+// =========== GLOBALS / STATE ===========
+// These are exposed to window for backwards compatibility with other scripts
+const topics = getAllTopics();
+let userData = loadUserData();
 const uiState = {
     selectedTopic: 'all',
     lessonStartMs: null,
-    skillStats: [],
-    theme: 'light'
+    activeLessonState: null,
+    skillStats: []
 };
+const vaultFilters = { query: '', sort: 'pt' };
 
-const vaultFilters = {
-    query: '',
-    sort: 'pt'
-};
+// Expose critical functions/objects to window for other modules
+window.ChallengeRenderer = { ChallengeRenderer, buildLessonChallenges };
+window.ProgressTracker = { getLearnedWords };
+window.Toast = Toast;
 
-// SM-2 Spaced Repetition Algorithm constants
-const SRS_INTERVALS = {
-    1: 1,        // 1 day
-    2: 3,        // 3 days
-    3: 7,        // 1 week
-    4: 14,       // 2 weeks
-    5: 30        // 1 month
-};
-
-// Mnemonic memory aids for difficult words
-const MNEMONICS = {
-    'pão': { tip: '🍞 Sounds like "pow!" - bread gives you power!', phonetic: 'POWNG (nasal)' },
-    'mãe': { tip: '👩 "Mine" - my mother is mine', phonetic: 'MING (nasal)' },
-    'não': { tip: '🚫 "Now!" but with nasal - say NO now!', phonetic: 'NOWNG (nasal)' },
-    'obrigado': { tip: '🙏 "Oh breeGAdoh" - Oh I\'m glad to thank you', phonetic: 'oh-bree-GAH-doo' },
-    'obrigada': { tip: '🙏 "Oh breeGAdah" - Female form ends in A', phonetic: 'oh-bree-GAH-dah' },
-    'sim': { tip: '✓ "Seem" - seems like yes!', phonetic: 'SEENG (nasal)' },
-    'bom': { tip: '👍 "Bong" - good vibes like a bong', phonetic: 'BONG (nasal)' },
-    'boa': { tip: '👌 "BOah" -boa constrictor is good at hugging', phonetic: 'BOH-ah' },
-    'dia': { tip: '☀️ "DEE-ah" - day starts with D', phonetic: 'DEE-ah' },
-    'noite': { tip: '🌙 "NOYt" - night, no light', phonetic: 'NOY-tuh' },
-    'água': { tip: '💧 "AH-gwah" - agua = water, remember aquarium', phonetic: 'AH-gwah' },
-    'por favor': { tip: '🙏 "Poor fah-VOOR" - please do me a favor', phonetic: 'poor fah-VOOR' },
-    'desculpe': { tip: '😬 "desh-KOOL-puh" - excuse me, don\'t be cruel', phonetic: 'desh-KOOL-puh' },
-    'coração': { tip: '❤️ "koo-rah-SOWNG" - heart with strong nasal ending', phonetic: 'koo-rah-SOWNG' },
-    'estou': { tip: '📍 "shTOH" - I AM (temporary state)', phonetic: 'shTOH' },
-    'sou': { tip: '🧑 "SOH" - I AM (permanent identity)', phonetic: 'SOH' }
-};
-
-// Real-world dialogue scenarios
-const DIALOGUES = [
-    {
-        id: 'cafe-order',
-        title: '☕ Ordering at a Café',
-        difficulty: 'beginner',
-        scene: 'You walk into a traditional Portuguese café in Lisboa.',
-        nodes: [
-            {
-                id: 'start',
-                speaker: 'Barista',
-                text: 'Bom dia! O que deseja?',
-                en: 'Good morning! What would you like?',
-                choices: [
-                    { text: 'Um café, por favor.', next: 'coffee-ordered', correct: true },
-                    { text: 'Uma cerveja, por favor.', next: 'wrong-time', correct: false },
-                    { text: 'Não, obrigado.', next: 'decline', correct: false }
-                ]
-            },
-            {
-                id: 'coffee-ordered',
-                speaker: 'Barista',
-                text: 'Café simples ou galão?',
-                en: 'Espresso or latte?',
-                choices: [
-                    { text: 'Café simples.', next: 'simple-coffee', correct: true },
-                    { text: 'Galão, por favor.', next: 'galao', correct: true },
-                    { text: 'Com leite.', next: 'milk-clarify', correct: false }
-                ]
-            },
-            {
-                id: 'simple-coffee',
-                speaker: 'Barista',
-                text: 'Perfeito! São 70 cêntimos.',
-                en: 'Perfect! That\'s 70 cents.',
-                grammarNote: 'São = "are" (plural of ser for prices)',
-                cultural: '☕ Portuguese espresso is strong and served in small cups!',
-                end: true,
-                success: true
-            },
-            {
-                id: 'galao',
-                speaker: 'Barista',
-                text: 'Ótimo! Um euro e vinte.',
-                en: 'Great! One euro twenty.',
-                cultural: '🥛 Galão is Portuguese latte, served in a tall glass.',
-                end: true,
-                success: true
-            },
-            {
-                id: 'wrong-time',
-                speaker: 'Barista',
-                text: 'Cerveja? São nove da manhã!',
-                en: 'Beer? It\'s 9 in the morning!',
-                hint: 'Cafés serve coffee in the morning, beer in the evening.',
-                next: 'start'
-            },
-            {
-                id: 'decline',
-                speaker: 'Barista',
-                text: 'Está bem. Tenha um bom dia!',
-                en: 'Okay. Have a good day!',
-                end: true,
-                success: false
-            },
-            {
-                id: 'milk-clarify',
-                speaker: 'Barista',
-                text: 'Quer dizer galão?',
-                en: 'You mean galão?',
-                hint: '"Com leite" is ambiguous. Use "galão" for latte.',
-                next: 'coffee-ordered'
-            }
-        ]
-    },
-    {
-        id: 'directions',
-        title: '🗺️ Asking for Directions',
-        difficulty: 'beginner',
-        scene: 'You\'re lost in Porto and need to find the metro.',
-        nodes: [
-            {
-                id: 'start',
-                speaker: 'You',
-                text: '[Choose how to ask]',
-                en: 'How do you start?',
-                choices: [
-                    { text: 'Desculpe, onde fica o metro?', next: 'polite-ask', correct: true },
-                    { text: 'Metro?', next: 'too-abrupt', correct: false },
-                    { text: 'Olá! Preciso de ajuda.', next: 'friendly-start', correct: true }
-                ]
-            },
-            {
-                id: 'polite-ask',
-                speaker: 'Local',
-                text: 'O metro? Siga em frente e vire à direita.',
-                en: 'The metro? Go straight and turn right.',
-                grammarNote: 'Siga = command form of "seguir" (to follow)',
-                cultural: '🚇 Porto has 6 metro lines, all color-coded.',
-                end: true,
-                success: true
-            },
-            {
-                id: 'too-abrupt',
-                speaker: 'Local',
-                text: '[ignores you]',
-                en: '[They walk past without answering]',
-                hint: 'Always start with "Desculpe" or "Por favor" when asking strangers.',
-                next: 'start'
-            },
-            {
-                id: 'friendly-start',
-                speaker: 'Local',
-                text: 'Claro! O que procura?',
-                en: 'Of course! What are you looking for?',
-                choices: [
-                    { text: 'O metro, por favor.', next: 'polite-ask', correct: true },
-                    { text: 'A estação.', next: 'which-station', correct: false }
-                ]
-            },
-            {
-                id: 'which-station',
-                speaker: 'Local',
-                text: 'Que estação? Comboio ou metro?',
-                en: 'Which station? Train or metro?',
-                hint: 'Be specific: "o metro" or "a estação de comboios"',
-                next: 'friendly-start'
-            }
-        ]
-    },
-    {
-        id: 'market',
-        title: '🛒 Shopping at the Market',
-        difficulty: 'intermediate',
-        scene: 'You\'re buying fruit at a local market in Lisbon.',
-        nodes: [
-            {
-                id: 'start',
-                speaker: 'Vendor',
-                text: 'Bom dia! Quer experimentar?',
-                en: 'Good morning! Want to try some?',
-                choices: [
-                    { text: 'Sim, por favor!', next: 'try-fruit', correct: true },
-                    { text: 'Quanto custa?', next: 'ask-price', correct: true },
-                    { text: 'Não, obrigado.', next: 'decline', correct: false }
-                ]
-            },
-            {
-                id: 'try-fruit',
-                speaker: 'Vendor',
-                text: 'Tome! Estas laranjas são do Algarve.',
-                en: 'Here! These oranges are from Algarve.',
-                cultural: '🍊 Algarve oranges are famous for their sweetness!',
-                choices: [
-                    { text: 'Delicioso! Quero um quilo.', next: 'buy-kilo', correct: true },
-                    { text: 'Muito bom! Quanto é?', next: 'ask-price', correct: true }
-                ]
-            },
-            {
-                id: 'buy-kilo',
-                speaker: 'Vendor',
-                text: 'Um quilo? São dois euros.',
-                en: 'One kilo? That\'s two euros.',
-                grammarNote: 'Quilo = kilogram (Portuguese uses metric)',
-                end: true,
-                success: true
-            },
-            {
-                id: 'ask-price',
-                speaker: 'Vendor',
-                text: 'Dois euros o quilo.',
-                en: 'Two euros per kilo.',
-                next: 'try-fruit'
-            },
-            {
-                id: 'decline',
-                speaker: 'Vendor',
-                text: 'Está bem. Volte sempre!',
-                en: 'Okay. Come back anytime!',
-                end: true,
-                success: false
-            }
-        ]
-    }
-];
-
-// Grammar context cards - shown when relevant
-const GRAMMAR_CARDS = {
-    'ser_estar': {
-        title: 'Ser vs. Estar',
-        rule: 'SER = permanent identity, ESTAR = temporary state/location',
-        examples: [
-            { pt: 'Eu sou professor.', en: 'I am a teacher (permanent).', correct: 'ser' },
-            { pt: 'Eu estou cansado.', en: 'I am tired (temporary).', correct: 'estar' },
-            { pt: 'Ela é bonita.', en: 'She is beautiful (characteristic).', correct: 'ser' },
-            { pt: 'Ela está em casa.', en: 'She is at home (location).', correct: 'estar' }
-        ],
-        triggers: ['sou', 'é', 'são', 'estou', 'está', 'estão']
-    },
-    'por_para': {
-        title: 'Por vs. Para',
-        rule: 'POR = through/by/cause, PARA = for/to/destination',
-        examples: [
-            { pt: 'Obrigado por ajudar.', en: 'Thanks for helping (cause).', correct: 'por' },
-            { pt: 'Isto é para ti.', en: 'This is for you (recipient).', correct: 'para' },
-            { pt: 'Viajo para Lisboa.', en: 'I travel to Lisbon (destination).', correct: 'para' },
-            { pt: 'Passo por aqui.', en: 'I pass through here.', correct: 'por' }
-        ],
-        triggers: ['por', 'para']
-    },
-    'gender': {
-        title: 'Gender Agreement',
-        rule: 'Adjectives must match noun gender: -o (masc), -a (fem)',
-        examples: [
-            { pt: 'O gato preto', en: 'The black cat (masc)', correct: 'preto' },
-            { pt: 'A casa branca', en: 'The white house (fem)', correct: 'branca' },
-            { pt: 'Obrigado (♂) / Obrigada (♀)', en: 'Thank you', note: 'Even "thank you" changes!' }
-        ],
-        triggers: ['obrigado', 'obrigada', 'pronto', 'pronta', 'bonito', 'bonita']
-    },
-    'plurals': {
-        title: 'Plural Formation',
-        rule: 'Most: add -s. Ends in -ão: → -ões/-ães/-ãos',
-        examples: [
-            { pt: 'pão → pães', en: 'bread → breads' },
-            { pt: 'coração → corações', en: 'heart → hearts' },
-            { pt: 'mão → mãos', en: 'hand → hands' },
-            { pt: 'casa → casas', en: 'house → houses (regular)' }
-        ],
-        triggers: ['pães', 'mãos', 'corações']
-    }
-};
-
-const voiceDefaults = {
-    selectedSource: 'auto',
-    selectedVoiceKey: null,
-    speed: 0.6,
-    allowBundled: true,
-    bundledVoiceKey: null,
-    bundledApiUrl: '',
-    bundled: { downloaded: false, downloading: false, progress: 0, sizeBytes: null, provider: null, url: null, voiceKey: null },
-    detectedSystemOptions: []
-};
-
-const voiceState = structuredClone(voiceDefaults);
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Logger with app context
-    Logger.setContext('app');
-    Logger.info('PortuLingo starting', { version: APP_VERSION });
-    
-    initTheme();
-    loadUserData();
-    
-    // Load progress from ProgressTracker service
-    ProgressTracker.loadProgress();
-    Logger.debug('Progress loaded', { 
-        learnedWords: ProgressTracker.getLearnedWordCount(),
-        completedLessons: ProgressTracker.getCompletedLessonCount()
-    });
-    
-    // Initialize UI components
-    Toast.initToast();
-    Logger.debug('Toast system initialized');
-    
-    // Log component availability for future use
-    Logger.debug('Components loaded', {
-        Modal: typeof Modal.createModal === 'function',
-        ProgressChart: typeof ProgressChart.createChart === 'function',
-        LessonCard: typeof LessonCard.renderLessonCard === 'function',
-        WordCard: typeof WordCard.renderWordCard === 'function',
-        ChallengeRenderer: typeof ChallengeRenderer.renderChallenge === 'function',
-        Navigation: typeof Navigation.initNavigation === 'function'
-    });
-    
-    renderVersion();
-    renderTopicFilters();
-    renderLessons();
-    hookSpeakerRadios();
-    setupEventListeners();
-    setupNavigation();
-    setupVoiceSettings();
-    setupNotepad();
-    setupFlashcards();
-    setupTranslator();
-    setupVoiceSpeedControl();
-    renderCoachPanel();
-    updatePlanAccess();
-    updateDashboard();
-    renderDialogues();
-    initAITutor();
-    
-    // Start health monitoring for services
-    HealthChecker.startMonitoring();
-    Logger.info('Health monitoring started');
-    
-    // Log startup complete
-    Logger.info('PortuLingo initialized successfully');
-});
-
-function initTheme() {
-    let saved = null;
-    try {
-        saved = localStorage.getItem(THEME_STORAGE_KEY);
-    } catch (error) {
-        console.warn('Unable to read theme preference', error);
-    }
-
-    const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initial = saved || (prefersDark ? 'dark' : 'light');
-    applyTheme(initial);
-
-    if (typeof window !== 'undefined' && window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-            let stored = null;
-            try {
-                stored = localStorage.getItem(THEME_STORAGE_KEY);
-            } catch (error) {
-                console.warn('Unable to read stored theme during media change', error);
-            }
-            if (stored) return;
-            applyTheme(e.matches ? 'dark' : 'light');
-        });
-    }
-}
-
-function applyTheme(mode) {
-    const next = mode === 'dark' ? 'dark' : 'light';
-    uiState.theme = next;
-    document.body.classList.toggle('dark-theme', next === 'dark');
-    const toggle = document.getElementById('themeToggle');
-    if (toggle) {
-        toggle.textContent = next === 'dark' ? 'Light mode' : 'Dark mode';
-        toggle.setAttribute('aria-pressed', next === 'dark');
-    }
-    try {
-        localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch (error) {
-        console.warn('Unable to persist theme preference', error);
-    }
-}
-
-function toggleTheme() {
-    applyTheme(uiState.theme === 'dark' ? 'light' : 'dark');
-}
+// =========== USER DATA PERSISTENCE ===========
+const USER_DATA_KEY = 'portugueseProgress';
 
 function loadUserData() {
     try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) Object.assign(userData, JSON.parse(saved));
-    } catch (error) {
-        console.warn('Unable to load user data', error);
+        const stored = localStorage.getItem(USER_DATA_KEY);
+        if (stored) {
+            return {
+                ...getDefaultUserData(),
+                ...JSON.parse(stored)
+            };
+        }
+    } catch (e) {
+        console.warn('Failed to load user data:', e);
     }
-    if (!Array.isArray(userData.learnedWords)) userData.learnedWords = [];
-    if (!userData.speakerGender) userData.speakerGender = 'male';
-    if (typeof userData.lessonsCompleted !== 'number') userData.lessonsCompleted = 0;
-    if (!Array.isArray(userData.mistakes)) userData.mistakes = [];
-    if (!Array.isArray(userData.successes)) userData.successes = [];
-    if (!Array.isArray(userData.lessonDurations)) userData.lessonDurations = [];
-    if (!Array.isArray(userData.lessonAccuracy)) userData.lessonAccuracy = [];
-    if (!Array.isArray(userData.lessonAttempts)) userData.lessonAttempts = [];
-    if (!Array.isArray(userData.lessonCorrect)) userData.lessonCorrect = [];
-    if (!userData.lastLessonId) userData.lastLessonId = null;
-
-    hydrateLearnedWords();
+    return getDefaultUserData();
 }
 
-function hydrateLearnedWords() {
-    const allLessons = getAllLessonsFlat();
-    userData.learnedWords = userData.learnedWords.map(entry => {
-        const matchedLesson = entry.lessonId
-            ? allLessons.find(lesson => lesson.id === entry.lessonId)
-            : allLessons.find(lesson => lesson.words.some(word => word.en === entry.en || word.pt === entry.resolvedFrom || word.pt === entry.pt));
-
-        return {
-            ...entry,
-            srsLevel: entry.srsLevel || 1,
-            lastReviewed: entry.lastReviewed || Date.now(),
-            lessonId: entry.lessonId || matchedLesson?.id || null,
-            topicId: entry.topicId || matchedLesson?.topicId || null,
-            topicTitle: entry.topicTitle || matchedLesson?.topicTitle || null
-        };
-    });
+function getDefaultUserData() {
+    return {
+        learnedWords: [],
+        lessonsCompleted: 0,
+        streak: 0,
+        isPremium: false,
+        speakerGender: 'male',
+        activeLesson: null,
+        lastLessonId: null,
+        lessonAttempts: {},
+        lessonCorrect: {},
+        lessonAccuracy: {},
+        lessonDurations: {},
+        mistakes: [],
+        successes: []
+    };
 }
 
 function saveUserData() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-    } catch (error) {
-        console.warn('Unable to save user data', error);
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    } catch (e) {
+        console.warn('Failed to save user data:', e);
     }
 }
 
-function loadVoiceSettings() {
-    const base = structuredClone(voiceDefaults);
-    try {
-        const savedRaw = localStorage.getItem(VOICE_STORAGE_KEY);
-        if (!savedRaw) return base;
-        const parsed = JSON.parse(savedRaw);
-        return {
-            ...base,
-            ...parsed,
-            bundled: {
-                ...base.bundled,
-                ...(parsed.bundled || {})
-            },
-            bundledApiUrl: parsed.bundledApiUrl || base.bundledApiUrl,
-            bundledVoiceKey: parsed.bundledVoiceKey || base.bundledVoiceKey,
-            detectedSystemOptions: Array.isArray(parsed.detectedSystemOptions) ? parsed.detectedSystemOptions : [],
-            selectedVoiceKey: parsed.selectedVoiceKey || parsed.voiceKey || base.selectedVoiceKey,
-            selectedSource: parsed.selectedSource || base.selectedSource,
-            allowBundled: typeof parsed.allowBundled === 'boolean' ? parsed.allowBundled : base.allowBundled
-        };
-    } catch (error) {
-        console.warn('Unable to read voice settings', error);
-        return base;
-    }
+// =========== LESSON HELPERS ===========
+function getLessonByIdForUI(lessonId) {
+    // Try new loader first, fallback to legacy
+    return loaderGetLessonById(lessonId) || getAllLessonsFlat().find(l => l.id === lessonId);
 }
 
-function saveVoiceSettings(settings) {
-    try {
-        localStorage.setItem(VOICE_STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-        console.warn('Unable to persist voice settings', error);
-    }
-}
-
-function renderVersion() {
-    const versionEl = document.getElementById('appVersion');
-    if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
-}
-
+// =========== TOPIC FILTERS & LESSON GRID ===========
 function renderTopicFilters() {
     const container = document.getElementById('topicFilters');
     if (!container) return;
-    const topicList = ['all', ...topics.map(t => t.id)];
+    
+    const allTopics = getAllTopics();
+    const topicList = ['all', ...allTopics.map(t => t.id)];
+    
     container.innerHTML = topicList
         .map(id => {
-            const label = id === 'all' ? 'All Topics' : topics.find(t => t.id === id)?.title || id;
+            const label = id === 'all' ? 'All Topics' : allTopics.find(t => t.id === id)?.title || id;
             const active = uiState.selectedTopic === id ? 'active' : '';
             return `<button class="topic-chip ${active}" data-topic="${id}">${label}</button>`;
         })
@@ -658,33 +120,39 @@ function renderTopicFilters() {
     });
 }
 
-function getLessonImage(lesson) {
-    if (lesson.image) return lesson.image;
-    // Use lesson-specific images first, fall back to default
-    return lessonImages[lesson.id] || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80';
-}
-
 function renderLessons() {
     const grid = document.getElementById('lessonGrid');
     if (!grid) return;
+    
+    const allTopics = getAllTopics();
+    let lessons = getAllLessons();
+    
+    // Filter by selected topic
+    if (uiState.selectedTopic && uiState.selectedTopic !== 'all') {
+        lessons = lessons.filter(l => l.topicId === uiState.selectedTopic);
+    }
+    
+    // Filter out gated lessons for non-premium users
+    lessons = lessons.filter(l => !l.gated || userData.isPremium);
+    
     grid.innerHTML = '';
-
-    const lessons = getAllLessonsFlat().filter(lesson => {
-        if (uiState.selectedTopic !== 'all' && lesson.topicId !== uiState.selectedTopic) return false;
-        if (!userData.isPremium && lesson.gated) return false;
-        return true;
-    });
-
+    
     lessons.forEach(lesson => {
-        const imageUrl = getLessonImage(lesson);
         const card = document.createElement('div');
         card.className = 'lesson-card';
+        card.dataset.lessonId = lesson.id;
+        
+        const imageData = getLessonImage(lesson);
+        const topic = allTopics.find(t => t.id === lesson.topicId);
+        const accuracy = userData.lessonAccuracy?.[lesson.id];
+        const accuracyText = typeof accuracy === 'number' ? `${accuracy}%` : '—';
+        
         card.innerHTML = `
-            <div class="lesson-thumb" style="background-image: url('${imageUrl}')"></div>
-            <div class="lesson-meta">${lesson.topicTitle} · ${lesson.level}</div>
+            <div class="lesson-thumb" style="background-image: url('${imageData.url}')"></div>
             <h3>${lesson.title}</h3>
-            <p class="word-count">${lesson.words.length} words • ${lesson.sentences?.length || 0} sentences</p>
-            ${lesson.gated ? '<span class="badge-premium">Premium</span>' : ''}
+            <p class="lesson-meta">${topic?.title || lesson.topicId} · ${lesson.level || 'beginner'}</p>
+            <p class="word-count">${lesson.words?.length || 0} words</p>
+            <p class="lesson-accuracy">Accuracy: ${accuracyText}</p>
             ${userData.activeLesson === lesson.id ? '<span class="badge-active">In progress</span>' : ''}
         `;
         card.addEventListener('click', () => startLesson(lesson.id));
@@ -697,17 +165,16 @@ function renderLessons() {
 }
 
 // =========== DUOLINGO-STYLE LESSON FLOW ===========
-// Progressive challenge system: one challenge at a time with smooth transitions
+// Clean implementation: data-driven challenges + accordion layout via ChallengeRenderer
 
 function startLesson(lessonId) {
-    const lesson = getAllLessonsFlat().find(l => l.id === lessonId);
+    const lesson = getLessonByIdForUI(lessonId);
     if (!lesson) return;
     if (lesson.gated && !userData.isPremium) {
         showPaywall();
         return;
     }
-    
-    // Check hearts before starting (unless admin)
+
     if (!hasHearts()) {
         showHeartsModal();
         return;
@@ -717,10 +184,10 @@ function startLesson(lessonId) {
     uiState.lessonStartMs = Date.now();
     saveUserData();
 
-    // Build challenge sequence
-    const challenges = buildLessonChallenges(lesson);
-    
-    // Initialize lesson state
+    const challenges = buildLessonChallenges(lesson, {
+        learnedWords: getLearnedWords()
+    });
+
     const lessonState = {
         lesson,
         challenges,
@@ -728,18 +195,23 @@ function startLesson(lessonId) {
         correct: 0,
         mistakes: 0,
         startTime: Date.now(),
-        wrongAnswers: [] // Track which words user got wrong for retry guidance
+        wrongAnswers: []
     };
+
+    uiState.activeLessonState = lessonState;
 
     const section = document.querySelector('.learning-section');
     if (!section) return;
-    
-    // Get current hearts for display
-    const hearts = getHearts();
-    const heartsDisplay = hearts === Infinity 
-        ? '<span class="unlimited-hearts">∞</span>' 
-        : '❤️'.repeat(hearts) + '🖤'.repeat(AUTH_CONSTANTS.MAX_HEARTS - hearts);
-    
+
+    const renderHearts = () => {
+        const heartsEl = document.getElementById('lessonHearts');
+        if (!heartsEl) return;
+        const hearts = getHearts();
+        heartsEl.innerHTML = hearts === Infinity
+            ? '<span class="unlimited-hearts">∞</span>'
+            : '❤️'.repeat(Math.max(0, hearts)) + '🖤'.repeat(Math.max(0, AUTH_CONSTANTS.MAX_HEARTS - hearts));
+    };
+
     section.innerHTML = `
         <div class="lesson-flow">
             <div class="lesson-flow-header">
@@ -747,1196 +219,102 @@ function startLesson(lessonId) {
                 <div class="lesson-progress-bar">
                     <div class="lesson-progress-fill" id="lessonProgressFill"></div>
                 </div>
-                <div class="lesson-hearts" id="lessonHearts">${heartsDisplay}</div>
+                <div class="lesson-hearts" id="lessonHearts"></div>
             </div>
             <div class="lesson-challenge-container" id="challengeContainer"></div>
         </div>
     `;
 
+    renderHearts();
+
+    lessonState.renderer = new ChallengeRenderer({
+        playWord: (value, speed = 1) => {
+            if (value && typeof value === 'object') {
+                const resolved = resolveWordForm(value, userData.speakerGender);
+                return playWord(resolved, speed);
+            }
+            return playWord(value, speed);
+        },
+        getWordKnowledge,
+        generatePronunciationTip: generateBasicPronunciationTip,
+        getPronunciationChallengeType,
+        testPronunciation: async (target, options = {}) => aiSpeech.testPronunciation(target, options),
+        saveToFlashcards,
+        loseHeart,
+        getHearts,
+        hasHearts,
+        speakerGender: userData.speakerGender,
+        onChallengeComplete: (state) => {
+            state.currentIndex += 1;
+            renderChallenge(state);
+        },
+        onHeartsUpdate: renderHearts,
+        onShowHeartsModal: showHeartsModal
+    });
+
     document.getElementById('backToLessons').addEventListener('click', () => {
-        if (confirm('Exit lesson? Your progress will be saved.')) {
-            backToLessons();
-        }
+        if (!confirm('Exit lesson? Your progress will be saved.')) return;
+        lessonState.renderer?.destroy();
+        backToLessons();
     });
 
-    // Start first challenge
     renderChallenge(lessonState);
-}
-
-function buildLessonChallenges(lesson) {
-    const challenges = [];
-    const words = lesson.words || [];
-    const sentences = lesson.sentences || [];
-    
-    // Phase 1: Learn new words (listen & see)
-    words.forEach((word, idx) => {
-        challenges.push({
-            type: 'learn-word',
-            word,
-            phase: 'learn',
-            index: idx
-        });
-    });
-    
-    // Phase 2: Pronunciation practice - say each word
-    // Take a subset of words for pronunciation practice
-    const pronWords = shuffleArray([...words]).slice(0, Math.min(4, words.length));
-    pronWords.forEach(word => {
-        challenges.push({
-            type: 'pronunciation',
-            word,
-            phase: 'pronounce',
-            maxAttempts: 3
-        });
-    });
-    
-    // Phase 3: Multiple choice quizzes (batches of 4-5)
-    const shuffledWords = shuffleArray([...words]);
-    shuffledWords.forEach(word => {
-        challenges.push({
-            type: 'mcq',
-            word,
-            phase: 'practice',
-            options: buildQuizOptions(word, words)
-        });
-    });
-    
-    // Phase 4: Type the Portuguese (fill in blank)
-    const fillWords = shuffleArray([...words]).slice(0, Math.min(5, words.length));
-    fillWords.forEach(word => {
-        challenges.push({
-            type: 'type-answer',
-            word,
-            phase: 'practice'
-        });
-    });
-    
-    // Phase 5: Listen and type
-    const listenWords = shuffleArray([...words]).slice(0, Math.min(3, words.length));
-    listenWords.forEach(word => {
-        challenges.push({
-            type: 'listen-type',
-            word,
-            phase: 'practice'
-        });
-    });
-    
-    // Phase 6: Sentences
-    sentences.forEach(sentence => {
-        challenges.push({
-            type: 'sentence',
-            sentence,
-            phase: 'apply'
-        });
-    });
-    
-    return challenges;
 }
 
 function renderChallenge(state) {
     const container = document.getElementById('challengeContainer');
     const progressFill = document.getElementById('lessonProgressFill');
-    
     if (!container) return;
-    
-    // Update progress bar
+
     const progress = (state.currentIndex / state.challenges.length) * 100;
     if (progressFill) progressFill.style.width = `${progress}%`;
-    
-    // Check if lesson complete
+
     if (state.currentIndex >= state.challenges.length) {
         renderLessonComplete(state);
         return;
     }
-    
+
     const challenge = state.challenges[state.currentIndex];
-    
-    // Animate out old challenge, animate in new
-    container.classList.add('challenge-exit');
-    
-    setTimeout(() => {
-        container.innerHTML = '';
-        container.classList.remove('challenge-exit');
-        container.classList.add('challenge-enter');
-        
-        switch (challenge.type) {
-            case 'learn-word':
-                renderLearnWordChallenge(container, challenge, state);
-                break;
-            case 'pronunciation':
-                renderPronunciationChallenge(container, challenge, state);
-                break;
-            case 'mcq':
-                renderMCQChallenge(container, challenge, state);
-                break;
-            case 'type-answer':
-                renderTypeChallenge(container, challenge, state);
-                break;
-            case 'listen-type':
-                renderListenTypeChallenge(container, challenge, state);
-                break;
-            case 'sentence':
-                renderSentenceChallenge(container, challenge, state);
-                break;
-        }
-        
-        setTimeout(() => container.classList.remove('challenge-enter'), 300);
-    }, 200);
-}
-
-function renderLearnWordChallenge(container, challenge, state) {
-    const word = challenge.word;
-    const resolved = resolveWordForm(word, userData.speakerGender);
-    const alt = getAlternateForm(word, userData.speakerGender);
-    
-    // Look up rich word knowledge
-    const knowledge = getWordKnowledge(resolved);
-    const hasKnowledge = knowledge !== null;
-    
-    // Build the rich teaching card
-    let cardHTML = `
-        <div class="challenge-card learn-card learn-card-rich">
-            <div class="challenge-instruction">📚 Learn This Word</div>
-            
-            <div class="learn-word-header">
-                <div class="learn-portuguese-main">${escapeHtml(resolved)}</div>
-                ${hasKnowledge && knowledge.ipa ? `<div class="learn-ipa">${escapeHtml(knowledge.ipa)}</div>` : ''}
-                <div class="learn-english-main">${escapeHtml(word.en)}</div>
-                ${alt ? `<div class="learn-alt-form">Also: ${escapeHtml(alt)}</div>` : ''}
-                <button class="btn-listen-main" id="listenBtn">🔊 Listen</button>
-            </div>`;
-    
-    // Pronunciation section - always show
-    cardHTML += `
-            <div class="learn-section pronunciation-section">
-                <div class="section-header">🗣️ Pronunciation</div>`;
-    
-    if (hasKnowledge && knowledge.pronunciation) {
-        const p = knowledge.pronunciation;
-        cardHTML += `
-                <div class="pronunciation-guide">${escapeHtml(p.guide)}</div>
-                ${p.breakdown ? `<div class="pronunciation-breakdown">Breakdown: ${escapeHtml(p.breakdown)}</div>` : ''}
-                <div class="pronunciation-tip">
-                    <span class="tip-icon">💡</span>
-                    <span class="tip-text">${escapeHtml(p.tip)}</span>
-                </div>
-                ${p.commonMistake ? `<div class="common-mistake">
-                    <span class="mistake-icon">⚠️</span>
-                    <span class="mistake-label">Common mistake:</span> ${escapeHtml(p.commonMistake)}
-                </div>` : ''}
-                ${p.audioFocus ? `<div class="audio-focus">
-                    <span class="focus-icon">👂</span>
-                    ${escapeHtml(p.audioFocus)}
-                </div>` : ''}`;
-    } else {
-        // Fallback pronunciation tip based on word analysis
-        const tip = generateBasicPronunciationTip(resolved);
-        const challengeType = getPronunciationChallengeType(resolved);
-        cardHTML += `
-                <div class="pronunciation-tip">
-                    <span class="tip-icon">💡</span>
-                    <span class="tip-text">${escapeHtml(tip)}</span>
-                </div>
-                <div class="challenge-type-badge ${challengeType}">${challengeType}</div>`;
-    }
-    cardHTML += `</div>`;
-    
-    // Memory & Etymology section
-    if (hasKnowledge && (knowledge.etymology || knowledge.memoryTrick)) {
-        cardHTML += `
-            <div class="learn-section memory-section">
-                <div class="section-header">🧠 Remember It</div>
-                ${knowledge.etymology ? `<div class="etymology">
-                    <span class="etymology-label">Origin:</span> ${escapeHtml(knowledge.etymology)}
-                </div>` : ''}
-                ${knowledge.memoryTrick ? `<div class="memory-trick">
-                    <span class="trick-icon">💭</span>
-                    ${escapeHtml(knowledge.memoryTrick)}
-                </div>` : ''}
-            </div>`;
-    }
-    
-    // Examples section
-    if (hasKnowledge && knowledge.examples && knowledge.examples.length > 0) {
-        cardHTML += `
-            <div class="learn-section examples-section">
-                <div class="section-header">📝 Example Sentences</div>
-                <div class="examples-list">`;
-        
-        knowledge.examples.forEach((ex, i) => {
-            cardHTML += `
-                    <div class="example-item" data-example="${i}">
-                        <div class="example-pt">
-                            ${escapeHtml(ex.pt)}
-                            <button class="btn-listen-example" data-text="${escapeHtml(ex.pt)}" title="Listen">🔊</button>
-                        </div>
-                        <div class="example-en">${escapeHtml(ex.en)}</div>
-                        ${ex.context ? `<div class="example-context">${escapeHtml(ex.context)}</div>` : ''}
-                    </div>`;
-        });
-        
-        cardHTML += `
-                </div>
-            </div>`;
-    }
-    
-    // Grammar notes
-    if (hasKnowledge && knowledge.grammar) {
-        cardHTML += `
-            <div class="learn-section grammar-section">
-                <div class="section-header">📖 Grammar Note</div>
-                <div class="grammar-note">${escapeHtml(knowledge.grammar)}</div>
-            </div>`;
-    }
-    
-    // Conjugation table for verbs
-    if (hasKnowledge && knowledge.conjugation) {
-        const conj = knowledge.conjugation;
-        cardHTML += `
-            <div class="learn-section conjugation-section">
-                <div class="section-header">🔄 Present Tense</div>
-                <div class="conjugation-table">
-                    ${Object.entries(conj.present || {}).map(([pronoun, form]) => `
-                        <div class="conj-row">
-                            <span class="conj-pronoun">${escapeHtml(pronoun)}</span>
-                            <span class="conj-form">${escapeHtml(form)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                ${conj.note ? `<div class="conj-note">${escapeHtml(conj.note)}</div>` : ''}
-            </div>`;
-    }
-    
-    // Usage context
-    if (hasKnowledge && knowledge.usage) {
-        const u = knowledge.usage;
-        cardHTML += `
-            <div class="learn-section usage-section">
-                <div class="section-header">🎯 When to Use</div>
-                <div class="usage-formality">Formality: <span class="formality-badge">${escapeHtml(u.formality)}</span></div>
-                <div class="usage-context">${escapeHtml(u.context)}</div>
-                ${u.alternative ? `<div class="usage-alternative">
-                    <span class="alt-label">Alternative:</span> ${escapeHtml(u.alternative)}
-                </div>` : ''}
-            </div>`;
-    }
-    
-    // Cultural note
-    if (hasKnowledge && knowledge.cultural) {
-        cardHTML += `
-            <div class="learn-section cultural-section">
-                <div class="section-header">🇵🇹 Cultural Insight</div>
-                <div class="cultural-note">${escapeHtml(knowledge.cultural)}</div>
-            </div>`;
-    }
-    
-    // Footer with actions
-    cardHTML += `
-            <div class="learn-card-actions">
-                <button class="btn-save-word" id="saveWordBtn" data-pt="${escapeHtml(resolved)}" data-en="${escapeHtml(word.en)}">💾 Save to Flashcards</button>
-                <button class="btn-practice-say" id="practiceBtn">🎤 Practice Saying It</button>
-            </div>
-            <div class="challenge-footer">
-                <div class="word-progress-indicator">Word ${challenge.index + 1} of ${state.challenges.filter(c => c.type === 'learn-word').length}</div>
-                <button class="btn-continue" id="continueBtn">I've Got It! Continue →</button>
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = cardHTML;
-    
-    // Auto-play audio after a short delay
-    setTimeout(() => playWord(resolved), 400);
-    
-    // Event listeners
-    document.getElementById('listenBtn').addEventListener('click', () => playWord(resolved));
-    
-    document.getElementById('saveWordBtn').addEventListener('click', (e) => {
-        const btn = e.target;
-        saveToFlashcards(btn.dataset.pt, btn.dataset.en, state.lesson.title);
-        btn.textContent = '✓ Saved!';
-        btn.disabled = true;
-    });
-    
-    document.getElementById('practiceBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('practiceBtn');
-        btn.textContent = '🎤 Listening...';
-        btn.disabled = true;
-        
-        try {
-            // Use the speech recognition system
-            const result = await aiSpeech.listenAndTranscribe();
-            if (result && result.text) {
-                const score = aiSpeech.scorePronunciation(result.text, resolved);
-                showPronunciationFeedback(container, score, resolved, result.text);
-            } else {
-                showPronunciationFeedback(container, null, resolved, null);
-            }
-        } catch (err) {
-            console.error('Speech recognition error:', err);
-            showPronunciationFeedback(container, null, resolved, null);
-        }
-        
-        btn.textContent = '🎤 Try Again';
-        btn.disabled = false;
-    });
-    
-    // Listen buttons for examples
-    container.querySelectorAll('.btn-listen-example').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const text = btn.dataset.text;
-            playWord(text);
-        });
-    });
-    
-    document.getElementById('continueBtn').addEventListener('click', () => {
-        state.currentIndex++;
-        renderChallenge(state);
-    });
-}
-
-function showPronunciationFeedback(container, scoreResult, expected, transcribed) {
-    // Remove any existing feedback
-    const existingFeedback = container.querySelector('.pronunciation-feedback');
-    if (existingFeedback) existingFeedback.remove();
-    
-    const feedbackDiv = document.createElement('div');
-    feedbackDiv.className = 'pronunciation-feedback';
-    
-    if (!scoreResult || scoreResult.score === null) {
-        feedbackDiv.innerHTML = `
-            <div class="feedback-error">
-                <span class="feedback-icon">❓</span>
-                <span>Couldn't hear you clearly. Make sure your microphone is working and try again.</span>
-            </div>
-        `;
-    } else {
-        const score = scoreResult.score;
-        let ratingClass = 'needs-work';
-        let ratingText = 'Keep practicing';
-        let icon = '🔄';
-        
-        if (score >= 90) {
-            ratingClass = 'excellent';
-            ratingText = 'Excellent! 🎉';
-            icon = '✨';
-        } else if (score >= 70) {
-            ratingClass = 'good';
-            ratingText = 'Good job!';
-            icon = '👍';
-        } else if (score >= 50) {
-            ratingClass = 'fair';
-            ratingText = 'Getting there';
-            icon = '💪';
-        }
-        
-        feedbackDiv.innerHTML = `
-            <div class="feedback-result ${ratingClass}">
-                <div class="feedback-score">
-                    <span class="score-icon">${icon}</span>
-                    <span class="score-value">${Math.round(score)}%</span>
-                    <span class="score-label">${ratingText}</span>
-                </div>
-                <div class="feedback-comparison">
-                    <div class="expected-text">
-                        <span class="comparison-label">Expected:</span>
-                        <span class="comparison-value">${escapeHtml(expected)}</span>
-                    </div>
-                    <div class="heard-text">
-                        <span class="comparison-label">We heard:</span>
-                        <span class="comparison-value">${escapeHtml(transcribed || '(nothing)')}</span>
-                    </div>
-                </div>
-                ${score < 70 ? `
-                    <div class="feedback-tip">
-                        <span class="tip-icon">💡</span>
-                        Listen to the audio again and focus on matching the rhythm and sounds.
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
-    
-    // Insert after practice button
-    const actionsDiv = container.querySelector('.learn-card-actions');
-    if (actionsDiv) {
-        actionsDiv.after(feedbackDiv);
-    }
-}
-
-/**
- * Render a dedicated pronunciation challenge with robust feedback
- * This is a standalone challenge phase where users must achieve a passing score
- */
-function renderPronunciationChallenge(container, challenge, state) {
-    const word = challenge.word;
-    const resolved = resolveWordForm(word, userData.speakerGender);
-    const knowledge = getWordKnowledge(resolved) || getWordKnowledge(word.pt);
-    const maxAttempts = challenge.maxAttempts || 3;
-    const passScore = 65; // Minimum score to pass
-    
-    // Get pronunciation info from word knowledge
-    const pronInfo = knowledge?.pronunciation;
-    const hasPronounciation = pronInfo && pronInfo.ipa;
-    
-    // Count how many pronunciation challenges in this lesson
-    const pronChallenges = state.challenges.filter(c => c.type === 'pronunciation');
-    const currentPronIndex = pronChallenges.findIndex(c => c === challenge) + 1;
-    
-    container.innerHTML = `
-        <div class="challenge-card pronunciation-card" id="pronunciationCard">
-            <div class="challenge-header">
-                <div class="challenge-instruction">🎤 Say this word aloud</div>
-                <div class="attempt-tracker" id="attemptTracker">
-                    Attempt <span id="attemptNum">1</span> of ${maxAttempts}
-                </div>
-            </div>
-            
-            <div class="pronunciation-target">
-                <div class="target-word" id="targetWord">${escapeHtml(resolved)}</div>
-                ${hasPronounciation ? `
-                    <div class="pronunciation-guide">
-                        <span class="ipa">[${escapeHtml(pronInfo.ipa)}]</span>
-                        ${pronInfo.breakdown ? `<span class="breakdown">${escapeHtml(pronInfo.breakdown)}</span>` : ''}
-                    </div>
-                ` : ''}
-                <button class="btn-listen-large" id="listenBtn">🔊 Listen First</button>
-            </div>
-            
-            ${pronInfo?.tip ? `
-                <div class="pronunciation-tip">
-                    <span class="tip-icon">💡</span>
-                    <span class="tip-text">${escapeHtml(pronInfo.tip)}</span>
-                </div>
-            ` : ''}
-            
-            <div class="pronunciation-meaning">
-                <span class="meaning-label">Meaning:</span>
-                <span class="meaning-text">${escapeHtml(word.en)}</span>
-            </div>
-            
-            <div class="pronunciation-controls">
-                <button class="btn-record" id="recordBtn">
-                    <span class="record-icon">🎙️</span>
-                    <span class="record-text">Hold to Speak</span>
-                </button>
-                <div class="recording-indicator hidden" id="recordingIndicator">
-                    <span class="pulse"></span> Listening...
-                </div>
-            </div>
-            
-            <div class="pronunciation-result hidden" id="resultArea">
-                <div class="result-score" id="resultScore"></div>
-                <div class="result-comparison" id="resultComparison"></div>
-                <div class="result-feedback" id="resultFeedback"></div>
-                <div class="result-tips" id="resultTips"></div>
-            </div>
-            
-            <div class="pronunciation-actions hidden" id="actionArea">
-                <button class="btn-retry" id="retryBtn">🔄 Try Again</button>
-                <button class="btn-continue" id="continueBtn">Continue →</button>
-            </div>
-            
-            <div class="challenge-footer">
-                <div class="word-progress-indicator">Pronunciation ${currentPronIndex} of ${pronChallenges.length}</div>
-            </div>
-        </div>
-    `;
-    
-    // State for this challenge
-    let currentAttempt = 0;
-    let bestScore = null;
-    let passed = false;
-    
-    // Play audio on click
-    document.getElementById('listenBtn').addEventListener('click', () => {
-        playWord(resolved);
-    });
-    
-    // Auto-play on load
-    setTimeout(() => playWord(resolved), 300);
-    
-    const recordBtn = document.getElementById('recordBtn');
-    const recordingIndicator = document.getElementById('recordingIndicator');
-    const resultArea = document.getElementById('resultArea');
-    const actionArea = document.getElementById('actionArea');
-    const attemptNumSpan = document.getElementById('attemptNum');
-    
-    // Use click for simplicity (not hold-to-speak)
-    recordBtn.addEventListener('click', async () => {
-        if (passed || currentAttempt >= maxAttempts) return;
-        
-        currentAttempt++;
-        attemptNumSpan.textContent = currentAttempt;
-        
-        // Show recording state
-        recordBtn.classList.add('hidden');
-        recordingIndicator.classList.remove('hidden');
-        resultArea.classList.add('hidden');
-        actionArea.classList.add('hidden');
-        
-        try {
-            // Use the enhanced testPronunciation function
-            const result = await aiSpeech.testPronunciation(resolved, {
-                maxAttempts: 1, // One attempt per click
-                timeoutMs: 5000,
-                wordKnowledge: knowledge
-            });
-            
-            const score = result.bestScore;
-            
-            // Update best score
-            if (!bestScore || score.score > bestScore.score) {
-                bestScore = score;
-            }
-            
-            // Check if passed
-            if (score.score >= passScore) {
-                passed = true;
-            }
-            
-            // Hide recording indicator
-            recordingIndicator.classList.add('hidden');
-            resultArea.classList.remove('hidden');
-            
-            // Display results
-            displayPronunciationResult(score, resolved, currentAttempt, maxAttempts, passed, passScore);
-            
-        } catch (err) {
-            console.error('Pronunciation test error:', err);
-            recordingIndicator.classList.add('hidden');
-            recordBtn.classList.remove('hidden');
-            
-            // Show error in result area
-            resultArea.classList.remove('hidden');
-            document.getElementById('resultScore').innerHTML = `
-                <div class="score-display error">
-                    <span class="score-emoji">❌</span>
-                    <span class="score-text">Error</span>
-                </div>
-            `;
-            document.getElementById('resultFeedback').innerHTML = `
-                <div class="feedback-error">${escapeHtml(err.message)}</div>
-            `;
-            document.getElementById('resultComparison').innerHTML = '';
-            document.getElementById('resultTips').innerHTML = '';
-            
-            actionArea.classList.remove('hidden');
-        }
-    });
-    
-    function displayPronunciationResult(score, expected, attempt, maxAttempts, hasPassed, passThreshold) {
-        const scoreDisplay = document.getElementById('resultScore');
-        const comparison = document.getElementById('resultComparison');
-        const feedback = document.getElementById('resultFeedback');
-        const tips = document.getElementById('resultTips');
-        
-        // Score display with visual meter
-        const scorePercent = Math.round(score.score);
-        const scoreClass = scorePercent >= 90 ? 'excellent' : 
-                          scorePercent >= 75 ? 'good' : 
-                          scorePercent >= 60 ? 'fair' : 
-                          scorePercent >= 40 ? 'needs-work' : 'poor';
-        
-        scoreDisplay.innerHTML = `
-            <div class="score-display ${scoreClass}">
-                <div class="score-meter">
-                    <div class="score-fill" style="width: ${scorePercent}%"></div>
-                    <div class="pass-marker" style="left: ${passThreshold}%"></div>
-                </div>
-                <div class="score-value">
-                    <span class="score-emoji">${score.emoji || getScoreEmoji(scorePercent)}</span>
-                    <span class="score-number">${scorePercent}%</span>
-                    <span class="score-label">${score.rating || 'Score'}</span>
-                </div>
-            </div>
-        `;
-        
-        // Comparison - what we heard vs expected
-        const heard = score.transcribed || score.matchedWords?.join(' ') || '(nothing detected)';
-        comparison.innerHTML = `
-            <div class="comparison-row">
-                <span class="comparison-label">Expected:</span>
-                <span class="comparison-value expected">${escapeHtml(expected)}</span>
-            </div>
-            <div class="comparison-row">
-                <span class="comparison-label">We heard:</span>
-                <span class="comparison-value heard">${escapeHtml(heard)}</span>
-            </div>
-            ${score.closeMatches?.length > 0 ? `
-                <div class="close-matches">
-                    <span class="match-label">Close matches:</span>
-                    ${score.closeMatches.map(m => `
-                        <span class="match-item">"${escapeHtml(m.heard)}" ≈ "${escapeHtml(m.expected)}"</span>
-                    `).join('')}
-                </div>
-            ` : ''}
-        `;
-        
-        // Main feedback
-        feedback.innerHTML = `
-            <div class="feedback-message ${hasPassed ? 'passed' : ''}">${score.feedback || ''}</div>
-        `;
-        
-        // Tips for improvement
-        if (score.tips && score.tips.length > 0) {
-            tips.innerHTML = `
-                <div class="tips-section">
-                    <div class="tips-header">💡 Tips:</div>
-                    <ul class="tips-list">
-                        ${score.tips.map(tip => `<li>${escapeHtml(tip)}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        } else if (score.specificIssues && score.specificIssues.length > 0) {
-            tips.innerHTML = `
-                <div class="tips-section">
-                    <div class="tips-header">🎯 Focus on:</div>
-                    <ul class="tips-list">
-                        ${score.specificIssues.slice(0, 2).map(issue => 
-                            `<li><strong>${escapeHtml(issue.name)}:</strong> ${escapeHtml(issue.tip)}</li>`
-                        ).join('')}
-                    </ul>
-                </div>
-            `;
-        } else {
-            tips.innerHTML = '';
-        }
-        
-        // Show action buttons
-        actionArea.classList.remove('hidden');
-        
-        const retryBtn = document.getElementById('retryBtn');
-        const continueBtn = document.getElementById('continueBtn');
-        
-        if (hasPassed) {
-            // Passed - can continue
-            retryBtn.classList.add('hidden');
-            continueBtn.classList.remove('hidden');
-            continueBtn.textContent = 'Continue →';
-            document.getElementById('pronunciationCard').classList.add('challenge-passed');
-        } else if (attempt >= maxAttempts) {
-            // Out of attempts - must continue anyway (but word will be marked weak)
-            retryBtn.classList.add('hidden');
-            continueBtn.classList.remove('hidden');
-            continueBtn.textContent = 'Continue (need more practice) →';
-            document.getElementById('pronunciationCard').classList.add('challenge-failed');
-            
-            // Mark word as needing pronunciation work
-            if (!state.weakWords) state.weakWords = [];
-            if (!state.weakWords.find(w => getWordKey(w) === getWordKey(word))) {
-                state.weakWords.push(word);
-            }
-        } else {
-            // Can retry
-            retryBtn.classList.remove('hidden');
-            continueBtn.classList.add('hidden');
-            recordBtn.classList.remove('hidden');
-        }
-        
-        // Retry button - show record button again
-        retryBtn.onclick = () => {
-            resultArea.classList.add('hidden');
-            actionArea.classList.add('hidden');
-            recordBtn.classList.remove('hidden');
-        };
-        
-        // Continue button
-        continueBtn.onclick = () => {
-            // Record score for this word
-            if (bestScore) {
-                state.pronunciationScores = state.pronunciationScores || {};
-                state.pronunciationScores[getWordKey(word)] = bestScore.score;
-            }
-            
-            // Move to next challenge
-            state.currentIndex++;
-            renderChallenge(state);
-        };
-    }
-    
-    function getScoreEmoji(score) {
-        if (score >= 90) return '🎉';
-        if (score >= 75) return '👍';
-        if (score >= 60) return '💪';
-        if (score >= 40) return '🔄';
-        return '😅';
-    }
-}
-
-function renderMCQChallenge(container, challenge, state) {
-    const word = challenge.word;
-    const resolved = resolveWordForm(word, userData.speakerGender);
-    const options = challenge.options;
-    
-    container.innerHTML = `
-        <div class="challenge-card mcq-card">
-            <div class="challenge-instruction">What does this mean?</div>
-            <div class="mcq-prompt">
-                <span class="mcq-word">${escapeHtml(resolved)}</span>
-                <button class="btn-listen-small" id="listenBtn">🔊</button>
-            </div>
-            <div class="mcq-options" id="mcqOptions">
-                ${options.map((opt, i) => `
-                    <button class="mcq-option" data-key="${opt.key}" data-index="${i}">
-                        ${escapeHtml(opt.en)}
-                    </button>
-                `).join('')}
-            </div>
-            <div class="challenge-feedback" id="feedback"></div>
-            <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(resolved)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
-            <div class="challenge-footer hidden" id="footerActions">
-                <button class="btn-continue" id="continueBtn">Continue</button>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('listenBtn').addEventListener('click', () => playWord(resolved));
-    document.getElementById('saveWordBtn').addEventListener('click', (e) => {
-        const btn = e.target;
-        saveToFlashcards(btn.dataset.pt, btn.dataset.en, state.lesson.title);
-        btn.textContent = '✓ Saved!';
-        btn.disabled = true;
-    });
-    
-    const correctKey = getWordKey(word);
-    const optionsContainer = document.getElementById('mcqOptions');
-    const buttons = optionsContainer.querySelectorAll('.mcq-option');
-    
-    buttons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const selected = btn.dataset.key;
-            const isCorrect = selected === correctKey;
-            
-            // Disable all buttons
-            buttons.forEach(b => b.disabled = true);
-            
-            if (isCorrect) {
-                btn.classList.add('correct');
-                showChallengeFeedback(true, state);
-                state.correct++;
-            } else {
-                btn.classList.add('incorrect');
-                // Highlight correct answer
-                buttons.forEach(b => {
-                    if (b.dataset.key === correctKey) b.classList.add('correct');
-                });
-                showChallengeFeedback(false, state, word.en);
-                state.mistakes++;
-                // Track wrong answer for retry guidance
-                state.wrongAnswers.push({ word: resolved, english: word.en, type: 'mcq' });
-                updateHearts();
-            }
-            
-            document.getElementById('footerActions').classList.remove('hidden');
-            document.getElementById('continueBtn').addEventListener('click', () => {
-                state.currentIndex++;
-                renderChallenge(state);
-            });
-        });
-    });
-}
-
-function renderTypeChallenge(container, challenge, state) {
-    const word = challenge.word;
-    const answer = resolveWordForm(word, userData.speakerGender);
-    
-    container.innerHTML = `
-        <div class="challenge-card type-card">
-            <div class="challenge-instruction">Write this in Portuguese</div>
-            <div class="type-prompt">${escapeHtml(word.en)}</div>
-            <input type="text" class="type-input" id="typeInput" placeholder="Type in Portuguese..." autocomplete="off" autocapitalize="off">
-            <div class="challenge-feedback" id="feedback"></div>
-            <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(answer)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
-            <div class="challenge-footer">
-                <button class="btn-skip" id="skipBtn">Skip</button>
-                <button class="btn-check" id="checkBtn">Check</button>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('saveWordBtn').addEventListener('click', (e) => {
-        const btn = e.target;
-        saveToFlashcards(btn.dataset.pt, btn.dataset.en, state.lesson.title);
-        btn.textContent = '✓ Saved!';
-        btn.disabled = true;
-    });
-    
-    const input = document.getElementById('typeInput');
-    const checkBtn = document.getElementById('checkBtn');
-    const skipBtn = document.getElementById('skipBtn');
-    
-    input.focus();
-    
-    const checkAnswer = () => {
-        const typed = normalizeText(input.value);
-        const target = normalizeText(answer);
-        const isCorrect = typed === target;
-        
-        input.disabled = true;
-        checkBtn.disabled = true;
-        skipBtn.disabled = true;
-        
-        if (isCorrect) {
-            input.classList.add('correct');
-            showChallengeFeedback(true, state);
-            state.correct++;
-        } else {
-            input.classList.add('incorrect');
-            showChallengeFeedback(false, state, answer);
-            state.mistakes++;
-            // Track wrong answer for retry guidance
-            state.wrongAnswers.push({ word: answer, english: word.en, type: 'type' });
-            updateHearts();
-        }
-        
-        // Change to continue button
-        checkBtn.textContent = 'Continue';
-        checkBtn.disabled = false;
-        checkBtn.classList.remove('btn-check');
-        checkBtn.classList.add('btn-continue');
-        checkBtn.onclick = () => {
-            state.currentIndex++;
-            renderChallenge(state);
-        };
-    };
-    
-    checkBtn.addEventListener('click', checkAnswer);
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') checkAnswer();
-    });
-    
-    skipBtn.addEventListener('click', () => {
-        state.mistakes++;
-        // Track skipped as wrong for retry guidance
-        state.wrongAnswers.push({ word: answer, english: word.en, type: 'skip' });
-        updateHearts();
-        showChallengeFeedback(false, state, answer);
-        input.disabled = true;
-        checkBtn.textContent = 'Continue';
-        checkBtn.classList.remove('btn-check');
-        checkBtn.classList.add('btn-continue');
-        checkBtn.onclick = () => {
-            state.currentIndex++;
-            renderChallenge(state);
-        };
-    });
-}
-
-function renderListenTypeChallenge(container, challenge, state) {
-    const word = challenge.word;
-    const answer = resolveWordForm(word, userData.speakerGender);
-    
-    container.innerHTML = `
-        <div class="challenge-card listen-type-card">
-            <div class="challenge-instruction">Type what you hear</div>
-            <button class="btn-listen-large" id="listenBtn">🔊</button>
-            <input type="text" class="type-input" id="typeInput" placeholder="Type what you hear..." autocomplete="off" autocapitalize="off">
-            <div class="challenge-feedback" id="feedback"></div>
-            <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(answer)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
-            <div class="challenge-footer">
-                <button class="btn-skip" id="skipBtn">Skip</button>
-                <button class="btn-check" id="checkBtn">Check</button>
-            </div>
-        </div>
-    `;
-    
-    // Auto-play audio
-    setTimeout(() => playWord(answer), 300);
-    
-    document.getElementById('listenBtn').addEventListener('click', () => playWord(answer));
-    document.getElementById('saveWordBtn').addEventListener('click', (e) => {
-        const btn = e.target;
-        saveToFlashcards(btn.dataset.pt, btn.dataset.en, state.lesson.title);
-        btn.textContent = '✓ Saved!';
-        btn.disabled = true;
-    });
-    
-    const input = document.getElementById('typeInput');
-    const checkBtn = document.getElementById('checkBtn');
-    const skipBtn = document.getElementById('skipBtn');
-    
-    input.focus();
-    
-    const checkAnswer = () => {
-        const typed = normalizeText(input.value);
-        const target = normalizeText(answer);
-        const isCorrect = typed === target;
-        
-        input.disabled = true;
-        checkBtn.disabled = true;
-        skipBtn.disabled = true;
-        
-        if (isCorrect) {
-            input.classList.add('correct');
-            showChallengeFeedback(true, state);
-            state.correct++;
-        } else {
-            input.classList.add('incorrect');
-            showChallengeFeedback(false, state, answer);
-            state.mistakes++;
-            // Track wrong answer for retry guidance
-            state.wrongAnswers.push({ word: answer, english: word.en, type: 'listen' });
-            updateHearts();
-        }
-        
-        checkBtn.textContent = 'Continue';
-        checkBtn.disabled = false;
-        checkBtn.classList.remove('btn-check');
-        checkBtn.classList.add('btn-continue');
-        checkBtn.onclick = () => {
-            state.currentIndex++;
-            renderChallenge(state);
-        };
-    };
-    
-    checkBtn.addEventListener('click', checkAnswer);
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') checkAnswer();
-    });
-    
-    skipBtn.addEventListener('click', () => {
-        state.mistakes++;
-        // Track skipped as wrong for retry guidance
-        state.wrongAnswers.push({ word: answer, english: word.en, type: 'skip' });
-        updateHearts();
-        showChallengeFeedback(false, state, answer);
-        input.disabled = true;
-        checkBtn.textContent = 'Continue';
-        checkBtn.classList.remove('btn-check');
-        checkBtn.classList.add('btn-continue');
-        checkBtn.onclick = () => {
-            state.currentIndex++;
-            renderChallenge(state);
-        };
-    });
-}
-
-function renderSentenceChallenge(container, challenge, state) {
-    const sentence = challenge.sentence;
-    
-    container.innerHTML = `
-        <div class="challenge-card sentence-card-challenge">
-            <div class="challenge-instruction">Listen and repeat</div>
-            <div class="sentence-display">
-                <div class="sentence-pt">${escapeHtml(sentence.pt)}</div>
-                <div class="sentence-en">${escapeHtml(sentence.en)}</div>
-            </div>
-            <button class="btn-listen-large" id="listenBtn">🔊 Listen</button>
-            <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(sentence.pt)}" data-en="${escapeHtml(sentence.en)}">💾 Save Sentence</button>
-            <div class="challenge-footer">
-                <button class="btn-continue" id="continueBtn">Continue</button>
-            </div>
-        </div>
-    `;
-    
-    // Auto-play
-    setTimeout(() => playWord(sentence.pt), 300);
-    
-    document.getElementById('listenBtn').addEventListener('click', () => playWord(sentence.pt));
-    document.getElementById('saveWordBtn').addEventListener('click', (e) => {
-        const btn = e.target;
-        saveToFlashcards(btn.dataset.pt, btn.dataset.en, state.lesson.title, 'sentence');
-        btn.textContent = '✓ Saved!';
-        btn.disabled = true;
-    });
-    document.getElementById('continueBtn').addEventListener('click', () => {
-        state.currentIndex++;
-        renderChallenge(state);
-    });
-}
-
-function showChallengeFeedback(isCorrect, state, correctAnswer = null) {
-    const feedback = document.getElementById('feedback');
-    if (!feedback) return;
-    
-    if (isCorrect) {
-        feedback.innerHTML = `<div class="feedback-correct">✓ Correct!</div>`;
-        feedback.className = 'challenge-feedback success';
-    } else {
-        feedback.innerHTML = `
-            <div class="feedback-incorrect">✗ Incorrect</div>
-            ${correctAnswer ? `<div class="feedback-answer">Correct answer: <strong>${escapeHtml(correctAnswer)}</strong></div>` : ''}
-        `;
-        feedback.className = 'challenge-feedback error';
-    }
-}
-
-function updateHearts() {
-    const heartsEl = document.getElementById('lessonHearts');
-    if (!heartsEl) return;
-    
-    // Use the global hearts system
-    const globalHearts = getHearts();
-    
-    // Lose a heart on mistake
-    const stillHasHearts = loseHeart();
-    
-    // Update display
-    if (globalHearts === Infinity) {
-        // Admin mode - show infinity symbol
-        heartsEl.innerHTML = '<span class="unlimited-hearts">∞</span>';
-    } else {
-        const newHearts = getHearts();
-        heartsEl.innerHTML = '❤️'.repeat(Math.max(0, newHearts)) + '🖤'.repeat(Math.max(0, AUTH_CONSTANTS.MAX_HEARTS - newHearts));
-    }
-    
-    // If out of hearts, show modal
-    if (!stillHasHearts && !hasHearts()) {
-        setTimeout(() => {
-            showHeartsModal();
-        }, 500);
-    }
+    state.renderer?.setSpeakerGender(userData.speakerGender);
+    state.renderer?.render(container, challenge, state);
 }
 
 function renderLessonComplete(state) {
     const container = document.getElementById('challengeContainer');
     if (!container) return;
-    
-    const duration = Math.round((Date.now() - state.startTime) / 1000);
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    
-    // Only count challenges that are actually testable (not learn-word phase)
-    const testChallenges = state.challenges.filter(c => c.type !== 'learn-word');
-    const accuracy = testChallenges.length > 0 
-        ? Math.round((state.correct / testChallenges.length) * 100) 
-        : 100;
-    
-    const PASS_THRESHOLD = 85;
-    const passed = accuracy >= PASS_THRESHOLD;
-    
-    // Only mark lesson complete if they passed
-    if (passed) {
-        // Add words to learned list
-        state.lesson.words.forEach(word => {
-            const resolved = resolveWordForm(word, userData.speakerGender);
-            if (!userData.learned.some(l => l.word === resolved)) {
-                userData.learned.push({
-                    word: resolved,
-                    english: word.en,
-                    date: Date.now(),
-                    lessonId: state.lesson.id,
-                    srsLevel: 1,
-                    nextReview: Date.now() + 24 * 60 * 60 * 1000
-                });
-            }
-        });
-        
-        // Mark lesson complete
-        if (!userData.completedLessons.includes(state.lesson.id)) {
-            userData.completedLessons.push(state.lesson.id);
-        }
-        saveUserData();
-        
-        // Award XP for lesson completion
-        const bonusXP = accuracy >= 100 ? 50 : accuracy >= 90 ? 30 : 20;
-        addXP(bonusXP);
-        
-        // Update streak
-        updateStreak();
-        
-        // Track lesson completion
-        authCompleteLesson();
-    }
-    
-    // Identify weak areas (words they got wrong)
-    const weakWords = [];
-    if (!passed && state.wrongAnswers) {
-        state.wrongAnswers.forEach(wa => {
-            if (!weakWords.includes(wa.word)) {
-                weakWords.push(wa.word);
-            }
-        });
-    }
-    
-    if (passed) {
-        // Calculate XP earned
-        const bonusXP = accuracy >= 100 ? 50 : accuracy >= 90 ? 30 : 20;
-        const totalXP = (state.correct * 10) + bonusXP;
-        
-        // Success screen
-        container.innerHTML = `
-            <div class="lesson-complete-card lesson-passed">
-                <div class="complete-celebration">🎉</div>
-                <h2>Excelente! Lesson Complete!</h2>
-                <div class="complete-stats">
-                    <div class="stat stat-highlight">
-                        <div class="stat-value">${accuracy}%</div>
-                        <div class="stat-label">Accuracy</div>
-                    </div>
-                    <div class="stat stat-xp">
-                        <div class="stat-value">+${totalXP}</div>
-                        <div class="stat-label">XP Earned</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">${state.lesson.words.length}</div>
-                        <div class="stat-label">Words Learned</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">${minutes}:${seconds.toString().padStart(2, '0')}</div>
-                        <div class="stat-label">Time</div>
-                    </div>
-                </div>
-                <p class="complete-message">You've mastered this lesson! The words have been added to your review list.</p>
-                <div class="complete-actions">
-                    <button class="btn-continue" id="backBtn">Continue to Next Lesson</button>
+
+    state.renderer?.destroy();
+    state.renderer = null;
+    uiState.activeLessonState = null;
+
+    const durationSec = Math.max(1, Math.round((Date.now() - state.startTime) / 1000));
+    const minutes = Math.floor(durationSec / 60);
+    const seconds = durationSec % 60;
+
+    const gradedChallenges = (state.challenges || []).filter(c => c.type !== 'learn-word');
+    const gradedCount = gradedChallenges.length || 1;
+    const correct = Math.max(0, state.correct || 0);
+    const accuracy = Math.min(100, Math.round((correct / gradedCount) * 100));
+
+    container.innerHTML = `
+        <div class="challenge-card lesson-complete">
+            <div class="challenge-instruction">Lesson complete</div>
+            <div class="completion-message">
+                <h2>Complete</h2>
+                <div class="completion-stats">
+                    <div><strong>Accuracy:</strong> ${accuracy}%</div>
+                    <div><strong>Time:</strong> ${minutes}:${String(seconds).padStart(2, '0')}</div>
                 </div>
             </div>
-        `;
-        
-        document.getElementById('backBtn').addEventListener('click', backToLessons);
-    } else {
-        // Not passed - need to retry
-        container.innerHTML = `
-            <div class="lesson-complete-card lesson-needs-work">
-                <div class="complete-icon">📚</div>
-                <h2>Almost There!</h2>
-                <div class="complete-stats">
-                    <div class="stat stat-warning">
-                        <div class="stat-value">${accuracy}%</div>
-                        <div class="stat-label">Your Score</div>
-                    </div>
-                    <div class="stat stat-target">
-                        <div class="stat-value">${PASS_THRESHOLD}%</div>
-                        <div class="stat-label">Required</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">${minutes}:${seconds.toString().padStart(2, '0')}</div>
-                        <div class="stat-label">Time</div>
-                    </div>
-                </div>
-                <div class="incomplete-message">
-                    <p>You need <strong>${PASS_THRESHOLD}%</strong> to complete this lesson and truly learn the words.</p>
-                    <p>Take your time with each word - understanding is more important than speed!</p>
-                </div>
-                ${weakWords.length > 0 ? `
-                    <div class="weak-words-section">
-                        <h3>🎯 Focus on these words:</h3>
-                        <div class="weak-words-list">
-                            ${weakWords.slice(0, 5).map(w => `
-                                <div class="weak-word-chip">${escapeHtml(w)}</div>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-                <div class="complete-actions">
-                    <button class="btn-retry" id="retryBtn">🔄 Try Again</button>
-                    <button class="btn-secondary" id="backBtn">Exit to Lessons</button>
-                </div>
-                <div class="encouragement-note">
-                    💪 Every attempt makes you better. You've got this!
-                </div>
+            <div class="challenge-footer">
+                <button class="btn-continue" id="finishLessonBtn">Finish</button>
             </div>
-        `;
-        
-        document.getElementById('retryBtn').addEventListener('click', () => {
-            // Restart the same lesson
-            startLesson(state.lesson.id);
-        });
-        
-        document.getElementById('backBtn').addEventListener('click', backToLessons);
-    }
+        </div>
+    `;
+
+    document.getElementById('finishLessonBtn')?.addEventListener('click', () => {
+        completeLesson(state.lesson, { showAlert: false });
+    });
 }
 
 // =========== KARAOKE-STYLE WORD CARD ===========
@@ -2894,7 +1272,8 @@ function buildHintForWord(item) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function completeLesson(lesson) {
+function completeLesson(lesson, options = {}) {
+    const { showAlert = true } = options;
     const lessonId = lesson.id;
     const idx = getAllLessonsFlat().findIndex(l => l.id === lessonId);
 
@@ -2935,7 +1314,9 @@ function completeLesson(lesson) {
     saveUserData();
     updateDashboard();
 
-    alert(`🎉 Lesson complete! You learned ${lesson.words.length} words.`);
+    if (showAlert) {
+        alert(`🎉 Lesson complete! You learned ${lesson.words.length} words.`);
+    }
     backToLessons();
 }
 
@@ -5859,4 +4240,41 @@ async function handleTranscription(transcription) {
     }
     
     if (recordingStatus) recordingStatus.textContent = 'Ready to record';
+}
+
+// ============================================================================
+// BOOTSTRAP
+// ============================================================================
+
+function initApp() {
+    // Wire navigation + hash-based routing
+    setupNavigation();
+
+    // Wire app-wide UI event handlers
+    setupEventListeners();
+
+    // Initial Learn page content
+    renderTopicFilters();
+    renderLessons();
+    hookSpeakerRadios();
+
+    // Header/profile stats
+    updateDashboard();
+}
+
+// Ensure routing/navigation and core UI wiring is initialized.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            initApp();
+        } catch (err) {
+            console.error('App initialization failed:', err);
+        }
+    });
+} else {
+    try {
+        initApp();
+    } catch (err) {
+        console.error('App initialization failed:', err);
+    }
 }

@@ -34,6 +34,13 @@
     visibility: visible;
 }
 
+/* Support common Modal.js which toggles `.visible` instead of `.active`/`.show`. */
+.modal-backdrop.visible,
+.modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* ============================================================================
    MODAL CONTAINER
    ============================================================================ */
@@ -55,6 +62,74 @@
     visibility: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     transition: all var(--transition-normal);
+}
+
+/* ============================================================================
+   MODAL.JS (modal-overlay + modal-container)
+   ============================================================================ */
+
+.modal-overlay {
+    z-index: var(--z-modal-backdrop, 1000);
+}
+
+.modal-overlay .modal-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    background: var(--surface, #111827);
+    border: 1px solid var(--modal-border-color, var(--divider, rgba(255, 255, 255, 0.12)));
+    border-radius: var(--modal-radius, 1.5rem);
+    padding: var(--modal-padding, 1.5rem);
+    width: 90%;
+    max-width: var(--modal-max-width, 560px);
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: var(--z-modal, 1001);
+    opacity: 0;
+    visibility: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    transition: all var(--transition-normal, 220ms ease);
+}
+
+.modal-overlay.visible .modal-container,
+.modal-overlay.active .modal-container,
+.modal-overlay.show .modal-container {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Consume auto-contrast variables set by components/common/Modal.js */
+.modal-container .modal-header {
+    border-bottom-color: var(--modal-border-color, var(--divider));
+}
+
+.modal-container .modal-title {
+    color: var(--modal-title-color, var(--text));
+}
+
+.modal-container .modal-close {
+    color: var(--modal-close-color, var(--muted));
+    background: var(--modal-close-hover-bg, var(--surface-subtle));
+}
+
+.modal-container .modal-close:hover {
+    background: var(--modal-close-hover-bg, var(--surface-hover));
+    color: var(--modal-title-color, var(--text));
+}
+
+.modal-container .modal-body {
+    color: var(--modal-text-color, var(--text));
+}
+
+.modal-container .modal-body .muted,
+.modal-container .modal-message {
+    color: var(--modal-text-secondary, var(--text-secondary));
+}
+
+.modal-container .modal-footer {
+    border-top-color: var(--modal-border-color, var(--divider));
 }
 
 .modal.active,

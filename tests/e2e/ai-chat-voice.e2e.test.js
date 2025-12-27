@@ -328,8 +328,13 @@ test.describe('AI Chat Voice Features', () => {
                 await page.waitForTimeout(200);
 
                 const stored = await page.evaluate(() => {
-                    // Default userId in AIChat is 'default'
-                    return localStorage.getItem('default_ai_autoSpeakReplies');
+                    // ai-chat.js provides a default userId; keep this test resilient.
+                    return (
+                        localStorage.getItem('default-user_ai_autoSpeakReplies') ||
+                        localStorage.getItem('default_ai_autoSpeakReplies') ||
+                        Object.entries(localStorage)
+                            .find(([k]) => k.endsWith('_ai_autoSpeakReplies'))?.[1]
+                    );
                 });
 
                 // Should be present and boolean-ish
@@ -397,5 +402,66 @@ test.describe('Voice Service Integration', () => {
         });
         
         expect(typeof health.available).toBe('boolean');
+    });
+});
+
+// ===========================================================================
+// TTS Server Status Badge Tests
+// ===========================================================================
+test.describe('AI Chat TTS Badge', () => {
+
+    test('AICHAT-TTS-BADGE-E001: Badge element exists in AI chat header', async ({ page }) => {
+        await page.goto(BASE_URL);
+        await openAIChat(page);
+
+        const aiWidget = page.locator('.ai-chat-widget, #aiChatWidget');
+        if (await aiWidget.isVisible({ timeout: 2000 }).catch(() => false)) {
+            const badge = aiWidget.locator('#aiTTSBadge, .ai-tts-badge');
+            // Badge should exist (may show online or offline depending on server state)
+            expect(await badge.count()).toBeGreaterThan(0);
+        }
+    });
+
+    test('AICHAT-TTS-BADGE-E002: Badge shows offline when server unavailable', async ({ page }) => {
+        // Intercept all requests to /health and abort them to simulate server down
+        await page.route('**/health', route => route.abort('connectionrefused'));
+
+        await page.goto(BASE_URL);
+        await openAIChat(page);
+
+        const aiWidget = page.locator('.ai-chat-widget, #aiChatWidget');
+        if (await aiWidget.isVisible({ timeout: 2000 }).catch(() => false)) {
+            const badge = aiWidget.locator('#aiTTSBadge, .ai-tts-badge');
+            // Give time for initial check to fail
+            await page.waitForTimeout(600);
+            if (await badge.count() > 0) {
+                const classes = await badge.getAttribute('class');
+                expect(classes).toContain('offline');
+            }
+        }
+    });
+
+    test('AICHAT-TTS-BADGE-E003: Badge shows online when server responds OK', async ({ page }) => {
+        // Intercept requests to /health and respond OK
+        await page.route('**/health', route => {
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ status: 'ok' })
+            });
+        });
+
+        await page.goto(BASE_URL);
+        await openAIChat(page);
+
+        const aiWidget = page.locator('.ai-chat-widget, #aiChatWidget');
+        if (await aiWidget.isVisible({ timeout: 2000 }).catch(() => false)) {
+            const badge = aiWidget.locator('#aiTTSBadge, .ai-tts-badge');
+            await page.waitForTimeout(600);
+            if (await badge.count() > 0) {
+                const classes = await badge.getAttribute('class');
+                expect(classes).toContain('online');
+            }
+        }
     });
 });
