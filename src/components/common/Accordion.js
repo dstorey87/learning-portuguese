@@ -280,6 +280,7 @@ export class Accordion {
         this.panelConfigs = options.panels || [];
         this.element = null;
         this.openPanelId = null;
+        this.eventHandlers = { change: [] };
     }
 
     /**
@@ -292,6 +293,13 @@ export class Accordion {
         this.element.className = 'accordion';
         this.element.id = this.id;
         this.element.setAttribute('role', 'presentation');
+
+        // Normalize panel configs defensively to avoid runtime errors
+        this.panelConfigs = Array.isArray(this.panelConfigs)
+            ? this.panelConfigs
+            : this.panelConfigs
+                ? Object.values(this.panelConfigs)
+                : [];
 
         // Restore state if persisting
         const savedOpenId = this.persistState ? this._loadState() : null;
@@ -347,6 +355,9 @@ export class Accordion {
 
         // Callback
         this.onPanelChange(panelId, opened, this._getState());
+
+        // Local event listeners
+        this._emit('change', { panelId, sectionId: panelId, isOpen: opened, state: this._getState() });
         
         // Dispatch event
         this._dispatchEvent(ACCORDION_EVENTS.STATE_CHANGE);
@@ -364,6 +375,14 @@ export class Accordion {
     }
 
     /**
+     * Alias for openPanel (used by callers)
+     * @param {string} panelId
+     */
+    open(panelId) {
+        this.openPanel(panelId);
+    }
+
+    /**
      * Close a specific panel by ID
      * @param {string} panelId - Panel ID to close
      */
@@ -372,6 +391,14 @@ export class Accordion {
         if (panel) {
             panel.close();
         }
+    }
+
+    /**
+     * Alias for closePanel (used by callers)
+     * @param {string} panelId
+     */
+    close(panelId) {
+        this.closePanel(panelId);
     }
 
     /**
@@ -401,6 +428,52 @@ export class Accordion {
         if (panel) {
             panel.updateContent(content);
         }
+    }
+
+    /**
+     * Alias for updatePanelContent
+     * @param {string} panelId
+     * @param {string|HTMLElement} content
+     */
+    updateContent(panelId, content) {
+        this.updatePanelContent(panelId, content);
+    }
+
+    /**
+     * Get currently open panel IDs
+     * @returns {Array<string>}
+     */
+    getOpenSections() {
+        return this.panels.filter(p => p.isOpen).map(p => p.id);
+    }
+
+    /**
+     * Register event listener
+     * @param {string} eventName
+     * @param {Function} handler
+     */
+    on(eventName, handler) {
+        if (!this.eventHandlers[eventName]) {
+            this.eventHandlers[eventName] = [];
+        }
+        this.eventHandlers[eventName].push(handler);
+    }
+
+    /**
+     * Emit local event
+     * @param {string} eventName
+     * @param {Object} payload
+     * @private
+     */
+    _emit(eventName, payload) {
+        const handlers = this.eventHandlers[eventName] || [];
+        handlers.forEach(fn => {
+            try {
+                fn(payload);
+            } catch (e) {
+                console.warn('Accordion listener error', e);
+            }
+        });
     }
 
     /**
@@ -481,8 +554,13 @@ export class Accordion {
  * @returns {Accordion} Accordion instance
  */
 export function createAccordion(container, panelConfigs, options = {}) {
+    const panels = Array.isArray(panelConfigs)
+        ? panelConfigs
+        : panelConfigs
+            ? Object.values(panelConfigs)
+            : [];
     const accordion = new Accordion({
-        panels: panelConfigs,
+        panels,
         ...options
     });
     accordion.create(container);

@@ -111,6 +111,37 @@
     color: var(--primary-color, #3b82f6);
 }
 
+/* Lightweight English-only hover hint to keep lessons playful without revealing Portuguese answers */
+.hover-gloss {
+    position: relative;
+    cursor: help;
+}
+
+.hover-gloss::after {
+    content: attr(data-gloss);
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    transform: translateY(4px);
+    opacity: 0;
+    pointer-events: none;
+    background: var(--surface-color, #ffffff);
+    color: var(--text-primary, #1f2937);
+    padding: 8px 10px;
+    border-radius: var(--border-radius-sm, 4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    white-space: nowrap;
+    font-size: 0.9rem;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 10;
+}
+
+.hover-gloss:hover::after,
+.hover-gloss:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* ============================================================================
    ACCORDION CONTENT
    ============================================================================ */
@@ -613,17 +644,23 @@
 
 .lesson-split-layout {
     display: grid;
-    grid-template-columns: 1fr 360px;
-    gap: 0;
+    grid-template-columns: minmax(520px, 1.7fr) minmax(300px, 0.9fr);
+    gap: 32px;
     height: 100%;
-    min-height: 500px;
+    min-height: 520px;
+    width: min(1400px, calc(100vw - 48px));
+    margin: 0 auto;
+    padding: 24px 28px;
+    align-items: start;
 }
 
 .lesson-main-content {
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: 28px 32px;
     overflow-y: auto;
+    min-width: 520px;
+    max-width: 900px;
 }
 
 .lesson-options-panel {
@@ -639,6 +676,9 @@
     .lesson-split-layout {
         grid-template-columns: 1fr;
         grid-template-rows: 1fr auto;
+        width: 100%;
+        padding: 12px 14px 80px;
+        gap: 14px;
     }
 
     .lesson-options-panel {
@@ -694,7 +734,10 @@
 
 @media (min-width: 768px) and (max-width: 1023px) {
     .lesson-split-layout {
-        grid-template-columns: 1fr 300px;
+        grid-template-columns: minmax(420px, 1.4fr) minmax(280px, 0.9fr);
+        padding: 18px 22px;
+        gap: 24px;
+        width: min(1200px, calc(100vw - 36px));
     }
 
     .lesson-options-panel {

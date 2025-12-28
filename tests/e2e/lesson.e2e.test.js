@@ -24,6 +24,7 @@ import { test, expect } from '@playwright/test';
 const HOME_URL = 'http://localhost:4321/';
 
 test.beforeEach(async ({ page }) => {
+    page.on('dialog', (dialog) => dialog.accept());
     await page.goto(HOME_URL);
     // Clear any existing progress
     await page.evaluate(() => {

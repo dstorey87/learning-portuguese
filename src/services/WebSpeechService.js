@@ -28,7 +28,7 @@ export const WEBSPEECH_CONFIG = {
     language: 'pt-PT',
     
     // Fallback languages in priority order
-    fallbackLanguages: ['en-US', 'en-GB', 'en'],
+    fallbackLanguages: ['pt-PT', 'pt'],
     
     // Recognition settings
     continuous: false,
@@ -757,24 +757,23 @@ export class WebSpeechService {
 
     /**
      * Listen for bilingual input (Portuguese + English)
-     * Tries Portuguese first, then English fallback.
-     * Used by AI Chat when user might speak either language.
+     * Uses the preferred language directly - no fallback (user only speaks once).
+     * Language detection is done post-hoc based on the transcribed text.
      * 
      * @param {number} timeoutMs - Timeout for recognition
      * @param {Object} options - Additional options
-     * @param {string} options.preferredLanguage - 'pt-PT' or 'en-US' (default: 'pt-PT')
+     * @param {string} options.preferredLanguage - 'pt-PT' or 'en-GB' (default: 'en-GB')
      * @param {boolean} options.waitForSpeechEnd - Wait for speech end before returning
      * @param {number} options.postSpeechEndDelayMs - Delay after speech ends
      * @returns {Promise<Object>} Recognition result with detected language
      */
     async listenBilingual(timeoutMs = null, options = {}) {
         const {
-            preferredLanguage = 'pt-PT',
+            preferredLanguage = 'en-GB',
             ...restOptions
         } = options;
 
-        const primaryLang = preferredLanguage;
-        const fallbackLang = preferredLanguage === 'pt-PT' ? 'en-US' : 'pt-PT';
+        const lang = preferredLanguage;
 
         const emptyResult = {
             text: '',
@@ -783,77 +782,57 @@ export class WebSpeechService {
             alternatives: [],
             isFinal: true,
             noSpeech: true,
-            detectedLanguage: primaryLang
+            detectedLanguage: lang
         };
 
-        const evaluate = (result, lang) => {
-            const text = (result?.text || '').trim();
-            const confidence = Number(result?.confidence) || 0;
-            const wordCount = text ? text.split(/\s+/).length : 0;
-            const noSpeech = Boolean(result?.noSpeech);
-            return { text, confidence, wordCount, noSpeech, detectedLanguage: result?.detectedLanguage || lang };
+        /**
+         * Detect if transcribed text is likely Portuguese based on content.
+         * Used to set detectedLanguage for downstream processing.
+         */
+        const looksLikePortuguese = (text = '') => {
+            if (!text) return false;
+            const lower = text.toLowerCase();
+            // Portuguese diacritics
+            if (/[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/.test(text)) return true;
+            // Common Portuguese words/phrases
+            if (/(\b(obrigad[oa]|olá|bom dia|boa tarde|boa noite|por favor|desculp[ae]|com licença|tchau|não|sim|muito|bem|está|estou|tenho|quero|posso|preciso|como|onde|quando|porque|porquê|também|sempre|nunca|agora|depois|antes|aqui|ali|isso|isto|esse|este|vocês?|eles?|elas?|nós|meu|minha|teu|tua|seu|sua)\b)/i.test(lower)) return true;
+            return false;
         };
 
-        const pickBetter = (primary, fallback) => {
-            if (primary && !fallback) return primary;
-            if (fallback && !primary) return fallback;
-            if (!primary && !fallback) return null;
+        this.logger.info('Starting voice recognition', { language: lang });
 
-            // Prefer higher confidence, then longer text (to avoid clipped results).
-            if (fallback.confidence > primary.confidence + 0.05) return fallback;
-            if (primary.confidence > fallback.confidence + 0.05) return primary;
-            if (fallback.wordCount > primary.wordCount + 1) return fallback;
-            return primary;
-        };
-
-        this.logger.info('Starting bilingual recognition', { primary: primaryLang, fallback: fallbackLang });
-
-        let primaryResult = null;
+        let result = null;
         try {
-            primaryResult = await this.listen(timeoutMs, { ...restOptions, language: primaryLang });
-            if (primaryResult) primaryResult.detectedLanguage = primaryLang;
+            result = await this.listen(timeoutMs, { ...restOptions, language: lang });
         } catch (err) {
-            this.logger.warn('Primary language recognition failed', { language: primaryLang, error: err.message });
+            this.logger.warn('Voice recognition failed', { language: lang, error: err.message });
+            return emptyResult;
         }
 
-        const primaryMeta = evaluate(primaryResult, primaryLang);
-        const needsFallback = !primaryMeta.text || primaryMeta.noSpeech || primaryMeta.confidence < 0.6 || (primaryMeta.wordCount <= 2 && primaryMeta.confidence < 0.75);
-
-        let fallbackResult = null;
-        if (needsFallback) {
-            this.logger.info('Trying fallback language', { fallback: fallbackLang, reason: { empty: !primaryMeta.text, noSpeech: primaryMeta.noSpeech, confidence: primaryMeta.confidence, words: primaryMeta.wordCount } });
-            try {
-                fallbackResult = await this.listen(timeoutMs, { ...restOptions, language: fallbackLang });
-                if (fallbackResult) fallbackResult.detectedLanguage = fallbackLang;
-            } catch (err) {
-                this.logger.warn('Fallback language recognition failed', { language: fallbackLang, error: err.message });
-            }
+        if (!result || !result.text || result.noSpeech) {
+            this.logger.info('No speech detected', { language: lang });
+            return emptyResult;
         }
 
-        const fallbackMeta = evaluate(fallbackResult, fallbackLang);
-        const best = pickBetter(primaryMeta.text ? primaryMeta : null, fallbackMeta.text ? fallbackMeta : null)
-            || (primaryMeta.text ? primaryMeta : (fallbackMeta.text ? fallbackMeta : null));
+        // Detect actual language from content (may differ from recognition language)
+        const detectedLanguage = looksLikePortuguese(result.text) ? 'pt-PT' : 'en-GB';
 
-        if (best) {
-            this.logger.info('Bilingual recognition complete', {
-                language: best.detectedLanguage,
-                confidence: best.confidence,
-                words: best.wordCount,
-                text: best.text.substring(0, 50)
-            });
-            return {
-                text: best.text,
-                confidence: best.confidence,
-                normalized: best.text,
-                alternatives: [],
-                isFinal: true,
-                noSpeech: !best.text,
-                detectedLanguage: best.detectedLanguage
-            };
-        }
+        this.logger.info('Voice recognition complete', {
+            recognitionLang: lang,
+            detectedLanguage,
+            confidence: result.confidence,
+            text: result.text.substring(0, 50)
+        });
 
-        this.logger.info('Bilingual recognition returned empty', { primary: primaryLang, fallback: fallbackLang });
-        return emptyResult;
+        return {
+            text: result.text,
+            confidence: result.confidence,
+            normalized: result.text,
+            alternatives: result.alternatives || [],
+            isFinal: true,
+            noSpeech: false,
+            detectedLanguage
+        };
     }
     
     /**

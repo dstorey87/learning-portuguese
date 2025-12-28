@@ -117,6 +117,112 @@ export const TOOL_DEFINITIONS = [
                 required: []
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_learner_weaknesses',
+            description: 'Analyze the learner\'s profile to identify weaknesses, confusion pairs, pronunciation issues, and words that need practice. Use this before creating custom lessons.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    includeConfusionPairs: { type: 'boolean', description: 'Include words the user frequently confuses', default: true },
+                    includePronunciationIssues: { type: 'boolean', description: 'Include phonemes and words with poor pronunciation scores', default: true },
+                    includeSRSDue: { type: 'boolean', description: 'Include words due for spaced repetition review', default: true },
+                    limit: { type: 'number', description: 'Maximum items per category', default: 10 }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_custom_lesson',
+            description: 'Create a personalized lesson based on the learner\'s weaknesses. Use get_learner_weaknesses first to identify what to focus on.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string', description: 'Lesson title (e.g., "Pronunciation Practice: Nasal Sounds")' },
+                    description: { type: 'string', description: 'Brief description of what this lesson covers' },
+                    focusArea: {
+                        type: 'string',
+                        enum: ['pronunciation', 'vocabulary', 'grammar', 'confusion_pairs', 'mixed'],
+                        description: 'Primary focus area for this lesson'
+                    },
+                    words: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                pt: { type: 'string', description: 'Portuguese word or phrase' },
+                                en: { type: 'string', description: 'English translation' },
+                                ipa: { type: 'string', description: 'IPA pronunciation' },
+                                tip: { type: 'string', description: 'Learning tip or memory aid' },
+                                category: { type: 'string', description: 'Word category (pronoun, verb, noun, etc.)' }
+                            },
+                            required: ['pt', 'en']
+                        },
+                        description: 'Array of words to include in the lesson (5-15 words recommended)'
+                    },
+                    challenges: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                type: { type: 'string', enum: ['translate', 'pronunciation', 'multiple_choice', 'fill_blank'], description: 'Challenge type' },
+                                prompt: { type: 'string', description: 'Challenge prompt/question' },
+                                answer: { type: 'string', description: 'Correct answer' },
+                                options: { type: 'array', items: { type: 'string' }, description: 'Options for multiple choice' },
+                                hint: { type: 'string', description: 'Optional hint' }
+                            },
+                            required: ['type', 'prompt', 'answer']
+                        },
+                        description: 'Optional custom challenges beyond word learning'
+                    },
+                    targetPhonemes: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Phonemes this lesson targets (e.g., ["ão", "nh", "lh"])'
+                    },
+                    difficulty: {
+                        type: 'string',
+                        enum: ['beginner', 'intermediate', 'advanced'],
+                        description: 'Lesson difficulty level',
+                        default: 'beginner'
+                    }
+                },
+                required: ['title', 'words']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_custom_lessons',
+            description: 'Get all AI-generated custom lessons for this user.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    includeCompleted: { type: 'boolean', description: 'Include lessons the user has completed', default: true }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'delete_custom_lesson',
+            description: 'Delete a custom lesson by ID (user can discard lessons they don\'t want).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    lessonId: { type: 'string', description: 'ID of the custom lesson to delete' }
+                },
+                required: ['lessonId']
+            }
+        }
     }
 ];
 

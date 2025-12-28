@@ -183,11 +183,11 @@ let state = {
  * Check if Edge-TTS server is available
  * @returns {Promise<boolean>} Server availability
  */
-export async function checkServerHealth() {
+export async function checkServerHealth(force = false) {
     const now = Date.now();
     
-    // Use cached result if recent
-    if (state.serverAvailable !== null && (now - state.lastServerCheck) < TTS_CONFIG.healthCheckInterval) {
+    // Use cached result if recent unless forced
+    if (!force && state.serverAvailable !== null && (now - state.lastServerCheck) < TTS_CONFIG.healthCheckInterval) {
         return state.serverAvailable;
     }
     
@@ -356,6 +356,7 @@ async function speakWithEdgeTTS(text, options = {}) {
             throw new Error(error.message || error.error || `HTTP ${response.status}`);
         }
         
+        const voiceUsed = response.headers?.get?.('x-voice-used') || voice;
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         
@@ -374,7 +375,7 @@ async function speakWithEdgeTTS(text, options = {}) {
                 state.currentAudioResolve = null;
                 state.currentAudioReject = null;
                 if (typeof onEnd === 'function') onEnd();
-                resolve();
+                    resolve({ engine: TTS_ENGINES.EDGE_TTS, voice: voiceUsed });
             };
             
             state.currentAudio.onerror = () => {
@@ -385,7 +386,10 @@ async function speakWithEdgeTTS(text, options = {}) {
                 reject(new Error('Audio playback failed'));
             };
             
-            state.currentAudio.play().catch(reject);
+            state.currentAudio.play().catch((err) => {
+                URL.revokeObjectURL(audioUrl);
+                reject(err);
+            });
         });
         
     } catch (error) {
@@ -504,11 +508,11 @@ export async function speak(text, options = {}) {
     if (serverOk) {
         try {
             console.log('[TTS] Using Edge-TTS with voice:', voice);
-            await speakWithEdgeTTS(text, { voice, rate, onStart, onEnd });
-            state.lastUsedVoice = voice;
+            const edgeResult = await speakWithEdgeTTS(text, { voice, rate, onStart, onEnd });
+            state.lastUsedVoice = edgeResult?.voice || voice;
             state.lastUsedEngine = TTS_ENGINES.EDGE_TTS;
-            console.log('[TTS] ✅ Edge-TTS succeeded:', { engine: 'edge-tts', voice });
-            return { engine: TTS_ENGINES.EDGE_TTS, voice };
+            console.log('[TTS] ✅ Edge-TTS succeeded:', { engine: 'edge-tts', voice: state.lastUsedVoice });
+            return { engine: TTS_ENGINES.EDGE_TTS, voice: state.lastUsedVoice };
         } catch (error) {
             console.warn('[TTS] Edge-TTS failed, trying fallback:', error);
             if (typeof onError === 'function') onError(error);

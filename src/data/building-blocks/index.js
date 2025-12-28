@@ -20,17 +20,17 @@
  * @module data/building-blocks
  */
 
-// Import all building block lessons
-import pronounsLesson from './pronouns.js';
-import verbSerLesson from './verbs-ser.js';
-import verbEstarLesson from './verbs-estar.js';
-import verbTerLesson from './verbs-ter.js';
-import articlesLesson from './articles.js';
-import connectorsLesson from './connectors.js';
-import prepositionsLesson from './prepositions.js';
-import questionsLesson from './questions.js';
-import negationLesson from './negation.js';
-import possessivesLesson from './possessives.js';
+// Import all building block lessons (named exports)
+import { pronounsLesson } from './pronouns.js';
+import { verbSerLesson } from './verbs-ser.js';
+import { verbEstarLesson } from './verbs-estar.js';
+import { verbTerLesson } from './verbs-ter.js';
+import { articlesLesson } from './articles.js';
+import { connectorsLesson } from './connectors.js';
+import { prepositionsLesson } from './prepositions.js';
+import { questionsLesson } from './questions.js';
+import { negationLesson } from './negation.js';
+import { possessivesLesson } from './possessives.js';
 
 /**
  * Building blocks topic definition

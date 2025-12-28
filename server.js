@@ -140,10 +140,31 @@ setInterval(() => {
     }
 }, 60000);
 
+// Allow all local dev origins (including file:// which reports a null origin) so the
+// browser can reach the TTS server from any local serve port.
+const LOCAL_ORIGINS = [
+    'http://localhost:4174',
+    'http://127.0.0.1:4174',
+    'http://localhost:4321',
+    'http://127.0.0.1:4321',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+];
+
+function isLocalOrigin(origin = '') {
+    if (!origin || origin === 'null') return true; // file:// requests present null
+    if (LOCAL_ORIGINS.includes(origin)) return true;
+    return /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/i.test(origin);
+}
+
 app.use(cors({
-    origin: ['http://localhost:4174', 'http://127.0.0.1:4174', 'http://localhost:4321', 'http://127.0.0.1:4321', 'http://localhost:5173'],
+    origin(origin, callback) {
+        if (isLocalOrigin(origin)) return callback(null, true);
+        return callback(null, false);
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type'],
+    optionsSuccessStatus: 200
 }));
 
 app.use(express.json());
@@ -244,7 +265,8 @@ app.post('/tts', async (req, res) => {
             'Content-Length': audioBuffer.length,
             'X-Voice-Used': selectedVoice,
             'X-Voice-Name': voiceMeta.name,
-            'X-Voice-Region': voiceMeta.region
+            'X-Voice-Region': voiceMeta.region,
+            'Access-Control-Expose-Headers': 'X-Voice-Used, X-Voice-Name, X-Voice-Region'
         });
         
         res.send(audioBuffer);

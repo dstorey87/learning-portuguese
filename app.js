@@ -1,23 +1,23 @@
-import { topics as legacyTopics, getAllLessonsFlat } from './data.js';
+import { getAllLessonsFlat } from './data.js';
 import { 
     getAllTopics, 
-    getAllLessons, 
+    getAllLessons,
     getLessonById as loaderGetLessonById, 
-    getLessonImage,
-    LESSON_TIERS 
+    getLessonImage
 } from './src/data/LessonLoader.js';
 import {
     ChallengeRenderer,
-    buildLessonChallenges
+    buildLessonChallenges,
+    normalizeText
 } from './src/components/lesson/ChallengeRenderer.js';
 import {
     AUTH_CONSTANTS,
     getHearts,
     hasHearts,
     loseHeart,
-    addHeart,
     getStreak,
     getXP,
+    addXP,
     formatRefillTime,
     getTimeToNextHeart,
     startHeartRefillTimer,
@@ -25,12 +25,152 @@ import {
     logout,
     isAdmin
 } from './src/services/AuthService.js';
-import { getLearnedWords } from './src/services/ProgressTracker.js';
+import { getLearnedWords, SRS_INTERVALS } from './src/services/ProgressTracker.js';
 import Toast from './src/components/common/Toast.js';
+import { 
+    getWordKnowledge, 
+    generateBasicPronunciationTip, 
+    getPronunciationChallengeType 
+} from './word-knowledge.js';
+import * as aiSpeech from './ai-speech.js';
+import * as TTSService from './src/services/TTSService.js';
+import { 
+    getPortugueseVoiceOptions,
+    getDownloadableVoices,
+    markVoiceDownloaded,
+    startBundledVoiceDownload,
+    speakWithEngine as voiceSpeakWithEngine
+} from './src/services/VoiceService.js';
+
+// =========== STUB SERVICES (for features not yet fully wired) ===========
+const aiTts = {
+    async checkServerHealth() { return TTSService.checkServerHealth(); },
+    async speak(text, options = {}) { return TTSService.speak(text, options); }
+};
+const aiTutor = {
+    async checkOllamaStatus() { return { available: false }; },
+    async getPronunciationFeedback() { return { feedback: '', corrections: [] }; }
+};
+
+// =========== VOICE/SPEECH STATE ===========
+const voiceState = { 
+    speed: 0.6, 
+    selectedVoiceKey: null, 
+    detectedSystemOptions: [] 
+};
+const speechState = { 
+    listening: false, 
+    recognizer: null, 
+    reason: 'Speech recognition unavailable.' 
+};
+
+// =========== FEATURE CONSTANTS (stubs for unimplemented features) ===========
+const NOTEPAD_STORAGE_KEY = 'portugueseNotepad';
+const FLASHCARDS_STORAGE_KEY = 'portugueseFlashcards';
+const DEMO_PHRASE = 'Bom dia, como está?';
+const DIALOGUES = [];
+const GRAMMAR_CARDS = {};
+const MNEMONICS = {};
+
+// =========== STUB FUNCTIONS ===========
+function toggleTheme() { 
+    document.body.classList.toggle('dark-theme'); 
+    localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+}
+function loadVoiceSettings() { 
+    try { return JSON.parse(localStorage.getItem('voiceSettings') || '{}'); } 
+    catch { return {}; } 
+}
+function saveVoiceSettings(settings) { 
+    localStorage.setItem('voiceSettings', JSON.stringify(settings)); 
+}
+function ensureSpeechRecognition() { 
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition); 
+}
+function scoreSpeechTranscript(transcribed, expected) { 
+    return aiSpeech.scorePronunciation(transcribed, expected); 
+}
+function speakWithEngine(options, state) {
+    const opts = typeof options === 'string' ? { text: options } : { ...(options || {}) };
+    if (!opts.text) return;
+    const resolvedRate = opts.rate ?? state?.speed ?? voiceState.speed ?? 0.6;
+    return voiceSpeakWithEngine({ ...opts, rate: resolvedRate });
+}
+
+// Debounce helper with namespace support for existing code
+const _debounceTimers = {};
+function debounce(namespace, fn, delay) {
+    if (_debounceTimers[namespace]) clearTimeout(_debounceTimers[namespace]);
+    _debounceTimers[namespace] = setTimeout(fn, delay);
+}
+
+// =========== USER DATA PERSISTENCE ===========
+const USER_DATA_KEY = 'portugueseProgress';
+
+function getDefaultUserData() {
+    return {
+        learnedWords: [],
+        lessonsCompleted: 0,
+        streak: 0,
+        isPremium: false,
+        speakerGender: 'male',
+        activeLesson: null,
+        lastLessonId: null,
+        lessonAttempts: [],
+        lessonCorrect: [],
+        lessonAccuracy: [],
+        lessonDurations: [],
+        mistakes: [],
+        successes: []
+    };
+}
+
+function normalizeUserData(data = {}) {
+    const normalizeArrayish = (value) => {
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return Object.assign([], value);
+        return [];
+    };
+
+    return {
+        ...data,
+        learnedWords: Array.isArray(data.learnedWords) ? data.learnedWords : [],
+        lessonAttempts: normalizeArrayish(data.lessonAttempts),
+        lessonCorrect: normalizeArrayish(data.lessonCorrect),
+        lessonAccuracy: normalizeArrayish(data.lessonAccuracy),
+        lessonDurations: normalizeArrayish(data.lessonDurations),
+        mistakes: Array.isArray(data.mistakes) ? data.mistakes : [],
+        successes: Array.isArray(data.successes) ? data.successes : []
+    };
+}
+
+function loadUserData() {
+    try {
+        const stored = localStorage.getItem(USER_DATA_KEY);
+        if (stored) {
+            return normalizeUserData({
+                ...getDefaultUserData(),
+                ...JSON.parse(stored)
+            });
+        }
+    } catch (e) {
+        console.warn('Failed to load user data:', e);
+    }
+    return getDefaultUserData();
+}
+
+function saveUserData(data = userData) {
+    try {
+        const normalized = normalizeUserData(data);
+        userData = normalized;
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalized));
+    } catch (e) {
+        console.warn('Failed to save user data:', e);
+    }
+}
 
 // =========== GLOBALS / STATE ===========
 // These are exposed to window for backwards compatibility with other scripts
-const topics = getAllTopics();
 let userData = loadUserData();
 const uiState = {
     selectedTopic: 'all',
@@ -44,50 +184,6 @@ const vaultFilters = { query: '', sort: 'pt' };
 window.ChallengeRenderer = { ChallengeRenderer, buildLessonChallenges };
 window.ProgressTracker = { getLearnedWords };
 window.Toast = Toast;
-
-// =========== USER DATA PERSISTENCE ===========
-const USER_DATA_KEY = 'portugueseProgress';
-
-function loadUserData() {
-    try {
-        const stored = localStorage.getItem(USER_DATA_KEY);
-        if (stored) {
-            return {
-                ...getDefaultUserData(),
-                ...JSON.parse(stored)
-            };
-        }
-    } catch (e) {
-        console.warn('Failed to load user data:', e);
-    }
-    return getDefaultUserData();
-}
-
-function getDefaultUserData() {
-    return {
-        learnedWords: [],
-        lessonsCompleted: 0,
-        streak: 0,
-        isPremium: false,
-        speakerGender: 'male',
-        activeLesson: null,
-        lastLessonId: null,
-        lessonAttempts: {},
-        lessonCorrect: {},
-        lessonAccuracy: {},
-        lessonDurations: {},
-        mistakes: [],
-        successes: []
-    };
-}
-
-function saveUserData() {
-    try {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
-    } catch (e) {
-        console.warn('Failed to save user data:', e);
-    }
-}
 
 // =========== LESSON HELPERS ===========
 function getLessonByIdForUI(lessonId) {
@@ -1448,11 +1544,15 @@ function renderLessonInsights() {
     const detailEl = document.getElementById('lessonDetailStat');
     if (!accuracyEl && !timeEl && !detailEl) return;
 
-    const accuracies = userData.lessonAccuracy.filter(val => typeof val === 'number');
+    const accuracies = Array.isArray(userData.lessonAccuracy)
+        ? userData.lessonAccuracy.filter(val => typeof val === 'number')
+        : [];
     const avgAccuracy = accuracies.length ? Math.round(accuracies.reduce((a, b) => a + b, 0) / accuracies.length) : 0;
     if (accuracyEl) accuracyEl.textContent = accuracies.length ? `${avgAccuracy}% avg accuracy` : 'No accuracy data yet';
 
-    const durations = userData.lessonDurations.map(Number).filter(val => Number.isFinite(val) && val > 0);
+    const durations = Array.isArray(userData.lessonDurations)
+        ? userData.lessonDurations.map(Number).filter(val => Number.isFinite(val) && val > 0)
+        : [];
     const avgDuration = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
     if (timeEl) timeEl.textContent = durations.length ? `${avgDuration}s avg time` : 'No time tracked yet';
 
@@ -1932,6 +2032,7 @@ function getLessonById(lessonId) {
 }
 
 // Render dialogues (placeholder for future implementation)
+// eslint-disable-next-line no-unused-vars
 function renderDialogues() {
     const container = document.getElementById('dialoguesList');
     if (!container) return;
@@ -2051,6 +2152,7 @@ function renderNotepad() {
     });
 }
 
+// eslint-disable-next-line no-unused-vars
 function setupNotepad() {
     loadNotepad();
     renderNotepad();
@@ -2700,6 +2802,7 @@ function startFlashcardReview(groupFilter = 'all') {
     renderReviewCard();
 }
 
+// eslint-disable-next-line no-unused-vars
 function setupFlashcards() {
     loadFlashcards();
     renderFlashcards();
@@ -2910,6 +3013,7 @@ function translateSentence(englishText) {
 
 let lastTranslation = null;
 
+// eslint-disable-next-line no-unused-vars
 function setupTranslator() {
     const inputEl = document.getElementById('translatorInput');
     const translateBtn = document.getElementById('translateBtn');
@@ -2962,6 +3066,7 @@ function setupTranslator() {
 }
 
 // =========== VOICE SPEED CONTROL ===========
+// eslint-disable-next-line no-unused-vars
 function setupVoiceSpeedControl() {
     const slider = document.getElementById('voiceSpeedSlider');
     const display = document.getElementById('voiceSpeedValue');
@@ -3086,6 +3191,12 @@ function switchPage(pageName) {
     // Update dashboard when visiting profile
     if (pageName === 'profile' || pageName === 'practice') {
         updateDashboard();
+    }
+
+    if (pageName === 'learn') {
+        renderTopicFilters();
+        renderLessons();
+        hookSpeakerRadios();
     }
     
     // Scroll to top of new page
@@ -3318,6 +3429,7 @@ function setupNavigation() {
     }, 1000);
 }
 
+// eslint-disable-next-line no-unused-vars
 function setupVoiceSettings() {
     const optionSelect = document.getElementById('voiceSelect');
     const sampleBtn = document.getElementById('voiceSampleBtn');
@@ -3901,6 +4013,7 @@ const aiState = {
     selectedVoice: 'pt-PT-RaquelNeural'
 };
 
+// eslint-disable-next-line no-unused-vars
 async function initAITutor() {
     // Check Edge-TTS server status
     checkTTSStatus();

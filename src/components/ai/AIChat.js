@@ -252,11 +252,11 @@ class AIChatComponent {
      * Update the TTS server status badge (Online/Offline)
      * Called once on render, then periodically.
      */
-    async updateTTSBadge() {
+    async updateTTSBadge(force = false) {
         const badge = document.getElementById('aiTTSBadge');
         if (!badge) return;
         try {
-            const online = await checkServerHealth().catch(() => false);
+            const online = await checkServerHealth(force).catch(() => false);
             const wasOffline = this.lastTTSOnline === false;
             const wasUnknown = this.lastTTSOnline === null;
             this.lastTTSOnline = online;
@@ -310,23 +310,41 @@ class AIChatComponent {
     startTTSBadgePolling() {
         if (this.ttsStatusInterval) return;
         
-        // Add click handler to badge for showing instructions
+        // Add click handler to badge for showing instructions or starting server
         const badge = document.getElementById('aiTTSBadge');
         if (badge) {
             badge.style.cursor = 'pointer';
-            badge.addEventListener('click', () => {
-                if (!this.lastTTSOnline) {
-                    this.warnedTTSFallback = false; // Reset to show message again
-                    this.showTTSOfflineWarning();
-                } else {
-                    this.addMessageToUI('system', '✅ TTS server is running with neural Portuguese voices (pt-PT-DuarteNeural).');
-                }
-            });
+            badge.addEventListener('click', () => this.handleTTSBadgeClick());
         }
         
         // Initial check
-        this.updateTTSBadge();
-        this.ttsStatusInterval = setInterval(() => this.updateTTSBadge(), 15000);
+        this.updateTTSBadge(true);
+        this.ttsStatusInterval = setInterval(() => this.updateTTSBadge(), 5000);
+    }
+
+    async handleTTSBadgeClick() {
+        // If online, just confirm.
+        const online = await checkServerHealth(true).catch(() => false);
+        this.lastTTSOnline = online;
+        if (online) {
+            this.addMessageToUI('system', '✅ TTS server is running with neural voices (pt-PT-DuarteNeural / en-US-GuyNeural).');
+            return;
+        }
+
+        // If offline, guide the user and copy the start command.
+        this.warnedTTSFallback = false; // allow warning text to show again
+        this.showTTSOfflineWarning();
+
+        const command = 'npm run server';
+        try {
+            await navigator.clipboard.writeText(command);
+            this.addMessageToUI('system', '📋 Copied: "npm run server". Paste this in your project terminal to launch the TTS server.');
+        } catch {
+            this.addMessageToUI('system', 'Run this in your terminal to launch the TTS server:\n\n' + command);
+        }
+
+        // After a short delay, re-check status so badge updates if the user starts it quickly.
+        setTimeout(() => this.updateTTSBadge(true), 4000);
     }
 
     /**
@@ -1505,10 +1523,10 @@ class AIChatComponent {
             return 'pt-PT';
         }
 
-        // Default: English for general conversation with the tutor
-        // But actually, since this is a Portuguese learning app, let's prefer Portuguese
-        // for voice input to catch pronunciation practice attempts
-        return 'pt-PT';
+        // Default: English for general conversation with the tutor.
+        // Users typically ask questions and get explanations in English.
+        // Portuguese is used when explicitly practicing pronunciation.
+        return 'en-GB';
     }
     
     /**
@@ -1568,6 +1586,7 @@ class AIChatComponent {
 
             const serverOk = await checkServerHealth().catch(() => false);
             const allowFallback = !serverOk;
+            const playbackLog = [];
             if (allowFallback && !this.warnedTTSFallback) {
                 this.warnedTTSFallback = true;
                 this.addSystemMessage('ℹ️ High-quality TTS server is offline. Falling back to browser voice (may sound different). Start it with: npm run server');
@@ -1607,9 +1626,10 @@ class AIChatComponent {
                         fallbackToWebSpeech: allowFallback,
                         preferGender: this.genderLock === 'male' ? 'male' : undefined
                     });
+                    playbackLog.push({ lang: 'pt', engine: result?.engine, voice: result?.voice || this.portugueseVoiceId });
                     // DEBUG: Show what engine/voice was actually used
                     console.log('[AI Chat] PT TTS result:', result);
-                    if (result?.engine === 'webspeech') {
+                    if (result?.engine === 'web-speech') {
                         if (status) status.textContent = `⚠️ WebSpeech: ${result.voice || 'unknown'}`;
                     }
                 } else {
@@ -1621,12 +1641,22 @@ class AIChatComponent {
                         fallbackToWebSpeech: allowFallback,
                         preferGender: this.genderLock === 'male' ? 'male' : undefined
                     });
+                    playbackLog.push({ lang: 'en', engine: result?.engine, voice: result?.voice || this.englishVoiceId });
                     // DEBUG: Show what engine/voice was actually used
                     console.log('[AI Chat] EN TTS result:', result);
-                    if (result?.engine === 'webspeech') {
+                    if (result?.engine === 'web-speech') {
                         if (status) status.textContent = `⚠️ WebSpeech: ${result.voice || 'unknown'}`;
                     }
                 }
+            }
+            if (playbackLog.length) {
+                const summary = playbackLog.map((entry) => {
+                    const langLabel = entry.lang === 'pt' ? 'PT' : 'EN';
+                    const engineLabel = entry.engine === 'edge-tts' ? 'Edge' : 'Browser';
+                    const voiceLabel = entry.voice || (entry.lang === 'pt' ? this.portugueseVoiceId : this.englishVoiceId);
+                    return `${langLabel}: ${engineLabel} (${voiceLabel})`;
+                }).join(' | ');
+                this.addSystemMessage(`🔊 Playback proof → ${summary}`);
             }
             // DEBUG: Add system message showing what was used (can be removed later)
             console.log('[AI Chat] All segments spoken. Server was:', serverOk ? 'ONLINE' : 'OFFLINE');

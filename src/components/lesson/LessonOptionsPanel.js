@@ -763,8 +763,7 @@ export class LessonOptionsPanel {
         });
         
         // Initialize accordion
-        this.accordion = createAccordion(accordionContainer, {
-            sections,
+        this.accordion = createAccordion(accordionContainer, sections, {
             singleOpen: this.options.singleOpen,
             animated: true
         });

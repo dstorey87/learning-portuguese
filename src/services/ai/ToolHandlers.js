@@ -11,6 +11,10 @@ import * as ProgressTracker from '../ProgressTracker.js';
 import * as TTSService from '../TTSService.js';
 import * as VoiceService from '../VoiceService.js';
 import { eventStream } from '../eventStreaming.js';
+import LearnerProfiler from '../learning/LearnerProfiler.js';
+
+// Custom lesson storage key prefix
+const CUSTOM_LESSONS_KEY = 'ai_custom_lessons';
 
 /**
  * Initialize all tool handlers
@@ -302,6 +306,256 @@ export function initializeToolHandlers() {
         } catch (error) {
             Logger.error('tool_handlers', 'get_lesson_context failed', { error: error.message });
             return { lesson: null, progress: null, error: error.message };
+        }
+    });
+    
+    // ========================================================================
+    // GET_LEARNER_WEAKNESSES - Analyze learner profile for weak areas
+    // ========================================================================
+    registry.setHandler('get_learner_weaknesses', async ({ 
+        includeConfusionPairs = true, 
+        includePronunciationIssues = true, 
+        includeSRSDue = true, 
+        limit = 10 
+    }) => {
+        try {
+            const userId = localStorage.getItem('currentUserId') || 'default';
+            const profiler = new LearnerProfiler(userId);
+            const summary = profiler.getSummaryForAI();
+            
+            const weaknesses = {
+                userId,
+                level: summary.level,
+                accuracy: summary.accuracy,
+                vocabularySize: summary.vocabularySize
+            };
+            
+            // Confusion pairs - words the user mixes up
+            if (includeConfusionPairs) {
+                weaknesses.confusionPairs = summary.topWeaknesses?.slice(0, limit) || [];
+            }
+            
+            // Pronunciation issues
+            if (includePronunciationIssues) {
+                const phonemeWeaknesses = ProgressTracker.getPhonemeWeaknesses(1)?.slice(0, limit) || [];
+                const wordsNeedingPractice = ProgressTracker.getWordsNeedingPronunciationPractice(70)?.slice(0, limit) || [];
+                
+                weaknesses.pronunciationIssues = {
+                    weakPhonemes: phonemeWeaknesses.map(p => ({
+                        phoneme: p.phoneme,
+                        errorCount: p.count,
+                        exampleWords: p.words?.slice(0, 3) || [],
+                        tips: p.tips
+                    })),
+                    wordsNeedingPractice: wordsNeedingPractice.map(w => ({
+                        word: w.wordKey,
+                        averageScore: w.averageScore,
+                        attempts: w.attempts
+                    }))
+                };
+            }
+            
+            // SRS due words
+            if (includeSRSDue) {
+                const dueResult = await registry.execute('get_due_words', { limit, includeNew: false });
+                weaknesses.dueWords = dueResult.result?.words || [];
+            }
+            
+            // Recommended words to learn next
+            weaknesses.recommendedWords = summary.recommendedWords || [];
+            weaknesses.bestLearningHours = summary.bestLearningHours || [];
+            
+            Logger.info('tool_handlers', 'Got learner weaknesses', { 
+                userId, 
+                confusionPairs: weaknesses.confusionPairs?.length,
+                weakPhonemes: weaknesses.pronunciationIssues?.weakPhonemes?.length
+            });
+            
+            return weaknesses;
+        } catch (error) {
+            Logger.error('tool_handlers', 'get_learner_weaknesses failed', { error: error.message });
+            return { error: error.message };
+        }
+    });
+    
+    // ========================================================================
+    // CREATE_CUSTOM_LESSON - Generate a personalized lesson
+    // ========================================================================
+    registry.setHandler('create_custom_lesson', async ({ 
+        title, 
+        description = '', 
+        focusArea = 'mixed', 
+        words = [], 
+        challenges = [], 
+        targetPhonemes = [], 
+        difficulty = 'beginner' 
+    }) => {
+        try {
+            if (!title || words.length === 0) {
+                return { success: false, error: 'Title and at least one word are required' };
+            }
+            
+            const userId = localStorage.getItem('currentUserId') || 'default';
+            const lessonId = `ai_lesson_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Build lesson structure matching existing lesson format
+            const lesson = {
+                id: lessonId,
+                title,
+                description: description || `AI-generated ${focusArea} practice lesson`,
+                topic: `AI: ${focusArea.charAt(0).toUpperCase() + focusArea.slice(1)}`,
+                tier: 4, // Custom AI lessons
+                isAIGenerated: true,
+                createdAt: new Date().toISOString(),
+                createdBy: 'AI Assistant',
+                focusArea,
+                difficulty,
+                targetPhonemes,
+                words: words.map((w, idx) => ({
+                    id: `${lessonId}_word_${idx}`,
+                    pt: w.pt,
+                    en: w.en,
+                    ipa: w.ipa || '',
+                    tip: w.tip || '',
+                    category: w.category || 'vocabulary',
+                    examples: w.examples || [],
+                    isFromAI: true
+                })),
+                challenges: challenges.map((c, idx) => ({
+                    id: `${lessonId}_challenge_${idx}`,
+                    ...c
+                })),
+                metadata: {
+                    wordCount: words.length,
+                    challengeCount: challenges.length,
+                    estimatedMinutes: Math.max(5, words.length * 2 + challenges.length * 1)
+                }
+            };
+            
+            // Store in localStorage
+            const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
+            const existingLessons = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            existingLessons.push(lesson);
+            localStorage.setItem(storageKey, JSON.stringify(existingLessons));
+            
+            // Emit event for UI update
+            eventStream.track('custom_lesson_created', {
+                lessonId,
+                title,
+                wordCount: words.length,
+                focusArea,
+                difficulty
+            });
+            
+            // Dispatch custom event for app.js to pick up
+            window.dispatchEvent(new CustomEvent('ai-lesson-created', { 
+                detail: { lesson } 
+            }));
+            
+            Logger.info('tool_handlers', 'Created custom lesson', { 
+                lessonId, 
+                title, 
+                wordCount: words.length 
+            });
+            
+            return {
+                success: true,
+                lesson: {
+                    id: lessonId,
+                    title,
+                    description: lesson.description,
+                    wordCount: words.length,
+                    challengeCount: challenges.length,
+                    focusArea,
+                    difficulty,
+                    estimatedMinutes: lesson.metadata.estimatedMinutes
+                },
+                message: `Created "${title}" with ${words.length} words. The lesson is now available in your lesson list.`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'create_custom_lesson failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+    
+    // ========================================================================
+    // GET_CUSTOM_LESSONS - Retrieve all AI-generated lessons
+    // ========================================================================
+    registry.setHandler('get_custom_lessons', async ({ includeCompleted = true }) => {
+        try {
+            const userId = localStorage.getItem('currentUserId') || 'default';
+            const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
+            const lessons = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            let result = lessons;
+            
+            if (!includeCompleted) {
+                const completedIds = ProgressTracker.getCompletedLessons().map(l => l.id);
+                result = lessons.filter(l => !completedIds.includes(l.id));
+            }
+            
+            return {
+                count: result.length,
+                lessons: result.map(l => ({
+                    id: l.id,
+                    title: l.title,
+                    description: l.description,
+                    focusArea: l.focusArea,
+                    difficulty: l.difficulty,
+                    wordCount: l.words?.length || 0,
+                    challengeCount: l.challenges?.length || 0,
+                    createdAt: l.createdAt,
+                    isCompleted: ProgressTracker.isLessonCompleted(l.id)
+                }))
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'get_custom_lessons failed', { error: error.message });
+            return { count: 0, lessons: [], error: error.message };
+        }
+    });
+    
+    // ========================================================================
+    // DELETE_CUSTOM_LESSON - Remove a custom lesson
+    // ========================================================================
+    registry.setHandler('delete_custom_lesson', async ({ lessonId }) => {
+        try {
+            if (!lessonId) {
+                return { success: false, error: 'Lesson ID is required' };
+            }
+            
+            const userId = localStorage.getItem('currentUserId') || 'default';
+            const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
+            const lessons = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            const index = lessons.findIndex(l => l.id === lessonId);
+            if (index === -1) {
+                return { success: false, error: 'Lesson not found' };
+            }
+            
+            const deletedLesson = lessons.splice(index, 1)[0];
+            localStorage.setItem(storageKey, JSON.stringify(lessons));
+            
+            // Emit event for UI update
+            eventStream.track('custom_lesson_deleted', { lessonId });
+            
+            // Dispatch custom event for app.js to pick up
+            window.dispatchEvent(new CustomEvent('ai-lesson-deleted', { 
+                detail: { lessonId } 
+            }));
+            
+            Logger.info('tool_handlers', 'Deleted custom lesson', { lessonId });
+            
+            return {
+                success: true,
+                deletedLesson: {
+                    id: deletedLesson.id,
+                    title: deletedLesson.title
+                },
+                message: `Deleted lesson "${deletedLesson.title}"`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'delete_custom_lesson failed', { error: error.message });
+            return { success: false, error: error.message };
         }
     });
     

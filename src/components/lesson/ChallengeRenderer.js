@@ -28,7 +28,13 @@ import {
 } from '../../services/PhoneticScorer.js';
 import { createLogger } from '../../services/Logger.js';
 import eventStream from '../../services/eventStreaming.js';
-import { recordPronunciationAttempt } from '../../services/ProgressTracker.js';
+import { 
+    recordPronunciationAttempt, 
+    getCompletedLessons, 
+    getLearnedWords 
+} from '../../services/ProgressTracker.js';
+import { getLessonImage } from './LessonCard.js';
+import { getAllLessons } from '../../data/LessonLoader.js';
 
 // Create logger for this module
 const logger = createLogger({ context: 'ChallengeRenderer' });
@@ -136,6 +142,17 @@ export function shuffleArray(list) {
  */
 export function getWordKey(word) {
     return `${word.pt}|${word.en}`;
+}
+
+/**
+ * Resolve the best image for a challenge, prioritizing word/challenge images
+ * and falling back to lesson-level imagery.
+ */
+function resolveChallengeImage(challenge, lesson) {
+    const challengeImage = challenge.image || challenge.media?.image;
+    const wordImage = challenge.word?.image || challenge.word?.media?.image;
+    const lessonImage = lesson ? getLessonImage(lesson) : getLessonImage({ topicId: 'default' });
+    return challengeImage || wordImage || lessonImage;
 }
 
 /**
@@ -437,6 +454,7 @@ export class ChallengeRenderer {
         
         const knowledge = this.getWordKnowledge(resolved);
         const hasKnowledge = knowledge !== null;
+        const hoverHint = escapeHtml(this._getEnglishHoverHint(word, knowledge));
         
         let cardHTML = `
             <div class="challenge-card learn-card learn-card-rich">
@@ -445,7 +463,7 @@ export class ChallengeRenderer {
                 <div class="learn-word-header">
                     <div class="learn-portuguese-main">${escapeHtml(resolved)}</div>
                     ${hasKnowledge && knowledge.ipa ? `<div class="learn-ipa">${escapeHtml(knowledge.ipa)}</div>` : ''}
-                    <div class="learn-english-main">${escapeHtml(word.en)}</div>
+                    <div class="learn-english-main hover-gloss" data-gloss="${hoverHint}">${escapeHtml(word.en)}</div>
                     ${alt ? `<div class="learn-alt-form">Also: ${escapeHtml(alt)}</div>` : ''}
                     <button class="btn-listen-main" id="listenBtn">🔊 Listen</button>
                 </div>`;
@@ -738,7 +756,15 @@ export class ChallengeRenderer {
         
         const knowledge = this.getWordKnowledge(resolved);
         const hasKnowledge = knowledge !== null;
+        const hoverHint = escapeHtml(this._getEnglishHoverHint(word, knowledge));
         const learnWordCount = state.challenges.filter(c => c.type === CHALLENGE_TYPES.LEARN_WORD).length;
+        const lessonImage = resolveChallengeImage(challenge, state.lesson);
+        const lessonProgressPct = Math.min(100, Math.round(((state.currentIndex + 1) / state.challenges.length) * 100));
+        const completedLessonIds = new Set(getCompletedLessons().map(entry => entry.lessonId || entry.id));
+        const completedLessons = completedLessonIds.size;
+        const totalLessons = Math.max(1, getAllLessons().length);
+        const overallPct = Math.min(100, Math.round((completedLessons / totalLessons) * 100));
+        const learnedWordsCount = getLearnedWords().length;
         
         // Build the split layout HTML
         const layoutHTML = `
@@ -751,7 +777,7 @@ export class ChallengeRenderer {
                         <div class="learn-word-display">
                             <div class="learn-portuguese-main">${escapeHtml(resolved)}</div>
                             ${hasKnowledge && knowledge.ipa ? `<div class="learn-ipa">${escapeHtml(knowledge.ipa)}</div>` : ''}
-                            <div class="learn-english-main">${escapeHtml(word.en)}</div>
+                            <div class="learn-english-main hover-gloss" data-gloss="${hoverHint}">${escapeHtml(word.en)}</div>
                             ${alt ? `<div class="learn-alt-form">Also: ${escapeHtml(alt)}</div>` : ''}
                         </div>
                         
@@ -770,8 +796,31 @@ export class ChallengeRenderer {
                     </div>
                 </div>
                 
-                <!-- Right: Options Panel with Accordion -->
-                <div class="lesson-options-container" id="optionsPanelContainer"></div>
+                <!-- Right: Options Panel with Progress + Image -->
+                <div class="lesson-side-panel">
+                    <div class="lesson-context-card">
+                        <div class="lesson-context-image" style="background-image: url('${lessonImage}')" aria-hidden="true"></div>
+                        <div class="lesson-progress-stack">
+                            <div class="progress-row">
+                                <div class="progress-label">This lesson</div>
+                                <div class="progress-bar compact">
+                                    <div class="progress-fill" style="width:${lessonProgressPct}%"></div>
+                                </div>
+                                <div class="progress-value">${lessonProgressPct}%</div>
+                                <div class="progress-sub">${state.currentIndex + 1} / ${state.challenges.length} steps</div>
+                            </div>
+                            <div class="progress-row">
+                                <div class="progress-label">Overall</div>
+                                <div class="progress-bar compact">
+                                    <div class="progress-fill overall" style="width:${overallPct}%"></div>
+                                </div>
+                                <div class="progress-value">${overallPct}%</div>
+                                <div class="progress-sub">Lessons: ${completedLessons} / ${totalLessons} · Words learned: ${learnedWordsCount}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lesson-options-container" id="optionsPanelContainer"></div>
+                </div>
             </div>
         `;
         
@@ -869,31 +918,54 @@ export class ChallengeRenderer {
             examples = word.examples;
         } else if (hasKnowledge && knowledge.examples) {
             examples = knowledge.examples;
+        } else {
+            examples = [{
+                pt: `${resolved}…`,
+                en: word.en ? `Try saying "${resolved}" when you mean "${word.en}".` : 'Use this in a short sentence to lock it in.',
+                context: 'Starter example — this will personalize after your first attempts.'
+            }];
         }
         
         // Build grammar - prefer word data
-        const grammar = word.grammarNotes || (hasKnowledge ? knowledge.grammar : null);
+        const grammar = word.grammarNotes
+            || (hasKnowledge ? knowledge.grammar : null)
+            || { note: 'Keep the EU Portuguese sound; if this has gender, match the ending to the noun you pair it with.' };
         
         // Build cultural note - prefer word data
-        const cultural = word.culturalNote || (hasKnowledge ? knowledge.cultural : null);
+        const cultural = word.culturalNote
+            || (hasKnowledge ? knowledge.cultural : null)
+            || 'Common in Portugal — focus on European pronunciation and rhythm.';
         
         // Build memory hints
         const memory = hasKnowledge && (knowledge.etymology || knowledge.memoryTrick) ? {
             etymology: knowledge.etymology,
             trick: knowledge.memoryTrick
-        } : null;
+        } : {
+            etymology: hasKnowledge ? knowledge?.etymology : null,
+            trick: `Link "${resolved}" with "${word.en || 'its meaning'}" — picture a quick scene that forces you to say it aloud.`
+        };
         
         // Build usage context
         const usage = hasKnowledge && knowledge.usage ? {
             formality: knowledge.usage.formality,
             context: knowledge.usage.context,
             alternatives: knowledge.usage.alternative ? [knowledge.usage.alternative] : null
-        } : null;
+        } : {
+            formality: 'Neutral',
+            context: `Use "${resolved}" to communicate "${word.en || 'this idea'}" in everyday speech. Try it in a greeting or quick reply.`,
+            alternatives: null
+        };
         
         // Build AI tips - static from word data as initial, dynamic loaded later
         let aiTips = null;
         if (word.aiTip) {
             aiTips = [{ tip: word.aiTip, type: 'static', priority: 'normal' }];
+        } else {
+            aiTips = [{
+                tip: 'Complete one quick round with this word to unlock personalized AI tips. Start with Personal Pronouns if you want an easy win.',
+                type: 'motivation',
+                priority: 'low'
+            }];
         }
         
         return {
@@ -909,6 +981,18 @@ export class ChallengeRenderer {
             cultural,
             aiTips
         };
+    }
+
+    /**
+     * Build a lightweight English-only hover hint to keep learning playful without spoiling Portuguese answers
+     * @private
+     */
+    _getEnglishHoverHint(word, knowledge) {
+        if (knowledge?.memoryTrick) return `Memory hint: ${knowledge.memoryTrick}`;
+        if (word.aiTip) return `AI tip: ${word.aiTip}`;
+        if (knowledge?.etymology) return `Origin: ${knowledge.etymology}`;
+        if (knowledge?.usage?.context) return `Usage: ${knowledge.usage.context}`;
+        return 'Quick hint: say it aloud with the stress on the bold syllable';
     }
     
     /**
@@ -980,7 +1064,7 @@ export class ChallengeRenderer {
                 
                 // Start visualizer
                 await visualizer.start(stream);
-                
+
                 // Get the WebSpeechService
                 const speechService = getWebSpeechService();
                 
@@ -1818,26 +1902,36 @@ export class ChallengeRenderer {
         
         const retryBtn = document.getElementById('retryBtn');
         const continueBtn = document.getElementById('continueBtn');
+        const wordKey = getWordKey(word);
+        const hasAttemptsLeft = attempt < maxAttempts;
+
+        // Track per-attempt scoring so we can adjust difficulty without blocking progress
+        state.pronunciationLog = state.pronunciationLog || [];
+        state.pronunciationLog.push({ word: wordKey, score: scorePercent, passed: hasPassed, attempt });
         
-        if (hasPassed) {
-            retryBtn.classList.add('hidden');
-            continueBtn.classList.remove('hidden');
-            continueBtn.textContent = 'Continue →';
-            document.getElementById('pronunciationCard').classList.add('challenge-passed');
-        } else if (attempt >= maxAttempts) {
-            retryBtn.classList.add('hidden');
-            continueBtn.classList.remove('hidden');
-            continueBtn.textContent = 'Continue (need more practice) →';
-            document.getElementById('pronunciationCard').classList.add('challenge-failed');
-            
-            if (!state.weakWords) state.weakWords = [];
-            if (!state.weakWords.find(w => getWordKey(w) === getWordKey(word))) {
+        // Mark weak words immediately if the user has not passed yet (no hard stop)
+        if (!hasPassed) {
+            state.weakWords = state.weakWords || [];
+            if (!state.weakWords.find(w => getWordKey(w) === wordKey)) {
                 state.weakWords.push(word);
             }
+        }
+
+        // Always let the learner continue; retry stays available while attempts remain
+        continueBtn.classList.remove('hidden');
+        continueBtn.textContent = hasPassed
+            ? 'Continue →'
+            : (hasAttemptsLeft ? 'Continue (we will keep tracking) →' : 'Continue (need more practice) →');
+
+        if (hasPassed) {
+            retryBtn.classList.add('hidden');
+            document.getElementById('pronunciationCard').classList.add('challenge-passed');
         } else {
-            retryBtn.classList.remove('hidden');;
-            continueBtn.classList.add('hidden');
-            recordBtn.classList.remove('hidden');
+            document.getElementById('pronunciationCard').classList.add('challenge-failed');
+            retryBtn.classList.toggle('hidden', !hasAttemptsLeft);
+            if (hasAttemptsLeft) {
+                recordBtn.classList.remove('hidden');
+            }
         }
         
         retryBtn.onclick = () => {
