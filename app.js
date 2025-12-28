@@ -260,16 +260,16 @@ function getLessonByIdForUI(lessonId) {
     return loaderGetLessonById(lessonId) || getAllLessonsFlat().find(l => l.id === lessonId);
 }
 
-// Build a layered background-image with remote-first and local fallback to guarantee paint
+// Build a single background-image so the subject photo stays visible; only fall back when missing
 function buildLessonThumbStyle(imageData = {}) {
-    const layers = [];
-    // Use double quotes to avoid breaking on encoded single quotes in data URIs
-    if (imageData.remoteUrl) layers.push(`url("${imageData.remoteUrl}")`);
-    const local = imageData.localUrl || imageData.url;
-    if (local) layers.push(`url("${local}")`);
-    if (imageData.svgUrl) layers.push(`url("${imageData.svgUrl}")`);
-    if (!layers.length && imageData.url) layers.push(`url("${imageData.url}")`);
-    return layers.join(', ');
+    const preferredLocal = imageData.localUrl && imageData.localUrl.endsWith('default.svg') ? null : imageData.localUrl;
+    const primary = imageData.remoteUrl
+        || imageData.remoteFallbackUrl
+        || preferredLocal
+        || imageData.svgUrl
+        || imageData.url
+        || '';
+    return primary ? `url("${primary}")` : '';
 }
 
 // =========== TOPIC FILTERS & LESSON GRID ===========

@@ -38,14 +38,14 @@ export function getLessonImage(lesson) {
     const remote = imageData.remoteUrl;
     const remoteFallback = imageData.remoteFallbackUrl;
     const svg = imageData.svgUrl;
-    const layers = [];
-    if (remote) layers.push(`url('${remote}')`);
-    if (remoteFallback) layers.push(`url('${remoteFallback}')`);
-    if (local) layers.push(`url('${local}')`);
-    if (svg) layers.push(`url('${svg}')`);
-    if (!layers.length && imageData.url) layers.push(`url('${imageData.url}')`);
-    if (!layers.length) layers.push(`url('${LESSON_CARD_CONFIG.defaultImage}')`);
-    return layers.join(', ');
+
+    // Use a single top-layer image so the remote photo shows; only fall back when unavailable.
+    if (remote) return `url('${remote}')`;
+    if (remoteFallback) return `url('${remoteFallback}')`;
+    if (local) return `url('${local}')`;
+    if (svg) return `url('${svg}')`;
+    if (imageData.url) return `url('${imageData.url}')`;
+    return `url('${LESSON_CARD_CONFIG.defaultImage}')`;
 }
 
 /**

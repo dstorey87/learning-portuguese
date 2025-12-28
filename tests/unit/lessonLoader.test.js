@@ -197,13 +197,34 @@ test.describe('LessonLoader: getLessonById', () => {
 // ============================================================================
 
 test.describe('LessonLoader: getLessonImage', () => {
-    test('should include English words in the remote image query', async ({ page }) => {
+    test('uses curated keywords when a mapping exists', async ({ page }) => {
         const result = await page.evaluate(async () => {
             const { getLessonImage } = await import('/src/data/LessonLoader.js');
             const lesson = {
-                id: 'test-lesson',
-                title: 'Image Keyword Test',
+                id: 'bb-002',
+                title: 'Verb: Ser (to be - permanent)',
                 topicId: 'travel',
+                words: [
+                    { pt: 'sou', en: 'am' },
+                    { pt: 'és', en: 'are' }
+                ]
+            };
+
+            const image = getLessonImage(lesson);
+            return image.remoteUrl || image.url;
+        });
+
+        const url = (result || '').toLowerCase();
+        expect(url).toContain('identity');
+    });
+
+    test('falls back to English vocab when no mapping exists', async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const { getLessonImage } = await import('/src/data/LessonLoader.js');
+            const lesson = {
+                id: 'custom-lesson',
+                title: 'Image Keyword Test',
+                topicId: 'custom-topic-without-map',
                 words: [
                     { pt: 'comboio', en: 'Train' },
                     { pt: 'bilhete', en: 'Ticket' }

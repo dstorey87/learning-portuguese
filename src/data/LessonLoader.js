@@ -437,17 +437,23 @@ function pickFromPool(pool = [], seed = 0) {
 // Semantic keyword mapping for lesson topics -> relevant Unsplash search terms
 const LESSON_KEYWORD_MAP = {
     // Building blocks - abstract concepts need visual metaphors
-    'personal-pronouns': 'people,conversation,talking',
-    'pronouns': 'people,conversation,group',
-    'verb-ser': 'identity,person,portrait',
-    'verb-estar': 'location,place,mood',
-    'verb-ter': 'possession,hands,holding',
-    'articles': 'objects,items,things',
-    'connectors': 'connection,bridge,links',
-    'prepositions': 'direction,map,location',
-    'question-words': 'question,curious,thinking',
-    'negation': 'contrast,yes-no,decision',
-    'possessives': 'ownership,mine,belongings',
+    'personal-pronouns': 'faces,portrait,group of people,conversation',
+    'bb-001': 'faces,portrait,group of people,conversation',
+    'pronouns': 'faces,portrait,group of people,conversation',
+    'verb-ser': 'id card,portrait,passport,identity',
+    'bb-002': 'id card,portrait,passport,identity',
+    'verb-estar': 'feelings,mood,street scene,location',
+    'bb-003': 'feelings,mood,street scene,location',
+    'verb-ter': 'holding object,hands,belongings,ownership',
+    'bb-004': 'holding object,hands,belongings,ownership',
+    'articles': 'books,typography,letters,reading',
+    'bb-005': 'books,typography,letters,reading',
+    'connectors': 'connectors,conjunctions,and or but,binding words',
+    'bb-007': 'connectors,conjunctions,and or but,binding words',
+    'prepositions': 'maps,arrows,direction,signpost',
+    'question-words': 'question mark,curious person,thinking,chat',
+    'negation': 'decision,yes or no,stop sign,cross mark',
+    'possessives': 'holding belongings,personal items,locker',
     // Greetings and essentials
     'greetings': 'greeting,handshake,hello,waving',
     'essential-greetings': 'greeting,hello,waving',
@@ -484,12 +490,15 @@ const LESSON_KEYWORD_MAP = {
 function extractEnglishKeywords(lesson) {
     if (!Array.isArray(lesson.words) || lesson.words.length === 0) return '';
 
+    const stopWords = new Set(['i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'your', 'my']);
+
     const words = lesson.words
         .slice(0, 5)
         .map(w => (w.en || w.english || '').toLowerCase().trim())
         .filter(Boolean)
         .map(text => text.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .filter(word => word.length >= 3 && !stopWords.has(word));
 
     // De-duplicate while preserving order
     return Array.from(new Set(words)).join(',');
@@ -520,11 +529,10 @@ function getLessonKeywords(lesson) {
     }
 
     // Build a combined keyword string that always includes English vocab when available
-    const combined = [englishKeywords, mappedKeywords, partialKeywords]
-        .filter(Boolean)
-        .join(',');
-
-    if (combined.trim()) return combined;
+    // Prefer curated lesson keywords; only fall back to English vocab if no mapping exists.
+    if (mappedKeywords) return mappedKeywords;
+    if (partialKeywords) return partialKeywords;
+    if (englishKeywords.trim()) return englishKeywords;
 
     // Default to Portugal/Portuguese theme
     return 'portugal,lisbon,portuguese,learning';

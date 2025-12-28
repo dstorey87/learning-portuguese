@@ -247,6 +247,10 @@ npx playwright test --ui
 
 6. **Delete the feature branch**
 
+### UI Validation (No-Stop Rule)
+- For any UI/visual/content change, run the Playwright validation prompt [.github/prompts/playwright-validate.prompt.md](.github/prompts/playwright-validate.prompt.md) and stay in the fix→validate loop until every affected element is visually correct.
+- Final notes must include the validation URL/port and screenshot path.
+
 See [.github/copilot-instructions.md](.github/copilot-instructions.md) for detailed contribution guidelines.
 
 ---

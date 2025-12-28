@@ -103,6 +103,10 @@ If the user explicitly instructs **NO GIT** (e.g., "do not run git commands"), t
 - For image-related work (e.g., lesson thumbnails), verify in Playwright that elements render with non-empty `background-image`/`src`, unique URLs, and visible assets on the actual page.
 - Stay in a fix loop: implement change → Playwright validation → adjust → repeat until the Playwright check confirms success.
 - When reporting, mention the URL/port used for validation and the observed Playwright results.
+- Lesson imagery rule: for lesson cards/thumbnails you must prove subject-matched photos (no gradients/abstract fills). Use Playwright to capture a screenshot and include the saved path plus evidence that the remote image URL matches the lesson’s English keywords/subject. Do not mark the task complete until a fresh Playwright run shows the correct photo.
+- No-stop rule: do not conclude or pause a task with UI changes until you have visually validated every affected element and fixed any discrepancies; remain in the fix→validate loop until the UI matches the required behavior.
+- Refusal rule: if asked to skip, pause, or stop before Playwright validation passes, explicitly refuse and keep working; final responses for UI changes must include the validation URL/port and screenshot path.
+- Use the dedicated prompt: when doing UI/visual/content changes, load and follow [.github/prompts/playwright-validate.prompt.md](../.github/prompts/playwright-validate.prompt.md) so the fix→validate loop, evidence capture, and refusal rule are enforced.
 
 ### ⚡ TARGETED TESTING (NOT FULL SUITE)
 
