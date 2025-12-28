@@ -306,6 +306,212 @@ Naming: Lessons get IDs like AI-001-topic-name automatically.`,
                 required: ['lessonId']
             }
         }
+    },
+    
+    // ========================================================================
+    // STUCK WORDS RESCUE TOOLS
+    // ========================================================================
+    
+    {
+        type: 'function',
+        function: {
+            name: 'get_stuck_words',
+            description: 'Get words the user is struggling with (failed 3+ times). Use this before creating rescue lessons to identify what words need extra help.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    category: { type: 'string', description: 'Filter by category (e.g., "pronouns", "verbs", "greetings")' },
+                    limit: { type: 'number', description: 'Maximum words to return', default: 10 },
+                    includeRescued: { type: 'boolean', description: 'Include words that were already rescued', default: false }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'generate_mnemonic_story',
+            description: 'Generate keyword mnemonic building blocks for a stuck word. The AI should use this to create a vivid story connecting a sound-alike English word to the Portuguese meaning. Research shows this is 2-3x more effective than rote learning.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    pt: { type: 'string', description: 'The Portuguese word' },
+                    en: { type: 'string', description: 'The English translation' },
+                    wordKey: { type: 'string', description: 'Word key for tracking rescue attempts (pt|en format)' }
+                },
+                required: ['pt', 'en']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_memory_palace_scene',
+            description: 'Create a memory palace (method of loci) exercise for multiple stuck words. Places each word in a room of a familiar location with vivid imagery.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    words: { 
+                        type: 'array', 
+                        items: { 
+                            type: 'object',
+                            properties: {
+                                pt: { type: 'string' },
+                                en: { type: 'string' }
+                            }
+                        },
+                        description: 'Array of words to place in the memory palace (max 7)' 
+                    },
+                    location: { type: 'string', description: 'Familiar location to use (e.g., "your home", "your workplace")', default: 'your home' }
+                },
+                required: ['words']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'generate_multi_sensory_drill',
+            description: 'Create a multi-sensory learning drill that engages visual, auditory, kinesthetic, and motor channels. Especially effective for pronunciation issues.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    pt: { type: 'string', description: 'The Portuguese word' },
+                    en: { type: 'string', description: 'The English translation' },
+                    wordKey: { type: 'string', description: 'Word key for tracking (pt|en format)' },
+                    includeAudio: { type: 'boolean', description: 'Play audio as part of the drill', default: true }
+                },
+                required: ['pt', 'en']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_minimal_pairs_contrast',
+            description: 'Create a minimal pairs exercise comparing two similar/confusing words. Essential for distinguishing words the user frequently mixes up.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    word1: { 
+                        type: 'object',
+                        properties: {
+                            pt: { type: 'string' },
+                            en: { type: 'string' }
+                        },
+                        description: 'First word in the pair' 
+                    },
+                    word2: { 
+                        type: 'object',
+                        properties: {
+                            pt: { type: 'string' },
+                            en: { type: 'string' }
+                        },
+                        description: 'Second word in the pair' 
+                    },
+                    includeAudio: { type: 'boolean', description: 'Play both words for audio comparison', default: true }
+                },
+                required: ['word1', 'word2']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'generate_context_flood',
+            description: 'Generate a request for 10+ example sentences showing a word in varied contexts. Helps solidify meaning and usage patterns.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    pt: { type: 'string', description: 'The Portuguese word' },
+                    en: { type: 'string', description: 'The English translation' },
+                    wordKey: { type: 'string', description: 'Word key for tracking' },
+                    count: { type: 'number', description: 'Number of sentences to generate', default: 10 }
+                },
+                required: ['pt', 'en']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_stuck_words_rescue_lesson',
+            description: `Create a HYBRID lesson that combines the user's requested topic WITH their stuck words. 
+This is the KEY tool for smart lesson generation - it finds stuck words RELEVANT to the topic and includes them.
+Example: User asks for "numbers lesson" - if they're stuck on "dois" and "três", include those with rescue techniques.`,
+            parameters: {
+                type: 'object',
+                properties: {
+                    topic: { type: 'string', description: 'The lesson topic the user requested' },
+                    title: { type: 'string', description: 'Lesson title' },
+                    description: { type: 'string', description: 'Lesson description' },
+                    newWords: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                pt: { type: 'string' },
+                                en: { type: 'string' },
+                                pronunciation: { type: 'string' },
+                                ipa: { type: 'string' },
+                                grammarNotes: { type: 'string' },
+                                culturalNote: { type: 'string' },
+                                aiTip: { type: 'string' },
+                                examples: { type: 'array', items: { type: 'object' } }
+                            },
+                            required: ['pt', 'en']
+                        },
+                        description: 'New words for the topic'
+                    },
+                    includeStuckWords: { type: 'boolean', description: 'Whether to find and include relevant stuck words', default: true },
+                    maxStuckWords: { type: 'number', description: 'Maximum stuck words to include', default: 3 },
+                    difficulty: { type: 'string', enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
+                    rescueTechniques: { 
+                        type: 'array', 
+                        items: { type: 'string', enum: ['keyword_mnemonic', 'memory_palace', 'multi_sensory', 'minimal_pairs', 'context_flood', 'etymology', 'spaced_retrieval'] },
+                        description: 'Rescue techniques to focus on for stuck words'
+                    }
+                },
+                required: ['newWords']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'record_word_failure',
+            description: 'Record when a user fails a word (wrong answer, poor pronunciation). After 3 failures, the word becomes "stuck" and eligible for rescue techniques.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    wordKey: { type: 'string', description: 'Word key (pt|en format)' },
+                    pt: { type: 'string', description: 'Portuguese word' },
+                    en: { type: 'string', description: 'English translation' },
+                    failureType: { type: 'string', enum: ['quiz_wrong', 'pronunciation_poor', 'timeout', 'skipped', 'confusion'], description: 'Type of failure' },
+                    confusedWith: { type: 'string', description: 'Word it was confused with (if applicable)' },
+                    pronunciationScore: { type: 'number', description: 'Pronunciation score 0-100 (if applicable)' },
+                    category: { type: 'string', description: 'Word category' }
+                },
+                required: ['pt', 'en', 'failureType']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_rescue_techniques',
+            description: 'Get recommended rescue techniques for a specific stuck word, based on its failure patterns.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    wordKey: { type: 'string', description: 'Word key (pt|en format)' },
+                    pt: { type: 'string', description: 'Portuguese word' },
+                    en: { type: 'string', description: 'English translation' }
+                },
+                required: ['pt', 'en']
+            }
+        }
     }
 ];
 

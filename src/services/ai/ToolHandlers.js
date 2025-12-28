@@ -12,6 +12,7 @@ import * as TTSService from '../TTSService.js';
 import * as VoiceService from '../VoiceService.js';
 import { eventStream } from '../eventStreaming.js';
 import LearnerProfiler from '../learning/LearnerProfiler.js';
+import * as StuckWordsService from '../learning/StuckWordsService.js';
 
 // Custom lesson storage key prefix
 const CUSTOM_LESSONS_KEY = 'ai_custom_lessons';
@@ -1017,6 +1018,603 @@ export function initializeToolHandlers() {
         } catch (error) {
             Logger.error('tool_handlers', 'get_all_lessons failed', { error: error.message });
             return { count: 0, lessons: [], error: error.message };
+        }
+    });
+
+    // ========================================================================
+    // STUCK WORDS RESCUE TOOLS
+    // ========================================================================
+
+    /**
+     * get_stuck_words - Get words the user is struggling with
+     */
+    registry.setHandler('get_stuck_words', async ({ category, limit = 10, includeRescued = false }) => {
+        try {
+            const stuckWords = StuckWordsService.getStuckWords({ category, limit, includeRescued });
+            const stats = StuckWordsService.getStuckWordStats();
+            
+            Logger.info('tool_handlers', 'get_stuck_words', { 
+                count: stuckWords.length, 
+                category 
+            });
+            
+            return {
+                count: stuckWords.length,
+                stats,
+                words: stuckWords.map(w => ({
+                    wordKey: w.wordKey,
+                    pt: w.pt,
+                    en: w.en,
+                    failureCount: w.failureCount,
+                    pronunciationScore: w.avgPronunciationScore,
+                    failureTypes: w.failureTypes,
+                    confusedWith: w.confusedWith,
+                    stuckDays: w.stuckSince ? Math.floor((Date.now() - new Date(w.stuckSince).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                    recommendedTechniques: StuckWordsService.getRecommendedTechniques(w.wordKey).slice(0, 3).map(t => t.name)
+                }))
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'get_stuck_words failed', { error: error.message });
+            return { count: 0, words: [], error: error.message };
+        }
+    });
+
+    /**
+     * generate_mnemonic_story - Create keyword mnemonic for a stuck word
+     * This provides building blocks; AI should create the actual story
+     */
+    registry.setHandler('generate_mnemonic_story', async ({ pt, en, wordKey }) => {
+        try {
+            const buildingBlocks = StuckWordsService.getMnemonicBuildingBlocks(pt, en);
+            
+            // Record that we're applying this technique
+            if (wordKey) {
+                StuckWordsService.recordRescueAttempt(wordKey, 'keyword_mnemonic', { generated: true });
+            }
+            
+            Logger.info('tool_handlers', 'generate_mnemonic_story', { pt, en });
+            
+            return {
+                success: true,
+                word: pt,
+                meaning: en,
+                buildingBlocks,
+                technique: StuckWordsService.RESCUE_TECHNIQUES.KEYWORD_MNEMONIC,
+                instructions: [
+                    `1. Find a KEYWORD: English word that sounds like "${pt}"`,
+                    `2. Create a BIZARRE IMAGE: Connect the keyword to "${en}"`,
+                    '3. Make it VIVID: Add action, emotion, exaggeration',
+                    '4. VISUALIZE: Close eyes and see the scene for 5 seconds',
+                    '5. RECALL: Say the Portuguese word and see the image'
+                ],
+                exampleFormat: `"${pt}" sounds like [KEYWORD]. Imagine [BIZARRE SCENE connecting KEYWORD to "${en}"]`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'generate_mnemonic_story failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * create_memory_palace_scene - Place words in a mental location
+     */
+    registry.setHandler('create_memory_palace_scene', async ({ words, location = 'your home' }) => {
+        try {
+            if (!words || words.length === 0) {
+                return { success: false, error: 'At least one word is required' };
+            }
+            
+            // Common room sequence for memory palace
+            const rooms = [
+                { name: 'front door', tip: 'What do you see when you first enter?' },
+                { name: 'hallway', tip: 'Walk through and notice details' },
+                { name: 'living room', tip: 'Look at the furniture and decorations' },
+                { name: 'kitchen', tip: 'Open cabinets, check the fridge' },
+                { name: 'bedroom', tip: 'Look at the bed, nightstand, closet' },
+                { name: 'bathroom', tip: 'Check the mirror, shower, toilet' },
+                { name: 'backyard/balcony', tip: 'Step outside and look around' }
+            ];
+            
+            const placements = words.slice(0, 7).map((w, idx) => {
+                const room = rooms[idx] || rooms[idx % rooms.length];
+                const wordKey = `${w.pt}|${w.en}`;
+                
+                // Record rescue attempt
+                StuckWordsService.recordRescueAttempt(wordKey, 'memory_palace', { 
+                    room: room.name, 
+                    position: idx 
+                });
+                
+                return {
+                    position: idx + 1,
+                    room: room.name,
+                    roomTip: room.tip,
+                    word: w.pt,
+                    meaning: w.en,
+                    suggestionPrompt: `Place "${w.pt}" (${w.en}) in the ${room.name}. Make it BIZARRE and INTERACTIVE.`
+                };
+            });
+            
+            Logger.info('tool_handlers', 'create_memory_palace_scene', { 
+                wordCount: words.length, 
+                location 
+            });
+            
+            return {
+                success: true,
+                technique: StuckWordsService.RESCUE_TECHNIQUES.MEMORY_PALACE,
+                location,
+                placements,
+                walkthrough: [
+                    `1. Close your eyes and visualize ${location}`,
+                    '2. Start at the front door and walk through each room',
+                    '3. In each room, SEE the bizarre image for that word',
+                    '4. Make the images INTERACT with the room (sitting on furniture, stuck to walls)',
+                    '5. Practice walking through and recalling each word',
+                    '6. Do this 3 times today, then once tomorrow'
+                ]
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'create_memory_palace_scene failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * generate_multi_sensory_drill - Engage multiple learning channels
+     */
+    registry.setHandler('generate_multi_sensory_drill', async ({ pt, en, wordKey, includeAudio = true }) => {
+        try {
+            // Generate drill exercises
+            const drill = {
+                word: pt,
+                meaning: en,
+                exercises: [
+                    {
+                        channel: 'visual',
+                        name: 'See It',
+                        instruction: `Look at "${pt}" for 10 seconds. Notice each letter.`,
+                        action: 'stare'
+                    },
+                    {
+                        channel: 'auditory',
+                        name: 'Hear It',
+                        instruction: `Listen to "${pt}" 3 times. Focus on the rhythm and sounds.`,
+                        action: 'listen'
+                    },
+                    {
+                        channel: 'kinesthetic-write',
+                        name: 'Write It',
+                        instruction: `Write "${pt}" 5 times by hand. Say it as you write.`,
+                        action: 'write'
+                    },
+                    {
+                        channel: 'kinesthetic-speak',
+                        name: 'Say It',
+                        instruction: `Say "${pt}" out loud 5 times. Exaggerate the sounds.`,
+                        action: 'speak'
+                    },
+                    {
+                        channel: 'motor',
+                        name: 'Gesture It',
+                        instruction: `Create a hand gesture for "${en}". Do the gesture while saying "${pt}".`,
+                        action: 'gesture'
+                    },
+                    {
+                        channel: 'recall',
+                        name: 'Close Eyes Recall',
+                        instruction: `Close your eyes. Say "${pt}" and spell it out loud.`,
+                        action: 'recall'
+                    }
+                ]
+            };
+            
+            // Play audio if requested
+            if (includeAudio) {
+                await registry.execute('speak_portuguese', { text: pt, speed: 0.8 });
+            }
+            
+            // Record rescue attempt
+            if (wordKey) {
+                StuckWordsService.recordRescueAttempt(wordKey, 'multi_sensory', { drill: true });
+            }
+            
+            Logger.info('tool_handlers', 'generate_multi_sensory_drill', { pt, en });
+            
+            return {
+                success: true,
+                technique: StuckWordsService.RESCUE_TECHNIQUES.MULTI_SENSORY,
+                drill,
+                completionTime: '3-5 minutes',
+                repetitionSchedule: [
+                    'Do this drill NOW',
+                    'Repeat in 4 hours',
+                    'Repeat tomorrow morning',
+                    'Repeat in 3 days'
+                ]
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'generate_multi_sensory_drill failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * create_minimal_pairs_contrast - Compare confusing words
+     */
+    registry.setHandler('create_minimal_pairs_contrast', async ({ word1, word2, includeAudio = true }) => {
+        try {
+            if (!word1?.pt || !word2?.pt) {
+                return { success: false, error: 'Both words required with pt and en properties' };
+            }
+            
+            const contrast = {
+                pair: [
+                    { pt: word1.pt, en: word1.en },
+                    { pt: word2.pt, en: word2.en }
+                ],
+                differences: [],
+                exercises: []
+            };
+            
+            // Analyze differences
+            const pt1 = word1.pt.toLowerCase();
+            const pt2 = word2.pt.toLowerCase();
+            
+            // Find differing characters
+            for (let i = 0; i < Math.max(pt1.length, pt2.length); i++) {
+                if (pt1[i] !== pt2[i]) {
+                    contrast.differences.push({
+                        position: i,
+                        word1Char: pt1[i] || '(none)',
+                        word2Char: pt2[i] || '(none)'
+                    });
+                }
+            }
+            
+            // Generate exercises
+            contrast.exercises = [
+                {
+                    type: 'listen_identify',
+                    instruction: 'Listen to a word and identify which one it is',
+                    items: [
+                        { audio: word1.pt, answer: word1.en },
+                        { audio: word2.pt, answer: word2.en }
+                    ]
+                },
+                {
+                    type: 'fill_blank',
+                    instruction: 'Fill in the correct word',
+                    items: [
+                        { 
+                            sentence: `I want to say "${word1.en}" in Portuguese: ___`,
+                            answer: word1.pt
+                        },
+                        { 
+                            sentence: `I want to say "${word2.en}" in Portuguese: ___`,
+                            answer: word2.pt
+                        }
+                    ]
+                },
+                {
+                    type: 'quick_switch',
+                    instruction: 'Rapidly alternate saying both words 5 times each',
+                    pattern: `${word1.pt} - ${word2.pt} - ${word1.pt} - ${word2.pt}...`
+                }
+            ];
+            
+            // Play both words if audio requested
+            if (includeAudio) {
+                await registry.execute('speak_portuguese', { text: word1.pt, speed: 0.8 });
+                await new Promise(r => setTimeout(r, 1500));
+                await registry.execute('speak_portuguese', { text: word2.pt, speed: 0.8 });
+            }
+            
+            // Record rescue attempts for both words
+            const key1 = `${word1.pt}|${word1.en}`;
+            const key2 = `${word2.pt}|${word2.en}`;
+            StuckWordsService.recordRescueAttempt(key1, 'minimal_pairs', { pairedWith: word2.pt });
+            StuckWordsService.recordRescueAttempt(key2, 'minimal_pairs', { pairedWith: word1.pt });
+            
+            Logger.info('tool_handlers', 'create_minimal_pairs_contrast', { 
+                word1: word1.pt, 
+                word2: word2.pt 
+            });
+            
+            return {
+                success: true,
+                technique: StuckWordsService.RESCUE_TECHNIQUES.MINIMAL_PAIRS,
+                contrast,
+                tip: `Focus on the DIFFERENCE: "${pt1}" vs "${pt2}". What makes them unique?`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'create_minimal_pairs_contrast failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * generate_context_flood - Show word in many different contexts
+     */
+    registry.setHandler('generate_context_flood', async ({ pt, en, wordKey, count = 10 }) => {
+        try {
+            // Record rescue attempt
+            if (wordKey) {
+                StuckWordsService.recordRescueAttempt(wordKey, 'context_flood', { count });
+            }
+            
+            Logger.info('tool_handlers', 'generate_context_flood', { pt, en, count });
+            
+            // Return template for AI to fill with real sentences
+            return {
+                success: true,
+                technique: StuckWordsService.RESCUE_TECHNIQUES.CONTEXT_FLOOD,
+                word: pt,
+                meaning: en,
+                requestedSentences: count,
+                sentenceTypes: [
+                    { type: 'simple_statement', example: 'Basic declarative sentence' },
+                    { type: 'question', example: 'Question using the word' },
+                    { type: 'negative', example: 'Negative sentence' },
+                    { type: 'command', example: 'Imperative/command' },
+                    { type: 'past_tense', example: 'Past tense usage' },
+                    { type: 'future_tense', example: 'Future tense usage' },
+                    { type: 'conditional', example: 'Conditional usage' },
+                    { type: 'with_adjective', example: 'With descriptive adjective' },
+                    { type: 'dialogue', example: 'In a conversation exchange' },
+                    { type: 'idiomatic', example: 'Common phrase or idiom' }
+                ],
+                instructions: [
+                    `Generate ${count} sentences using "${pt}" (${en})`,
+                    'Each sentence should show a DIFFERENT usage',
+                    'Include sentence types from the list above',
+                    'Provide Portuguese + English translation for each',
+                    'Mark collocations (words that commonly appear with this word)'
+                ]
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'generate_context_flood failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * create_stuck_words_rescue_lesson - Create a HYBRID lesson combining:
+     * - User's requested topic
+     * - Stuck words that are RELEVANT to that topic
+     * 
+     * This is the KEY tool for smart lesson generation
+     */
+    registry.setHandler('create_stuck_words_rescue_lesson', async ({ 
+        topic,
+        title,
+        description,
+        newWords = [],
+        includeStuckWords = true,
+        maxStuckWords = 3,
+        difficulty = 'beginner',
+        rescueTechniques = ['keyword_mnemonic', 'context_flood']
+    }) => {
+        try {
+            if (!topic && newWords.length === 0) {
+                return { 
+                    success: false, 
+                    error: 'Either topic or newWords is required' 
+                };
+            }
+            
+            const userId = localStorage.getItem('currentUserId') || 'default';
+            
+            // Get relevant stuck words for this topic
+            let stuckWordsToInclude = [];
+            if (includeStuckWords) {
+                const topicKeywords = topic?.split(/\s+/) || [];
+                stuckWordsToInclude = StuckWordsService.getRelevantStuckWords(topic, topicKeywords);
+                
+                // Limit to maxStuckWords
+                stuckWordsToInclude = stuckWordsToInclude.slice(0, maxStuckWords);
+            }
+            
+            // Build combined word list
+            const allWords = [];
+            
+            // Add new words (the main lesson content)
+            for (const w of newWords) {
+                allWords.push({
+                    ...w,
+                    isNew: true,
+                    isStuckWord: false
+                });
+            }
+            
+            // Add relevant stuck words with rescue content
+            for (const stuck of stuckWordsToInclude) {
+                const mnemonicBlocks = StuckWordsService.getMnemonicBuildingBlocks(stuck.pt, stuck.en);
+                const recommendedTech = StuckWordsService.getRecommendedTechniques(stuck.wordKey);
+                
+                allWords.push({
+                    pt: stuck.pt,
+                    en: stuck.en,
+                    isNew: false,
+                    isStuckWord: true,
+                    stuckData: {
+                        failureCount: stuck.failureCount,
+                        confusedWith: stuck.confusedWith,
+                        recommendedTechniques: recommendedTech.map(t => t.name)
+                    },
+                    mnemonicHints: mnemonicBlocks.suggestedKeywords,
+                    rescueTip: `You've struggled with this ${stuck.failureCount} times. Let's use a memory trick!`
+                });
+                
+                // Record that we're including this in a rescue lesson
+                StuckWordsService.recordRescueAttempt(stuck.wordKey, 'rescue_lesson', { topic });
+            }
+            
+            // Generate lesson ID
+            const existingLessons = JSON.parse(localStorage.getItem(`${CUSTOM_LESSONS_KEY}_${userId}`) || '[]');
+            const nextNum = String(existingLessons.length + 1).padStart(3, '0');
+            const topicSlug = (topic || 'rescue').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            const lessonId = `AI-${nextNum}-rescue-${topicSlug}`;
+            
+            // Build lesson
+            const lesson = {
+                id: lessonId,
+                title: title || `${topic || 'Vocabulary'} + Your Stuck Words`,
+                description: description || `Custom lesson combining ${topic || 'new vocabulary'} with words you're working to master.`,
+                topic: `AI: ${topic || 'Rescue'}`,
+                topicId: 'ai-rescue',
+                tier: 4,
+                level: difficulty,
+                isAIGenerated: true,
+                isRescueLesson: true,
+                createdAt: new Date().toISOString(),
+                createdBy: 'AI Tutor',
+                focusArea: 'mixed',
+                
+                // Words with rescue metadata
+                words: allWords.map((w, idx) => ({
+                    id: `${lessonId}_word_${idx}`,
+                    pt: w.pt,
+                    en: w.en,
+                    audio: w.audio || w.pt.toLowerCase().replace(/[^a-záàâãéêíóôõúç]/gi, ''),
+                    pronunciation: w.pronunciation || '',
+                    ipa: w.ipa || '',
+                    type: w.type || 'vocabulary',
+                    grammarNotes: w.grammarNotes || '',
+                    culturalNote: w.culturalNote || '',
+                    aiTip: w.isStuckWord ? w.rescueTip : (w.aiTip || ''),
+                    examples: w.examples || [],
+                    isStuckWord: w.isStuckWord || false,
+                    mnemonicHints: w.mnemonicHints || [],
+                    stuckData: w.stuckData || null
+                })),
+                
+                // Rescue-specific metadata
+                rescueMetadata: {
+                    stuckWordsIncluded: stuckWordsToInclude.length,
+                    newWordsIncluded: newWords.length,
+                    techniquesFocused: rescueTechniques,
+                    relevanceMatching: stuckWordsToInclude.map(w => ({
+                        word: w.pt,
+                        relevanceScore: w.relevanceScore || 0
+                    }))
+                },
+                
+                metadata: {
+                    wordCount: allWords.length,
+                    stuckWordCount: stuckWordsToInclude.length,
+                    newWordCount: newWords.length,
+                    hasRescueContent: stuckWordsToInclude.length > 0
+                }
+            };
+            
+            // Store lesson
+            existingLessons.push(lesson);
+            localStorage.setItem(`${CUSTOM_LESSONS_KEY}_${userId}`, JSON.stringify(existingLessons));
+            
+            // Emit event
+            eventStream.track('rescue_lesson_created', {
+                lessonId,
+                topic,
+                stuckWordCount: stuckWordsToInclude.length,
+                newWordCount: newWords.length
+            });
+            
+            window.dispatchEvent(new CustomEvent('ai-lesson-created', { detail: { lesson } }));
+            
+            Logger.info('tool_handlers', 'create_stuck_words_rescue_lesson', {
+                lessonId,
+                topic,
+                stuckWords: stuckWordsToInclude.length,
+                newWords: newWords.length
+            });
+            
+            return {
+                success: true,
+                lesson: {
+                    id: lessonId,
+                    title: lesson.title,
+                    wordCount: allWords.length,
+                    stuckWordsIncluded: stuckWordsToInclude.map(w => ({ pt: w.pt, en: w.en })),
+                    newWordsIncluded: newWords.length
+                },
+                message: stuckWordsToInclude.length > 0
+                    ? `✅ Created "${lesson.title}" with ${newWords.length} new words AND ${stuckWordsToInclude.length} stuck word(s) you need to practice. Look for the 🔴 markers on stuck words!`
+                    : `✅ Created "${lesson.title}" with ${newWords.length} words. No stuck words matched this topic.`,
+                stuckWordsNote: stuckWordsToInclude.length > 0
+                    ? `Included stuck words: ${stuckWordsToInclude.map(w => w.pt).join(', ')}. These need extra attention!`
+                    : 'No stuck words were relevant to this topic, so only new words were added.'
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'create_stuck_words_rescue_lesson failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * record_word_failure - Track when a user fails a word
+     */
+    registry.setHandler('record_word_failure', async ({ wordKey, pt, en, failureType, confusedWith, pronunciationScore, category }) => {
+        try {
+            const result = StuckWordsService.recordFailure({
+                wordKey: wordKey || `${pt}|${en}`,
+                pt,
+                en,
+                failureType,
+                confusedWith,
+                pronunciationScore,
+                category
+            });
+            
+            Logger.info('tool_handlers', 'record_word_failure', { pt, failureType });
+            
+            const isNowStuck = result.stuckSince && result.failureCount >= 3;
+            
+            return {
+                success: true,
+                word: pt,
+                failureCount: result.failureCount,
+                isStuck: isNowStuck,
+                message: isNowStuck 
+                    ? `"${pt}" is now marked as stuck (${result.failureCount} failures). Consider using rescue techniques!`
+                    : `Recorded failure for "${pt}". ${3 - result.failureCount} more failures before marked as stuck.`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'record_word_failure failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * get_rescue_techniques - Get available rescue techniques for a word
+     */
+    registry.setHandler('get_rescue_techniques', async ({ wordKey, pt, en }) => {
+        try {
+            const key = wordKey || `${pt}|${en}`;
+            const techniques = StuckWordsService.getRecommendedTechniques(key);
+            const allTechniques = Object.values(StuckWordsService.RESCUE_TECHNIQUES);
+            
+            Logger.info('tool_handlers', 'get_rescue_techniques', { wordKey: key });
+            
+            return {
+                success: true,
+                word: pt,
+                recommendedTechniques: techniques.map(t => ({
+                    id: t.id,
+                    name: t.name,
+                    description: t.description,
+                    effectiveness: `${Math.round(t.effectiveness * 100)}%`,
+                    bestFor: t.bestFor
+                })),
+                allTechniques: allTechniques.map(t => ({
+                    id: t.id,
+                    name: t.name,
+                    description: t.description
+                }))
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'get_rescue_techniques failed', { error: error.message });
+            return { success: false, error: error.message };
         }
     });
     
