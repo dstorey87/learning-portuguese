@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="250" rx="18" fill="url(#g)" />
+  <rect x="46" y="80" width="308" height="90" rx="14" fill="rgba(255,255,255,0.16)" />
+  <path d="M90 125 L170 105 L250 145 L330 115" stroke="rgba(255,255,255,0.38)" stroke-width="8" fill="none" stroke-linecap="round" />
+  <text x="30" y="200" fill="#faf5ff" font-family="Arial, sans-serif" font-size="22" font-weight="700">Phrase Hacks</text>
+  <text x="30" y="224" fill="#ede9fe" font-family="Arial, sans-serif" font-size="14">Fast responses, ready-made lines</text>
+</svg>

@@ -5,6 +5,8 @@
  * @module components/lesson/LessonCard
  */
 
+import { getLessonImage as resolveLessonImage } from '../../data/LessonLoader.js';
+
 /**
  * LessonCard configuration
  */
@@ -21,25 +23,29 @@ export const LESSON_CARD_CONFIG = {
  * @returns {string} Image URL
  */
 export function getLessonImage(lesson) {
-    if (lesson.image) return lesson.image;
-    
-    // Topic-based fallback images
-    const topicImages = {
-        'greetings': 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=250&fit=crop',
-        'numbers': 'https://images.unsplash.com/photo-1596496050827-8299e0220de1?w=400&h=250&fit=crop',
-        'food': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=250&fit=crop',
-        'travel': 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=250&fit=crop',
-        'family': 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400&h=250&fit=crop',
-        'weather': 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?w=400&h=250&fit=crop',
-        'time': 'https://images.unsplash.com/photo-1501139083538-0139583c060f?w=400&h=250&fit=crop',
-        'building-blocks': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=250&fit=crop',
-        'pronouns': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=250&fit=crop',
-        'articles': 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=400&h=250&fit=crop',
-        'default': LESSON_CARD_CONFIG.defaultImage
-    };
-    
-    const topicKey = lesson.topicId?.toLowerCase() || 'default';
-    return topicImages[topicKey] || topicImages.default;
+    const imageData = resolveLessonImage(lesson) || {};
+    const heuristicLocal = (() => {
+        const text = `${lesson.title || ''} ${lesson.topicTitle || ''} ${lesson.topicId || ''}`.toLowerCase();
+        if (text.includes('greet')) return '/assets/lesson-thumbs/basic-greetings.svg';
+        if (text.includes('travel') || text.includes('restaurant') || text.includes('cafe') || text.includes('survival')) return '/assets/lesson-thumbs/essentials.svg';
+        if (text.includes('phrase') || text.includes('rapid') || text.includes('dialogue')) return '/assets/lesson-thumbs/phrase-hacks.svg';
+        if (text.includes('number') || text.includes('time') || text.includes('day') || text.includes('month') || text.includes('color') || text.includes('family')) return '/assets/lesson-thumbs/fundamentals.svg';
+        return null;
+    })();
+
+    const preferredLocal = imageData.localUrl && imageData.localUrl !== '/assets/lesson-thumbs/default.svg' ? imageData.localUrl : null;
+    const local = preferredLocal || heuristicLocal || imageData.localUrl || imageData.url;
+    const remote = imageData.remoteUrl;
+    const remoteFallback = imageData.remoteFallbackUrl;
+    const svg = imageData.svgUrl;
+    const layers = [];
+    if (remote) layers.push(`url('${remote}')`);
+    if (remoteFallback) layers.push(`url('${remoteFallback}')`);
+    if (local) layers.push(`url('${local}')`);
+    if (svg) layers.push(`url('${svg}')`);
+    if (!layers.length && imageData.url) layers.push(`url('${imageData.url}')`);
+    if (!layers.length) layers.push(`url('${LESSON_CARD_CONFIG.defaultImage}')`);
+    return layers.join(', ');
 }
 
 /**
@@ -99,7 +105,7 @@ export function getDifficultyBadge(level) {
 export function renderLessonCard(lesson, options = {}) {
     const { userData = {}, showProgress = true, onClick = null } = options;
     
-    const imageUrl = getLessonImage(lesson);
+    const imageStyle = getLessonImage(lesson);
     const progress = getLessonProgress(lesson, userData);
     const badge = getDifficultyBadge(lesson.level);
     const isActive = userData.activeLesson === lesson.id;
@@ -114,7 +120,7 @@ export function renderLessonCard(lesson, options = {}) {
     const sentenceCount = lesson.sentences?.length || 0;
     
     card.innerHTML = `
-        <div class="lesson-thumb" style="background-image: url('${imageUrl}')">
+        <div class="lesson-thumb" style="background-image: ${imageStyle}">
             ${isCompleted ? '<div class="completion-overlay"><span class="check-icon">✓</span></div>' : ''}
             ${isPremium ? '<div class="premium-overlay"><span class="lock-icon">🔒</span></div>' : ''}
         </div>

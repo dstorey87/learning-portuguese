@@ -21,10 +21,14 @@ import {
     formatRefillTime,
     getTimeToNextHeart,
     startHeartRefillTimer,
+    login,
     loginAdmin,
+    getUser,
+    isLoggedIn,
     logout,
     isAdmin
 } from './src/services/AuthService.js';
+import { userStorage } from './src/services/userStorage.js';
 import { getLearnedWords, SRS_INTERVALS } from './src/services/ProgressTracker.js';
 import Toast from './src/components/common/Toast.js';
 import { 
@@ -105,7 +109,32 @@ function debounce(namespace, fn, delay) {
 }
 
 // =========== USER DATA PERSISTENCE ===========
-const USER_DATA_KEY = 'portugueseProgress';
+const USER_DATA_KEY_BASE = 'portugueseProgress';
+let currentUserId = bootstrapAuthUser();
+
+function sanitizeUserId(name = 'guest') {
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return base || 'guest';
+}
+
+function getUserDataKey() {
+    return `${USER_DATA_KEY_BASE}_${currentUserId || 'guest'}`;
+}
+
+function bootstrapAuthUser() {
+    let activeUser = getUser();
+    if (!activeUser.loggedIn) {
+        activeUser = login('Guest');
+    }
+    const userId = sanitizeUserId(activeUser.username || 'guest');
+    localStorage.setItem('currentUserId', userId);
+    try {
+        userStorage.setCurrentUser(userId);
+    } catch (err) {
+        console.warn('Failed to set userStorage context', err);
+    }
+    return userId;
+}
 
 function getDefaultUserData() {
     return {
@@ -121,7 +150,8 @@ function getDefaultUserData() {
         lessonAccuracy: [],
         lessonDurations: [],
         mistakes: [],
-        successes: []
+        successes: [],
+        hardMode: false
     };
 }
 
@@ -140,13 +170,14 @@ function normalizeUserData(data = {}) {
         lessonAccuracy: normalizeArrayish(data.lessonAccuracy),
         lessonDurations: normalizeArrayish(data.lessonDurations),
         mistakes: Array.isArray(data.mistakes) ? data.mistakes : [],
-        successes: Array.isArray(data.successes) ? data.successes : []
+        successes: Array.isArray(data.successes) ? data.successes : [],
+        hardMode: !!data.hardMode
     };
 }
 
 function loadUserData() {
     try {
-        const stored = localStorage.getItem(USER_DATA_KEY);
+        const stored = localStorage.getItem(getUserDataKey());
         if (stored) {
             return normalizeUserData({
                 ...getDefaultUserData(),
@@ -163,7 +194,7 @@ function saveUserData(data = userData) {
     try {
         const normalized = normalizeUserData(data);
         userData = normalized;
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalized));
+        localStorage.setItem(getUserDataKey(), JSON.stringify(normalized));
     } catch (e) {
         console.warn('Failed to save user data:', e);
     }
@@ -185,10 +216,60 @@ window.ChallengeRenderer = { ChallengeRenderer, buildLessonChallenges };
 window.ProgressTracker = { getLearnedWords };
 window.Toast = Toast;
 
+// =========== AI CUSTOM LESSONS ===========
+const CUSTOM_LESSONS_KEY = 'ai_custom_lessons';
+
+function getCustomAILessons() {
+    const userId = localStorage.getItem('currentUserId') || 'default';
+    const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
+    try {
+        return JSON.parse(localStorage.getItem(storageKey) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+function getCustomAILessonById(lessonId) {
+    return getCustomAILessons().find(l => l.id === lessonId);
+}
+
+// Listen for AI lesson creation/deletion events
+window.addEventListener('ai-lesson-created', () => {
+    console.log('[AI Lesson] New lesson created, refreshing grid');
+    renderLessons();
+    Toast.success('🤖 New AI lesson created!', 3000);
+});
+
+window.addEventListener('ai-lesson-deleted', () => {
+    console.log('[AI Lesson] Lesson deleted, refreshing grid');
+    renderLessons();
+});
+
+// Listen for AI agent requesting to start a lesson
+window.addEventListener('start-lesson', (event) => {
+    const { lessonId } = event.detail;
+    console.log('[AI Agent] Starting lesson:', lessonId);
+    startLesson(lessonId);
+});
+
 // =========== LESSON HELPERS ===========
 function getLessonByIdForUI(lessonId) {
-    // Try new loader first, fallback to legacy
+    // Try custom AI lesson first, then new loader, fallback to legacy
+    const customLesson = getCustomAILessonById(lessonId);
+    if (customLesson) return customLesson;
     return loaderGetLessonById(lessonId) || getAllLessonsFlat().find(l => l.id === lessonId);
+}
+
+// Build a layered background-image with remote-first and local fallback to guarantee paint
+function buildLessonThumbStyle(imageData = {}) {
+    const layers = [];
+    // Use double quotes to avoid breaking on encoded single quotes in data URIs
+    if (imageData.remoteUrl) layers.push(`url("${imageData.remoteUrl}")`);
+    const local = imageData.localUrl || imageData.url;
+    if (local) layers.push(`url("${local}")`);
+    if (imageData.svgUrl) layers.push(`url("${imageData.svgUrl}")`);
+    if (!layers.length && imageData.url) layers.push(`url("${imageData.url}")`);
+    return layers.join(', ');
 }
 
 // =========== TOPIC FILTERS & LESSON GRID ===========
@@ -223,9 +304,14 @@ function renderLessons() {
     const allTopics = getAllTopics();
     let lessons = getAllLessons();
     
-    // Filter by selected topic
-    if (uiState.selectedTopic && uiState.selectedTopic !== 'all') {
+    // Filter by selected topic (unless it's 'ai-generated')
+    if (uiState.selectedTopic && uiState.selectedTopic !== 'all' && uiState.selectedTopic !== 'ai-generated') {
         lessons = lessons.filter(l => l.topicId === uiState.selectedTopic);
+    }
+    
+    // If viewing AI-generated topic, only show those
+    if (uiState.selectedTopic === 'ai-generated') {
+        lessons = [];
     }
     
     // Filter out gated lessons for non-premium users
@@ -233,31 +319,107 @@ function renderLessons() {
     
     grid.innerHTML = '';
     
+    // Render standard lessons
     lessons.forEach(lesson => {
         const card = document.createElement('div');
         card.className = 'lesson-card';
         card.dataset.lessonId = lesson.id;
         
         const imageData = getLessonImage(lesson);
+        const imageStyle = buildLessonThumbStyle(imageData);
         const topic = allTopics.find(t => t.id === lesson.topicId);
         const accuracy = userData.lessonAccuracy?.[lesson.id];
         const accuracyText = typeof accuracy === 'number' ? `${accuracy}%` : '—';
         
         card.innerHTML = `
-            <div class="lesson-thumb" style="background-image: url('${imageData.url}')"></div>
+            <div class="lesson-thumb" style="background-image: ${imageStyle}"></div>
             <h3>${lesson.title}</h3>
             <p class="lesson-meta">${topic?.title || lesson.topicId} · ${lesson.level || 'beginner'}</p>
             <p class="word-count">${lesson.words?.length || 0} words</p>
             <p class="lesson-accuracy">Accuracy: ${accuracyText}</p>
             ${userData.activeLesson === lesson.id ? '<span class="badge-active">In progress</span>' : ''}
         `;
+
+        const thumb = card.querySelector('.lesson-thumb');
+        if (thumb && imageStyle) {
+            thumb.style.backgroundImage = imageStyle;
+        }
         card.addEventListener('click', () => startLesson(lesson.id));
         grid.appendChild(card);
     });
 
-    if (!lessons.length) {
+    // Get custom AI lessons
+    const aiLessons = getCustomAILessons();
+    
+    // Show AI lessons if viewing 'all' or 'ai-generated' topic and there are any
+    if (aiLessons.length > 0 && (!uiState.selectedTopic || uiState.selectedTopic === 'all' || uiState.selectedTopic === 'ai-generated')) {
+        // Add section header for AI lessons
+        const aiHeader = document.createElement('div');
+        aiHeader.className = 'ai-lessons-header';
+        aiHeader.innerHTML = `
+            <h3>🤖 AI-Generated Lessons</h3>
+            <p class="muted">Custom lessons created by your AI tutor based on your learning needs</p>
+        `;
+        grid.appendChild(aiHeader);
+        
+        // Render AI lessons
+        aiLessons.forEach(lesson => {
+            const card = document.createElement('div');
+            card.className = 'lesson-card ai-lesson-card';
+            card.dataset.lessonId = lesson.id;
+            
+            const accuracy = userData.lessonAccuracy?.[lesson.id];
+            const accuracyText = typeof accuracy === 'number' ? `${accuracy}%` : '—';
+            const isCompleted = userData.lessonsCompleted && userData.completedLessonIds?.includes(lesson.id);
+            
+            card.innerHTML = `
+                <div class="lesson-thumb ai-lesson-thumb">
+                    <span class="ai-badge">🤖 AI</span>
+                </div>
+                <h3>${lesson.title}</h3>
+                <p class="lesson-meta">${lesson.focusArea || 'Mixed'} · ${lesson.difficulty || 'beginner'}</p>
+                <p class="word-count">${lesson.words?.length || 0} words</p>
+                <p class="lesson-accuracy">Accuracy: ${accuracyText}</p>
+                ${isCompleted ? '<span class="badge-completed">✓ Completed</span>' : ''}
+                ${userData.activeLesson === lesson.id ? '<span class="badge-active">In progress</span>' : ''}
+                <button class="delete-ai-lesson" data-lesson-id="${lesson.id}" title="Delete this lesson">🗑️</button>
+            `;
+            
+            // Click to start lesson (not on delete button)
+            card.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('delete-ai-lesson')) {
+                    startLesson(lesson.id);
+                }
+            });
+            
+            grid.appendChild(card);
+        });
+        
+        // Add delete button listeners
+        grid.querySelectorAll('.delete-ai-lesson').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const lessonId = btn.dataset.lessonId;
+                if (confirm('Delete this AI-generated lesson?')) {
+                    deleteCustomAILesson(lessonId);
+                }
+            });
+        });
+    }
+
+    if (!lessons.length && aiLessons.length === 0) {
         grid.innerHTML = '<p class="muted">No lessons available for this filter.</p>';
     }
+}
+
+// Delete a custom AI lesson
+function deleteCustomAILesson(lessonId) {
+    const userId = localStorage.getItem('currentUserId') || 'default';
+    const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
+    const lessons = getCustomAILessons().filter(l => l.id !== lessonId);
+    localStorage.setItem(storageKey, JSON.stringify(lessons));
+    renderLessons();
+    Toast.info('AI lesson deleted', 2000);
 }
 
 // =========== DUOLINGO-STYLE LESSON FLOW ===========
@@ -291,7 +453,8 @@ function startLesson(lessonId) {
         correct: 0,
         mistakes: 0,
         startTime: Date.now(),
-        wrongAnswers: []
+        wrongAnswers: [],
+        hardMode: !!userData.hardMode
     };
 
     uiState.activeLessonState = lessonState;
@@ -315,6 +478,10 @@ function startLesson(lessonId) {
                 <div class="lesson-progress-bar">
                     <div class="lesson-progress-fill" id="lessonProgressFill"></div>
                 </div>
+                <label class="lesson-mode-toggle">
+                    <input type="checkbox" id="hardModeToggle" ${lessonState.hardMode ? 'checked' : ''}>
+                    <span>Hard mode (type answers)</span>
+                </label>
                 <div class="lesson-hearts" id="lessonHearts"></div>
             </div>
             <div class="lesson-challenge-container" id="challengeContainer"></div>
@@ -340,6 +507,7 @@ function startLesson(lessonId) {
         getHearts,
         hasHearts,
         speakerGender: userData.speakerGender,
+        isHardMode: lessonState.hardMode,
         onChallengeComplete: (state) => {
             state.currentIndex += 1;
             renderChallenge(state);
@@ -347,6 +515,18 @@ function startLesson(lessonId) {
         onHeartsUpdate: renderHearts,
         onShowHeartsModal: showHeartsModal
     });
+
+    const hardModeToggle = document.getElementById('hardModeToggle');
+    if (hardModeToggle) {
+        hardModeToggle.checked = lessonState.hardMode;
+        hardModeToggle.addEventListener('change', () => {
+            lessonState.hardMode = hardModeToggle.checked;
+            userData.hardMode = lessonState.hardMode;
+            saveUserData();
+            lessonState.renderer?.setHardMode(lessonState.hardMode);
+            renderChallenge(lessonState);
+        });
+    }
 
     document.getElementById('backToLessons').addEventListener('click', () => {
         if (!confirm('Exit lesson? Your progress will be saved.')) return;
@@ -372,6 +552,9 @@ function renderChallenge(state) {
 
     const challenge = state.challenges[state.currentIndex];
     state.renderer?.setSpeakerGender(userData.speakerGender);
+    if (state.renderer?.setHardMode) {
+        state.renderer.setHardMode(state.hardMode);
+    }
     state.renderer?.render(container, challenge, state);
 }
 
@@ -3255,12 +3438,26 @@ function updateHeaderStats() {
     updateXPDisplay();
 }
 
+function setActiveUserContext(user) {
+    currentUserId = sanitizeUserId(user?.username || 'guest');
+    localStorage.setItem('currentUserId', currentUserId);
+    try {
+        userStorage.setCurrentUser(currentUserId);
+    } catch (err) {
+        console.warn('Failed to bind userStorage context', err);
+    }
+    userData = loadUserData();
+    saveUserData(userData);
+    updateHeaderStats();
+    renderLessons();
+}
+
 function showLoginModal() {
     const modal = document.getElementById('loginModal');
     if (modal) {
         modal.style.display = 'flex';
-        const passwordInput = document.getElementById('adminPassword');
-        if (passwordInput) passwordInput.focus();
+        const usernameInput = document.getElementById('usernameInput');
+        if (usernameInput) usernameInput.focus();
     }
 }
 
@@ -3269,6 +3466,8 @@ function hideLoginModal() {
     if (modal) modal.style.display = 'none';
     const error = document.getElementById('loginError');
     if (error) error.style.display = 'none';
+    const usernameInput = document.getElementById('usernameInput');
+    if (usernameInput) usernameInput.value = '';
     const passwordInput = document.getElementById('adminPassword');
     if (passwordInput) passwordInput.value = '';
 }
@@ -3305,7 +3504,7 @@ function handleAdminLogin() {
     const result = loginAdmin(passwordInput.value);
     if (result.success) {
         hideLoginModal();
-        updateHeaderStats();
+        setActiveUserContext(result.user);
         showNotification('🎉 Admin mode activated - Unlimited hearts!', 'success');
     } else {
         if (errorEl) {
@@ -3315,15 +3514,82 @@ function handleAdminLogin() {
     }
 }
 
+function handleUserLogin() {
+    const usernameInput = document.getElementById('usernameInput');
+    const passwordInput = document.getElementById('adminPassword');
+    const errorEl = document.getElementById('loginError');
+    const username = (usernameInput?.value || '').trim();
+    const password = (passwordInput?.value || '').trim();
+
+    const wantsAdmin = !!password;
+
+    if (!username && !wantsAdmin) {
+        if (errorEl) {
+            errorEl.textContent = 'Please enter a name to continue.';
+            errorEl.style.display = 'block';
+        }
+        return;
+    }
+
+    if (wantsAdmin) {
+        const result = loginAdmin(password);
+        if (!result.success) {
+            if (errorEl) {
+                errorEl.textContent = result.error || 'Invalid admin password';
+                errorEl.style.display = 'block';
+            }
+            return;
+        }
+        setActiveUserContext(result.user);
+        hideLoginModal();
+        showNotification(`👑 Welcome, Admin`, 'success');
+        return;
+    }
+
+    const user = login(username);
+    setActiveUserContext(user);
+    hideLoginModal();
+    showNotification(`👋 Welcome, ${username}!`, 'success');
+}
+
+function handleGuestLogin() {
+    const user = login('Guest');
+    setActiveUserContext(user);
+    hideLoginModal();
+    showNotification('Continuing as Guest', 'info');
+}
+
 function handleLogout() {
     logout();
+    currentUserId = bootstrapAuthUser();
+    userData = loadUserData();
+    renderLessons();
     updateHeaderStats();
-    Toast.showNotification('Logged out', 'info');
+    showNotification('Logged out', 'info');
 }
 
 // showNotification now delegates to Toast component
 function showNotification(message, type = 'info') {
-    Toast.showNotification(message, type);
+    // Prefer the namespace helper; fallback to the core show method
+    if (typeof Toast.notify === 'function') {
+        return Toast.notify(message, type);
+    }
+    if (typeof Toast.show === 'function') {
+        return Toast.show(message, type);
+    }
+    // Final fallback to type-specific helpers
+    if (type === 'success' && typeof Toast.success === 'function') {
+        return Toast.success(message);
+    }
+    if (type === 'error' && typeof Toast.error === 'function') {
+        return Toast.error(message);
+    }
+    if (type === 'warning' && typeof Toast.warning === 'function') {
+        return Toast.warning(message);
+    }
+    if (typeof Toast.info === 'function') {
+        return Toast.info(message);
+    }
 }
 
 function setupNavigation() {
@@ -3374,13 +3640,25 @@ function setupNavigation() {
     
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', handleAdminLogin);
+        loginBtn.addEventListener('click', handleUserLogin);
+    }
+
+    const guestBtn = document.getElementById('guestBtn');
+    if (guestBtn) {
+        guestBtn.addEventListener('click', handleGuestLogin);
+    }
+    
+    const usernameInput = document.getElementById('usernameInput');
+    if (usernameInput) {
+        usernameInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') handleUserLogin();
+        });
     }
     
     const passwordInput = document.getElementById('adminPassword');
     if (passwordInput) {
         passwordInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') handleAdminLogin();
+            if (e.key === 'Enter') handleUserLogin();
         });
     }
     

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="250" rx="18" fill="url(#g)" />
+  <path d="M60 160 C120 110 180 210 240 150 C300 90 340 160 360 130" stroke="rgba(255,255,255,0.3)" stroke-width="18" fill="none" stroke-linecap="round" />
+  <text x="30" y="200" fill="#fff7ed" font-family="Arial, sans-serif" font-size="22" font-weight="700">Everyday Essentials</text>
+  <text x="30" y="224" fill="#ffedd5" font-family="Arial, sans-serif" font-size="14">Cafe, travel, quick asks</text>
+</svg>

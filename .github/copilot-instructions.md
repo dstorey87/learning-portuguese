@@ -97,6 +97,13 @@ If the user explicitly instructs **NO GIT** (e.g., "do not run git commands"), t
 - Re-test the original change once fixes pass to confirm it still holds.
 - No bugs allowed: continue the fix/test loop until zero failures.
 
+## Playwright Validation Loop (MANDATORY for UI/visual changes)
+- Do not rely on code review alone; always inspect the live page with Playwright for any UI/visual/content change (images, layout, navigation, gradients).
+- Use the MCP Playwright tools to interact: navigate with `mcp_playwright_browser_navigate`, click/interact with `mcp_playwright_browser_click`, and capture state (evaluate/snapshot/screenshot) to confirm behavior.
+- For image-related work (e.g., lesson thumbnails), verify in Playwright that elements render with non-empty `background-image`/`src`, unique URLs, and visible assets on the actual page.
+- Stay in a fix loop: implement change → Playwright validation → adjust → repeat until the Playwright check confirms success.
+- When reporting, mention the URL/port used for validation and the observed Playwright results.
+
 ### ⚡ TARGETED TESTING (NOT FULL SUITE)
 
 **DO NOT run `npm test` on every change** - it takes 4+ minutes with 500+ tests!

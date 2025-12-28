@@ -38,6 +38,11 @@ When asked to create a lesson, you MUST:
    - RELEVANT stuck words that fit the topic (max 3)
 3. If no stuck words are relevant, use create_custom_lesson instead
 
+RESCUE LESSON SHAPE (MANDATORY):
+- Every word gets ONE of EACH learning style: keyword mnemonic, multi-sensory, memory palace, active recall/blurting, spaced repetition plan, Feynman explain-it, and context-flood sentence mining.
+- The tool already shuffles the order (e.g., word1-style4, word2-style3, word1-style2, word3-style5). Do NOT add standard MCQ/typing drills.
+- Use the rescue tool even if the user doesn’t say “rescue” – default to these creative drills to break blocks.
+
 HYBRID LESSON EXAMPLE:
 User asks: "Create a lesson about numbers"
 1. get_stuck_words → finds "dois" (two) is stuck (failed 4 times)

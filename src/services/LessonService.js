@@ -35,7 +35,15 @@ export const CHALLENGE_TYPES = {
     MCQ: 'mcq',
     TYPE_ANSWER: 'type-answer',
     LISTEN_TYPE: 'listen-type',
-    SENTENCE: 'sentence'
+    SENTENCE: 'sentence',
+    // Rescue-specific learning style drills
+    RESCUE_KEYWORD: 'rescue-keyword-mnemonic',
+    RESCUE_MULTI_SENSORY: 'rescue-multi-sensory',
+    RESCUE_MEMORY_PALACE: 'rescue-memory-palace',
+    RESCUE_ACTIVE_RECALL: 'rescue-active-recall',
+    RESCUE_SPACED_REPETITION: 'rescue-spaced-repetition',
+    RESCUE_FEYNMAN: 'rescue-feynman',
+    RESCUE_CONTEXT_FLOOD: 'rescue-context-flood'
 };
 
 /**
@@ -165,6 +173,20 @@ export function buildQuizOptions(targetWord, allWords) {
  * @returns {Array} Challenge sequence
  */
 export function buildLessonChallenges(lesson) {
+    // If lesson provides pre-built challenges (e.g., AI rescue lessons), honor them
+    if (lesson.challenges && lesson.challenges.length > 0) {
+        return lesson.challenges.map((challenge, idx) => {
+            const resolvedWord = typeof challenge.wordIndex === 'number'
+                ? lesson.words?.[challenge.wordIndex]
+                : challenge.word;
+            return {
+                ...challenge,
+                word: resolvedWord || challenge.word,
+                index: challenge.index ?? idx
+            };
+        });
+    }
+
     const challenges = [];
     const words = lesson.words || [];
     const sentences = lesson.sentences || [];

@@ -688,6 +688,31 @@ test.describe('LessonService: Lesson Completion', () => {
         // base 10 + words 5*2 = 20
         expect(xp).toBe(20);
     });
+
+    test('buildLessonChallenges honors pre-built rescue challenges', async ({ page }) => {
+        await page.goto(BASE_URL);
+
+        const challenges = await page.evaluate(async () => {
+            const { buildLessonChallenges } = await import('/src/services/LessonService.js');
+            const lesson = {
+                words: [
+                    { pt: 'um', en: 'one' },
+                    { pt: 'dois', en: 'two', isStuckWord: true }
+                ],
+                    challenges: [
+                        { type: 'learn-word', wordIndex: 0 },
+                        { type: 'rescue-keyword-mnemonic', wordIndex: 1, steps: ['scene'] }
+                    ]
+            };
+            return buildLessonChallenges(lesson);
+        });
+
+        expect(challenges).toHaveLength(2);
+        expect(challenges[0].type).toBe('learn-word');
+        expect(challenges[0].word.pt).toBe('um');
+        expect(challenges[1].type).toBe('rescue-keyword-mnemonic');
+        expect(challenges[1].word.pt).toBe('dois');
+    });
     
     test('calculateLessonXP adds accuracy bonus for 90%+', async ({ page }) => {
         await page.goto(BASE_URL);

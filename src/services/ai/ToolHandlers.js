@@ -1385,6 +1385,103 @@ export function initializeToolHandlers() {
      * 
      * This is the KEY tool for smart lesson generation
      */
+    // Rescue challenge templates (one per learning style)
+    const RESCUE_STYLE_DEFS = [
+        {
+            id: 'keyword-mnemonic',
+            type: 'rescue-keyword-mnemonic',
+            title: 'Keyword Mnemonic',
+            icon: '🧠',
+            description: 'Sound-alike keyword + bizarre visual to lock recall (2-3x better than rote).',
+            buildSteps: (word) => [
+                `Pick a vivid English keyword that sounds like "${word.pt}" (e.g., for "dois": "doys" → two boys).`,
+                'Create a bizarre, emotional image linking the keyword to the meaning.',
+                'Say it aloud while picturing it, then write one quick sentence using the scene.'
+            ]
+        },
+        {
+            id: 'multi-sensory',
+            type: 'rescue-multi-sensory',
+            title: 'Multi-Sensory Encoding',
+            icon: '🎨',
+            description: 'Engage visual + auditory + kinesthetic channels simultaneously.',
+            buildSteps: (word) => [
+                `Say "${word.pt}" aloud 3 times while tracing it in the air with your finger.`,
+                'Add a quick gesture that matches the meaning (e.g., holding up two fingers).',
+                'Whisper it, then say it loudly to switch auditory channels.'
+            ]
+        },
+        {
+            id: 'memory-palace',
+            type: 'rescue-memory-palace',
+            title: 'Memory Palace',
+            icon: '🏰',
+            description: 'Place the word in a vivid location in your home and retrieve it.',
+            buildSteps: (word) => [
+                'Pick a room you know well; choose a specific spot (door, couch, lamp).',
+                `Imagine a wild scene there that screams "${word.pt}" + its meaning.`,
+                'Walk through the palace in your head and say the word each time you pass the spot.'
+            ]
+        },
+        {
+            id: 'active-recall',
+            type: 'rescue-active-recall',
+            title: 'Active Recall + Blurting',
+            icon: '⚡',
+            description: 'Force production before checking—struggle creates stronger memory.',
+            buildSteps: (word) => [
+                `Look at the English meaning and BLURT the Portuguese: "${word.pt}" (no peeking).`,
+                'Write everything you remember about it (spelling, gender, usage).',
+                'Check, patch the gaps, and blurt again immediately.'
+            ]
+        },
+        {
+            id: 'spaced-repetition',
+            type: 'rescue-spaced-repetition',
+            title: 'Spaced Repetition Plan',
+            icon: '⏱️',
+            description: 'Schedule quick reviews: 1d → 3d → 7d → 14d → 30d (90% better than cramming).',
+            buildSteps: (word) => [
+                'Set 5 tiny reviews on your calendar or reminders: 1d, 3d, 7d, 14d, 30d.',
+                `At each review: say "${word.pt}" aloud, write it once, use it in a 5-word sentence.`,
+                'Mark completion after each review to keep the curve alive.'
+            ]
+        },
+        {
+            id: 'feynman',
+            type: 'rescue-feynman',
+            title: 'Feynman Explain-It',
+            icon: '🧑‍🏫',
+            description: 'Teach the word simply—as if to a child—to expose weak spots.',
+            buildSteps: (word) => [
+                `Explain "${word.pt}" and when to use it in one sentence a 7-year-old understands.`,
+                'List the rule or pattern in plain words (gender, plural, pronunciation).',
+                'Find the part that felt fuzzy and restate it simpler.'
+            ]
+        },
+        {
+            id: 'context-flood',
+            type: 'rescue-context-flood',
+            title: 'Sentence Mining + Context Flood',
+            icon: '🌊',
+            description: 'See the word in 5-10 contexts to learn collocations and tone.',
+            buildSteps: (word) => [
+                'Collect 5 mini-sentences using the word in different situations.',
+                'Say each aloud and highlight the words that commonly pair with it.',
+                'Create one new sentence of your own using a fresh context.'
+            ]
+        }
+    ];
+
+    const shuffle = (arr = []) => {
+        const copy = [...arr];
+        for (let i = copy.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+    };
+
     registry.setHandler('create_stuck_words_rescue_lesson', async ({ 
         topic,
         title,
@@ -1505,7 +1602,37 @@ export function initializeToolHandlers() {
                     stuckWordCount: stuckWordsToInclude.length,
                     newWordCount: newWords.length,
                     hasRescueContent: stuckWordsToInclude.length > 0
-                }
+                },
+
+                // Pre-built challenge plan: introduce words, then 7 rescue styles per word shuffled
+                challenges: (() => {
+                    const learnPhase = allWords.map((word, idx) => ({
+                        type: 'learn-word',
+                        wordIndex: idx,
+                        phase: 'learn',
+                        stage: 'intro'
+                    }));
+
+                    const rescuePhase = [];
+                    allWords.forEach((word, idx) => {
+                        RESCUE_STYLE_DEFS.forEach(style => {
+                            rescuePhase.push({
+                                type: style.type,
+                                wordIndex: idx,
+                                phase: 'rescue',
+                                stage: style.id,
+                                title: style.title,
+                                icon: style.icon,
+                                description: style.description,
+                                steps: style.buildSteps(word),
+                                techniqueId: style.id
+                            });
+                        });
+                    });
+
+                    const shuffledRescue = shuffle(rescuePhase);
+                    return [...learnPhase, ...shuffledRescue];
+                })()
             };
             
             // Store lesson

@@ -192,6 +192,34 @@ test.describe('LessonLoader: getLessonById', () => {
     });
 });
 
+// ============================================================================
+// LESSON IMAGES
+// ============================================================================
+
+test.describe('LessonLoader: getLessonImage', () => {
+    test('should include English words in the remote image query', async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const { getLessonImage } = await import('/src/data/LessonLoader.js');
+            const lesson = {
+                id: 'test-lesson',
+                title: 'Image Keyword Test',
+                topicId: 'travel',
+                words: [
+                    { pt: 'comboio', en: 'Train' },
+                    { pt: 'bilhete', en: 'Ticket' }
+                ]
+            };
+
+            const image = getLessonImage(lesson);
+            return image.remoteUrl || image.url;
+        });
+
+        const url = (result || '').toLowerCase();
+        expect(url).toContain('train');
+        expect(url).toContain('ticket');
+    });
+});
+
 test.describe('LessonLoader: getLessonsByTopic', () => {
     test('should return lessons for building-blocks topic', async ({ page }) => {
         const result = await page.evaluate(async () => {

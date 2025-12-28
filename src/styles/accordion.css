@@ -668,6 +668,85 @@
     max-width: 100%;
 }
 
+.lesson-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-self: stretch;
+    min-width: 0;
+}
+
+.lesson-context-card {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.08), rgba(16, 185, 129, 0.06));
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.lesson-context-image {
+    width: 100%;
+    height: 180px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.lesson-context-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.15));
+}
+
+.lesson-progress-stack {
+    padding: 14px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.progress-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.progress-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary, #1f2937);
+    letter-spacing: 0.02em;
+}
+
+.progress-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary-color, #3b82f6);
+}
+
+.progress-sub {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.progress-bar.compact {
+    height: 8px;
+    background: var(--surface-secondary, #f3f4f6);
+    border-radius: 999px;
+}
+
+.progress-bar.compact .progress-fill {
+    border-radius: 999px;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.progress-bar.compact .progress-fill.overall {
+    background: linear-gradient(90deg, #0ea5e9, #3b82f6);
+}
+
 /* ============================================================================
    MOBILE DRAWER VARIANT
    ============================================================================ */

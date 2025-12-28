@@ -62,7 +62,15 @@ export const CHALLENGE_TYPES = {
     // Additional challenge types
     MATCH: 'match',
     SENTENCE_BUILDER: 'sentence-builder',
-    CONJUGATION: 'conjugation'
+    CONJUGATION: 'conjugation',
+    // Rescue-specific challenge types (learning style drills)
+    RESCUE_KEYWORD: 'rescue-keyword-mnemonic',
+    RESCUE_MULTI_SENSORY: 'rescue-multi-sensory',
+    RESCUE_MEMORY_PALACE: 'rescue-memory-palace',
+    RESCUE_ACTIVE_RECALL: 'rescue-active-recall',
+    RESCUE_SPACED_REPETITION: 'rescue-spaced-repetition',
+    RESCUE_FEYNMAN: 'rescue-feynman',
+    RESCUE_CONTEXT_FLOOD: 'rescue-context-flood'
 };
 
 /**
@@ -90,6 +98,17 @@ export const CHALLENGE_CONFIG = {
     animationDuration: 200,
     autoPlayDelay: 300
 };
+
+// Rescue challenge type registry for quick lookup
+const RESCUE_CHALLENGE_TYPES = new Set([
+    CHALLENGE_TYPES.RESCUE_KEYWORD,
+    CHALLENGE_TYPES.RESCUE_MULTI_SENSORY,
+    CHALLENGE_TYPES.RESCUE_MEMORY_PALACE,
+    CHALLENGE_TYPES.RESCUE_ACTIVE_RECALL,
+    CHALLENGE_TYPES.RESCUE_SPACED_REPETITION,
+    CHALLENGE_TYPES.RESCUE_FEYNMAN,
+    CHALLENGE_TYPES.RESCUE_CONTEXT_FLOOD
+]);
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -149,10 +168,133 @@ export function getWordKey(word) {
  * and falling back to lesson-level imagery.
  */
 function resolveChallengeImage(challenge, lesson) {
-    const challengeImage = challenge.image || challenge.media?.image;
-    const wordImage = challenge.word?.image || challenge.word?.media?.image;
+    const toBackground = (value) => {
+        if (!value) return null;
+        return value.startsWith('url(') ? value : `url('${value}')`;
+    };
+
+    const challengeImage = toBackground(challenge.image || challenge.media?.image);
+    const wordRemote = toBackground(buildWordRemoteImage(challenge.word, lesson));
+    const wordImage = toBackground(challenge.word?.image || challenge.word?.media?.image);
+    const wordSvg = buildWordSvg(challenge.word, lesson);
     const lessonImage = lesson ? getLessonImage(lesson) : getLessonImage({ topicId: 'default' });
-    return challengeImage || wordImage || lessonImage;
+    // Prefer remote word art → explicit word image → SVG → lesson image
+    return challengeImage || wordRemote || wordImage || wordSvg || lessonImage;
+}
+
+// Generate a deterministic inline SVG for each word so every challenge has a unique, relevant visual
+function buildWordSvg(word, lesson) {
+    if (!word) return null;
+    const base = `${word.pt || word.en || 'word'}-${lesson?.title || ''}`.toLowerCase();
+    let hash = 0;
+    for (let i = 0; i < base.length; i += 1) {
+        hash = (hash << 5) - hash + base.charCodeAt(i);
+        hash |= 0;
+    }
+    const hue = Math.abs(hash) % 360;
+    const hue2 = (Math.abs(hash * 7)) % 360;
+    const pt = (word.pt || '').slice(0, 18);
+    const en = (word.en || '').slice(0, 22);
+    const svg = `
+<svg xmlns='http://www.w3.org/2000/svg' width='400' height='250'>
+  <defs>
+    <linearGradient id='wg' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='hsl(${hue},70%,48%)' />
+      <stop offset='100%' stop-color='hsl(${hue2},70%,35%)' />
+    </linearGradient>
+  </defs>
+  <rect width='400' height='250' rx='18' fill='url(#wg)' />
+  <text x='24' y='120' fill='rgba(255,255,255,0.95)' font-family='Arial, sans-serif' font-size='28' font-weight='700'>${pt}</text>
+  <text x='24' y='160' fill='rgba(255,255,255,0.85)' font-family='Arial, sans-serif' font-size='16'>${en}</text>
+</svg>`;
+    return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
+}
+
+// Build a deterministic, vocab-aware remote image for the current word
+const WORD_IMAGE_POOL = [
+    'photo-1503676382389-4809596d5290',
+    'photo-1500530855697-b586d89ba3ee',
+    'photo-1484795819573-86ae049cb815',
+    'photo-1501004318641-b39e6451bec6',
+    'photo-1501004318641-44fdc4482f5b',
+    'photo-1485846234645-a62644f84728',
+    'photo-1504384308090-c894fdcc538d',
+    'photo-1473181488821-2d23949a045a',
+    'photo-1520607162513-77705c0f0d4a'
+];
+
+// Semantic keyword mapping for abstract/grammar words that don't have direct visual representations
+const WORD_KEYWORD_MAP = {
+    // Pronouns - use visual concepts instead of the word itself
+    'i': 'person,self,portrait,me',
+    'you': 'people,pointing,conversation',
+    'he': 'man,male,portrait',
+    'she': 'woman,female,portrait',
+    'we': 'group,team,together,friends',
+    'they': 'people,crowd,group',
+    // Verbs
+    'to be': 'existence,identity,being',
+    'to have': 'possession,holding,hands',
+    'to go': 'walking,journey,movement',
+    'to want': 'desire,wishing,hoping',
+    'to speak': 'talking,conversation,speech',
+    // Articles/grammar words - use abstract visuals
+    'the': 'object,thing,pointing',
+    'a': 'single,one,item',
+    'and': 'connection,together,joining',
+    'or': 'choice,options,decision',
+    'but': 'contrast,however,difference',
+    'because': 'reason,thinking,logic',
+    'if': 'question,maybe,possibility',
+    'with': 'together,companionship,pair',
+    'for': 'purpose,gift,giving',
+    'from': 'origin,source,direction',
+    'in': 'inside,interior,location',
+    'on': 'surface,above,placement',
+    'at': 'location,place,spot',
+    // Question words
+    'what': 'question,curious,wondering',
+    'who': 'person,identity,mystery',
+    'where': 'location,map,place',
+    'when': 'time,clock,calendar',
+    'why': 'question,reason,thinking',
+    'how': 'method,process,learning',
+    // Negation
+    'yes': 'affirmative,thumbs-up,positive',
+    'no': 'negative,stop,rejection',
+    'never': 'prohibition,never,forbidden',
+    'always': 'infinity,forever,constant',
+    'nothing': 'empty,void,absence',
+    // Possessives
+    'my': 'mine,ownership,personal',
+    'your': 'yours,giving,sharing',
+    'his': 'male,possession,his',
+    'her': 'female,possession,hers',
+    'our': 'group,shared,community',
+    'their': 'others,group,collective'
+};
+
+function buildWordRemoteImage(word, lesson) {
+    if (!word) return null;
+    
+    // Get English translation
+    const english = (word.en || word.english || '').toLowerCase().trim();
+    if (!english) return null;
+    
+    // Check for mapped keywords for abstract/grammar words
+    let keywords = WORD_KEYWORD_MAP[english];
+    
+    if (!keywords) {
+        // For concrete nouns/adjectives, use the English word directly
+        // Clean it up for URL usage
+        keywords = english.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, ',');
+    }
+    
+    // Add unique signature based on Portuguese word to get variety
+    const sig = Math.abs((word.pt || word.id || english).split('').reduce((h, ch) => ((h << 5) - h + ch.charCodeAt(0)) | 0, 0));
+    
+    // Use Unsplash Source API for semantic image search
+    return `https://source.unsplash.com/400x250/?${encodeURIComponent(keywords)}&sig=${sig}`;
 }
 
 /**
@@ -195,6 +337,7 @@ export function buildQuizOptions(correctWord, pool, learnedWords = []) {
     return options.map(option => ({
         key: getWordKey(option),
         en: option.en,
+        pt: option.pt,
         lessonId: option.lessonId || correctWord.lessonId
     }));
 }
@@ -276,6 +419,7 @@ export function buildLessonChallenges(lesson, options = {}) {
             type: CHALLENGE_TYPES.TYPE_ANSWER,
             word,
             phase: CHALLENGE_PHASES.PRACTICE,
+            options: buildQuizOptions(word, words, learnedWords),
             index: challengeIndex++
         });
     });
@@ -287,6 +431,7 @@ export function buildLessonChallenges(lesson, options = {}) {
             type: CHALLENGE_TYPES.LISTEN_TYPE,
             word,
             phase: CHALLENGE_PHASES.PRACTICE,
+            options: buildQuizOptions(word, words, learnedWords),
             index: challengeIndex++
         });
     });
@@ -346,9 +491,18 @@ export class ChallengeRenderer {
         
         // Feature flags
         this.useAccordionLayout = options.useAccordionLayout !== false; // Default to true
+        this.isHardMode = !!options.isHardMode;
         
         // Track LessonOptionsPanel instance for cleanup
         this.optionsPanel = null;
+    }
+
+    /**
+     * Update hard mode preference (typing required when true)
+     * @param {boolean} hard
+     */
+    setHardMode(hard) {
+        this.isHardMode = !!hard;
     }
 
     /**
@@ -431,6 +585,15 @@ export class ChallengeRenderer {
                     break;
                 case CHALLENGE_TYPES.CONJUGATION:
                     this.renderConjugation(container, challenge, state);
+                    break;
+                case CHALLENGE_TYPES.RESCUE_KEYWORD:
+                case CHALLENGE_TYPES.RESCUE_MULTI_SENSORY:
+                case CHALLENGE_TYPES.RESCUE_MEMORY_PALACE:
+                case CHALLENGE_TYPES.RESCUE_ACTIVE_RECALL:
+                case CHALLENGE_TYPES.RESCUE_SPACED_REPETITION:
+                case CHALLENGE_TYPES.RESCUE_FEYNMAN:
+                case CHALLENGE_TYPES.RESCUE_CONTEXT_FLOOD:
+                    this.renderRescueChallenge(container, challenge, state);
                     break;
                 default:
                     console.warn(`Unknown challenge type: ${challenge.type}`);
@@ -798,8 +961,8 @@ export class ChallengeRenderer {
                 
                 <!-- Right: Options Panel with Progress + Image -->
                 <div class="lesson-side-panel">
-                    <div class="lesson-context-card">
-                        <div class="lesson-context-image" style="background-image: url('${lessonImage}')" aria-hidden="true"></div>
+                        <div class="lesson-context-card">
+                        <div class="lesson-context-image" style="background-image: ${lessonImage}" aria-hidden="true"></div>
                         <div class="lesson-progress-stack">
                             <div class="progress-row">
                                 <div class="progress-label">This lesson</div>
@@ -1367,6 +1530,86 @@ export class ChallengeRenderer {
     }
 
     /**
+     * Render easy-mode selectable answers (no typing)
+     * @param {HTMLElement} container
+     * @param {Object} config
+     * @param {Object} config.word
+     * @param {string} config.instruction
+     * @param {string} config.prompt
+     * @param {Array} config.options
+     * @param {string} config.answerKey
+     * @param {Function} [config.autoPlay]
+     * @param {Object} state
+     * @private
+     */
+    _renderSelectableAnswer(container, config, state) {
+        const { word, instruction, prompt, options = [], answerKey, autoPlay } = config;
+        const resolvedOptions = options.length ? options : [{ key: answerKey, en: word.en, pt: word.pt }];
+        const lessonTitle = state.lesson?.title || 'Lesson';
+
+        container.innerHTML = `
+            <div class="challenge-card type-card">
+                <div class="challenge-instruction">${instruction}</div>
+                <div class="type-prompt">${escapeHtml(prompt)}</div>
+                <div class="mcq-options">
+                    ${resolvedOptions.map(opt => `
+                        <button class="mcq-option" data-key="${escapeHtml(opt.key)}">
+                            <div class="mcq-option-pt">${escapeHtml(opt.pt || opt.en || '')}</div>
+                            <div class="mcq-option-en">${escapeHtml(opt.en || '')}</div>
+                        </button>
+                    `).join('')}
+                </div>
+                <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(word.pt)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
+                <div class="challenge-footer">
+                    <button class="btn-continue hidden" id="continueBtn">Continue</button>
+                </div>
+            </div>
+        `;
+
+        if (typeof autoPlay === 'function') {
+            autoPlay();
+        }
+
+        const saveBtn = container.querySelector('#saveWordBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', (e) => {
+                const btn = e.target;
+                this.saveToFlashcards(btn.dataset.pt, btn.dataset.en, lessonTitle);
+                btn.textContent = '✓ Saved!';
+                btn.disabled = true;
+            });
+        }
+
+        const buttons = Array.from(container.querySelectorAll('.mcq-option'));
+        const continueBtn = container.querySelector('#continueBtn');
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                buttons.forEach(b => b.disabled = true);
+                const isCorrect = btn.dataset.key === answerKey;
+                if (isCorrect) {
+                    btn.classList.add('correct');
+                    this._showFeedback(true, word.pt || word.en);
+                    state.correct++;
+                    this.onCorrect(word, state);
+                } else {
+                    btn.classList.add('incorrect');
+                    buttons.forEach(b => { if (b.dataset.key === answerKey) b.classList.add('correct'); });
+                    this._showFeedback(false, word.pt || word.en);
+                    state.mistakes++;
+                    state.wrongAnswers.push({ word: word.pt, english: word.en, type: 'select' });
+                    this._handleMistake(state);
+                }
+
+                if (continueBtn) {
+                    continueBtn.classList.remove('hidden');
+                    continueBtn.addEventListener('click', () => this.onChallengeComplete(state), { once: true });
+                }
+            });
+        });
+    }
+
+    /**
      * Render Type Answer challenge
      * @param {HTMLElement} container - Container element
      * @param {Object} challenge - Challenge data
@@ -1375,10 +1618,27 @@ export class ChallengeRenderer {
     renderTypeAnswer(container, challenge, state) {
         const word = challenge.word;
         const answer = resolveWordForm(word, this.speakerGender);
+
+        // Easy mode: offer selectable answers instead of typing
+        if (!this.isHardMode) {
+            const options = (challenge.options && challenge.options.length)
+                ? challenge.options
+                : buildQuizOptions(word, state.lesson?.words || [], getLearnedWords());
+
+            this._renderSelectableAnswer(container, {
+                instruction: 'Choose the Portuguese word',
+                prompt: word.en,
+                word,
+                answerKey: getWordKey(word),
+                options,
+                autoPlay: () => setTimeout(() => this.playWord(answer), CHALLENGE_CONFIG.autoPlayDelay)
+            }, state);
+            return;
+        }
         
         container.innerHTML = `
             <div class="challenge-card type-card">
-                <div class="challenge-instruction">Write this in Portuguese</div>
+                <div class="challenge-instruction">Hard mode: type this in Portuguese</div>
                 <div class="type-prompt">${escapeHtml(word.en)}</div>
                 <input type="text" class="type-input" id="typeInput" placeholder="Type in Portuguese..." autocomplete="off" autocapitalize="off">
                 <div class="challenge-feedback" id="feedback"></div>
@@ -1459,6 +1719,23 @@ export class ChallengeRenderer {
     renderListenType(container, challenge, state) {
         const word = challenge.word;
         const answer = resolveWordForm(word, this.speakerGender);
+
+        // Easy mode: selectable answers after listening
+        if (!this.isHardMode) {
+            const options = (challenge.options && challenge.options.length)
+                ? challenge.options
+                : buildQuizOptions(word, state.lesson?.words || [], getLearnedWords());
+
+            this._renderSelectableAnswer(container, {
+                instruction: 'Select what you heard',
+                prompt: '🔊 Listen and pick the right Portuguese word',
+                word,
+                answerKey: getWordKey(word),
+                options,
+                autoPlay: () => setTimeout(() => this.playWord(answer), CHALLENGE_CONFIG.autoPlayDelay)
+            }, state);
+            return;
+        }
         
         container.innerHTML = `
             <div class="challenge-card listen-type-card">
@@ -1573,6 +1850,53 @@ export class ChallengeRenderer {
             btn.disabled = true;
         });
         document.getElementById('continueBtn').addEventListener('click', () => {
+            this.onChallengeComplete(state);
+        });
+    }
+
+    /**
+     * Render Rescue challenge (creative learning styles for stuck words)
+     * @param {HTMLElement} container
+     * @param {Object} challenge
+     * @param {Object} state
+     */
+    renderRescueChallenge(container, challenge, state) {
+        const word = challenge.word || {};
+        const resolved = resolveWordForm(word, this.speakerGender);
+        const steps = Array.isArray(challenge.steps) && challenge.steps.length
+            ? challenge.steps
+            : ['Say the word aloud twice.', 'Write it once.', 'Use it in a new sentence.'];
+
+        const styleTitle = challenge.title || 'Rescue Drill';
+        const styleIcon = challenge.icon || '💡';
+        const desc = challenge.description || 'Break the plateau using a focused micro-exercise.';
+        const progressLabel = `Challenge ${state.currentIndex + 1} of ${state.challenges.length}`;
+
+        container.innerHTML = `
+            <div class="challenge-card rescue-card">
+                <div class="rescue-head">
+                    <div class="rescue-pill">${styleIcon} ${escapeHtml(styleTitle)}</div>
+                    <div class="rescue-word">${escapeHtml(resolved || word.pt || '')}</div>
+                    <div class="rescue-meaning">${escapeHtml(word.en || '')}</div>
+                    ${word.isStuckWord ? '<span class="rescue-stuck">Stuck word focus</span>' : ''}
+                </div>
+                <div class="rescue-desc">${escapeHtml(desc)}</div>
+                <ol class="rescue-steps">
+                    ${steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}
+                </ol>
+                <div class="rescue-actions">
+                    <button class="btn-listen-main" id="listenBtn">🔊 Play</button>
+                    <button class="btn-continue" id="continueBtn">Mark Done →</button>
+                </div>
+                <div class="challenge-footer subtle">${escapeHtml(progressLabel)}</div>
+            </div>
+        `;
+
+        const listenBtn = container.querySelector('#listenBtn');
+        if (listenBtn) {
+            listenBtn.addEventListener('click', () => this.playWord(resolved));
+        }
+        container.querySelector('#continueBtn').addEventListener('click', () => {
             this.onChallengeComplete(state);
         });
     }
