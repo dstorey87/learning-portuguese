@@ -379,62 +379,187 @@ export function initializeToolHandlers() {
     });
     
     // ========================================================================
-    // CREATE_CUSTOM_LESSON - Generate a personalized lesson
+    // CREATE_CUSTOM_LESSON - Generate a full, high-quality lesson
     // ========================================================================
+    /**
+     * Creates a complete lesson with:
+     * - Words with pt, en, pronunciation, IPA, grammarNotes, culturalNote, aiTip, examples
+     * - Sentences for practice
+     * - Multiple challenge types (multiple-choice, translate, fill-blank)
+     * - Quick reference cards
+     * 
+     * Naming convention: AI-XXX-topic-kebab-case (e.g., AI-001-basic-greetings)
+     */
     registry.setHandler('create_custom_lesson', async ({ 
         title, 
         description = '', 
+        topic = 'vocabulary',
         focusArea = 'mixed', 
         words = [], 
+        sentences = [],
         challenges = [], 
         targetPhonemes = [], 
-        difficulty = 'beginner' 
+        difficulty = 'beginner',
+        quickReference = null
     }) => {
         try {
-            if (!title || words.length === 0) {
-                return { success: false, error: 'Title and at least one word are required' };
+            // Validation - require proper word structure
+            if (!title) {
+                return { success: false, error: 'Title is required' };
+            }
+            if (!words || words.length === 0) {
+                return { success: false, error: 'At least one word is required. Each word needs: pt (Portuguese), en (English), and preferably pronunciation, ipa, examples, grammarNotes, culturalNote, and aiTip' };
+            }
+            
+            // Validate word quality
+            const wordErrors = [];
+            words.forEach((w, idx) => {
+                if (!w.pt) wordErrors.push(`Word ${idx + 1}: missing Portuguese (pt)`);
+                if (!w.en) wordErrors.push(`Word ${idx + 1}: missing English (en)`);
+            });
+            if (wordErrors.length > 0) {
+                return { success: false, error: `Invalid words: ${wordErrors.join('; ')}` };
             }
             
             const userId = localStorage.getItem('currentUserId') || 'default';
-            const lessonId = `ai_lesson_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             
-            // Build lesson structure matching existing lesson format
+            // Generate standardized lesson ID: AI-XXX-topic-kebab-case
+            const existingLessons = JSON.parse(localStorage.getItem(`${CUSTOM_LESSONS_KEY}_${userId}`) || '[]');
+            const nextNum = String(existingLessons.length + 1).padStart(3, '0');
+            const topicSlug = topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            const lessonId = `AI-${nextNum}-${topicSlug}`;
+            
+            // Build comprehensive word structure matching standard lessons
+            const processedWords = words.map((w, idx) => ({
+                id: `${lessonId}_word_${idx}`,
+                pt: w.pt,
+                en: w.en,
+                audio: w.audio || w.pt.toLowerCase().replace(/[^a-záàâãéêíóôõúç]/gi, ''),
+                pronunciation: w.pronunciation || '',
+                ipa: w.ipa || '',
+                type: w.type || 'vocabulary',
+                grammarNotes: w.grammarNotes || w.notes || '',
+                culturalNote: w.culturalNote || '',
+                aiTip: w.aiTip || w.tip || '',
+                examples: (w.examples || []).map(ex => ({
+                    pt: typeof ex === 'string' ? ex : ex.pt,
+                    en: typeof ex === 'string' ? '' : ex.en
+                })),
+                isFromAI: true
+            }));
+            
+            // Build sentences if not provided - generate from word examples
+            let processedSentences = sentences || [];
+            if (processedSentences.length === 0) {
+                // Extract sentences from word examples
+                processedWords.forEach(w => {
+                    if (w.examples && w.examples.length > 0) {
+                        w.examples.forEach(ex => {
+                            if (ex.pt && ex.en) {
+                                processedSentences.push({ pt: ex.pt, en: ex.en });
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Build challenges - auto-generate if not provided
+            let processedChallenges = challenges || [];
+            if (processedChallenges.length === 0 && processedWords.length >= 2) {
+                // Auto-generate basic challenges
+                processedChallenges = [];
+                
+                // Multiple choice for each word (up to 4)
+                processedWords.slice(0, 4).forEach((w, idx) => {
+                    const otherWords = processedWords.filter((_, i) => i !== idx).slice(0, 3);
+                    const options = [w.en, ...otherWords.map(ow => ow.en)].sort(() => Math.random() - 0.5);
+                    processedChallenges.push({
+                        id: `${lessonId}_mc_${idx}`,
+                        type: 'multiple-choice',
+                        question: `What does "${w.pt}" mean?`,
+                        options: options,
+                        correct: options.indexOf(w.en),
+                        explanation: w.grammarNotes || `"${w.pt}" means "${w.en}" in Portuguese.`
+                    });
+                });
+                
+                // Translation challenge
+                if (processedSentences.length > 0) {
+                    const sent = processedSentences[0];
+                    processedChallenges.push({
+                        id: `${lessonId}_trans_0`,
+                        type: 'translate',
+                        prompt: sent.en,
+                        answer: sent.pt,
+                        hints: processedWords.slice(0, 3).map(w => `${w.pt} = ${w.en}`)
+                    });
+                }
+                
+                // Fill in the blank
+                if (processedSentences.length > 1) {
+                    const sent = processedSentences[1];
+                    const wordInSent = processedWords.find(w => sent.pt.includes(w.pt));
+                    if (wordInSent) {
+                        const blankedSentence = sent.pt.replace(wordInSent.pt, '___');
+                        const options = [wordInSent.pt, ...processedWords.filter(w => w.pt !== wordInSent.pt).slice(0, 2).map(w => w.pt)];
+                        processedChallenges.push({
+                            id: `${lessonId}_fill_0`,
+                            type: 'fill-blank',
+                            sentence: blankedSentence,
+                            options: options.sort(() => Math.random() - 0.5),
+                            correct: options.indexOf(wordInSent.pt),
+                            explanation: `The correct word is "${wordInSent.pt}" (${wordInSent.en}).`
+                        });
+                    }
+                }
+            }
+            
+            // Build quick reference if not provided
+            const processedQuickRef = quickReference || {
+                words: processedWords.map(w => ({
+                    word: w.pt,
+                    meaning: w.en,
+                    pronunciation: w.pronunciation || w.ipa
+                }))
+            };
+            
+            // Build complete lesson structure
             const lesson = {
                 id: lessonId,
                 title,
-                description: description || `AI-generated ${focusArea} practice lesson`,
-                topic: `AI: ${focusArea.charAt(0).toUpperCase() + focusArea.slice(1)}`,
-                tier: 4, // Custom AI lessons
+                description: description || `AI-generated lesson: ${title}. ${processedWords.length} words to master.`,
+                topic: `AI: ${topic.charAt(0).toUpperCase() + topic.slice(1)}`,
+                topicId: 'ai-generated',
+                tier: 4,
+                level: difficulty,
                 isAIGenerated: true,
                 createdAt: new Date().toISOString(),
-                createdBy: 'AI Assistant',
+                createdBy: 'AI Tutor',
                 focusArea,
                 difficulty,
                 targetPhonemes,
-                words: words.map((w, idx) => ({
-                    id: `${lessonId}_word_${idx}`,
-                    pt: w.pt,
-                    en: w.en,
-                    ipa: w.ipa || '',
-                    tip: w.tip || '',
-                    category: w.category || 'vocabulary',
-                    examples: w.examples || [],
-                    isFromAI: true
-                })),
-                challenges: challenges.map((c, idx) => ({
-                    id: `${lessonId}_challenge_${idx}`,
-                    ...c
-                })),
+                estimatedTime: `${Math.max(5, processedWords.length * 2 + processedChallenges.length)} min`,
+                
+                // Core content
+                words: processedWords,
+                sentences: processedSentences,
+                challenges: processedChallenges,
+                quickReference: processedQuickRef,
+                
+                // Metadata for UI
                 metadata: {
-                    wordCount: words.length,
-                    challengeCount: challenges.length,
-                    estimatedMinutes: Math.max(5, words.length * 2 + challenges.length * 1)
+                    wordCount: processedWords.length,
+                    sentenceCount: processedSentences.length,
+                    challengeCount: processedChallenges.length,
+                    estimatedMinutes: Math.max(5, processedWords.length * 2 + processedChallenges.length),
+                    hasGrammarNotes: processedWords.some(w => w.grammarNotes),
+                    hasCulturalNotes: processedWords.some(w => w.culturalNote),
+                    hasExamples: processedWords.some(w => w.examples?.length > 0)
                 }
             };
             
             // Store in localStorage
             const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
-            const existingLessons = JSON.parse(localStorage.getItem(storageKey) || '[]');
             existingLessons.push(lesson);
             localStorage.setItem(storageKey, JSON.stringify(existingLessons));
             
@@ -442,7 +567,8 @@ export function initializeToolHandlers() {
             eventStream.track('custom_lesson_created', {
                 lessonId,
                 title,
-                wordCount: words.length,
+                wordCount: processedWords.length,
+                challengeCount: processedChallenges.length,
                 focusArea,
                 difficulty
             });
@@ -452,10 +578,12 @@ export function initializeToolHandlers() {
                 detail: { lesson } 
             }));
             
-            Logger.info('tool_handlers', 'Created custom lesson', { 
+            Logger.info('tool_handlers', 'Created full AI lesson', { 
                 lessonId, 
                 title, 
-                wordCount: words.length 
+                wordCount: processedWords.length,
+                sentenceCount: processedSentences.length,
+                challengeCount: processedChallenges.length
             });
             
             return {
@@ -464,13 +592,18 @@ export function initializeToolHandlers() {
                     id: lessonId,
                     title,
                     description: lesson.description,
-                    wordCount: words.length,
-                    challengeCount: challenges.length,
+                    wordCount: processedWords.length,
+                    sentenceCount: processedSentences.length,
+                    challengeCount: processedChallenges.length,
                     focusArea,
                     difficulty,
-                    estimatedMinutes: lesson.metadata.estimatedMinutes
+                    estimatedMinutes: lesson.metadata.estimatedMinutes,
+                    hasGrammarNotes: lesson.metadata.hasGrammarNotes,
+                    hasCulturalNotes: lesson.metadata.hasCulturalNotes,
+                    hasExamples: lesson.metadata.hasExamples
                 },
-                message: `Created "${title}" with ${words.length} words. The lesson is now available in your lesson list.`
+                message: `✅ Created "${title}" (${lessonId}) with ${processedWords.length} words, ${processedSentences.length} sentences, and ${processedChallenges.length} challenges. The lesson is now available in your lesson list!`,
+                nextStep: 'Use verify_custom_lesson to check the lesson quality, or navigate to the Learn page to try it.'
             };
         } catch (error) {
             Logger.error('tool_handlers', 'create_custom_lesson failed', { error: error.message });
@@ -556,6 +689,334 @@ export function initializeToolHandlers() {
         } catch (error) {
             Logger.error('tool_handlers', 'delete_custom_lesson failed', { error: error.message });
             return { success: false, error: error.message };
+        }
+    });
+
+    // ==========================================================================
+    // VERIFY_CUSTOM_LESSON - Check lesson quality and completeness
+    // ==========================================================================
+    registry.setHandler('verify_custom_lesson', async ({ lessonId }) => {
+        try {
+            if (!lessonId) {
+                return { success: false, error: 'Lesson ID is required' };
+            }
+            
+            const userId = localStorage.getItem('currentUserId') || 'default';
+            const storageKey = `${CUSTOM_LESSONS_KEY}_${userId}`;
+            const lessons = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            const lesson = lessons.find(l => l.id === lessonId);
+            if (!lesson) {
+                return { 
+                    found: false, 
+                    error: `Lesson "${lessonId}" not found. Check the lesson ID.` 
+                };
+            }
+            
+            // Quality checks
+            const issues = [];
+            const suggestions = [];
+            let qualityScore = 100;
+            
+            // Word quality checks
+            if (!lesson.words || lesson.words.length === 0) {
+                issues.push('❌ No words in lesson');
+                qualityScore -= 50;
+            } else {
+                if (lesson.words.length < 3) {
+                    suggestions.push('⚠️ Consider adding more words (recommended: 5-8)');
+                    qualityScore -= 10;
+                }
+                
+                const wordsWithoutPronunciation = lesson.words.filter(w => !w.pronunciation && !w.ipa);
+                if (wordsWithoutPronunciation.length > 0) {
+                    suggestions.push(`⚠️ ${wordsWithoutPronunciation.length} word(s) missing pronunciation guide`);
+                    qualityScore -= 5 * wordsWithoutPronunciation.length;
+                }
+                
+                const wordsWithoutExamples = lesson.words.filter(w => !w.examples || w.examples.length === 0);
+                if (wordsWithoutExamples.length > 0) {
+                    suggestions.push(`⚠️ ${wordsWithoutExamples.length} word(s) missing example sentences`);
+                    qualityScore -= 3 * wordsWithoutExamples.length;
+                }
+                
+                const wordsWithoutGrammar = lesson.words.filter(w => !w.grammarNotes);
+                if (wordsWithoutGrammar.length > lesson.words.length / 2) {
+                    suggestions.push('💡 Consider adding grammar notes to more words');
+                    qualityScore -= 5;
+                }
+                
+                const wordsWithoutAiTip = lesson.words.filter(w => !w.aiTip);
+                if (wordsWithoutAiTip.length > lesson.words.length / 2) {
+                    suggestions.push('💡 Consider adding learning tips (aiTip) to more words');
+                    qualityScore -= 5;
+                }
+            }
+            
+            // Challenge quality checks
+            if (!lesson.challenges || lesson.challenges.length === 0) {
+                suggestions.push('⚠️ No challenges/exercises. Learners need practice!');
+                qualityScore -= 15;
+            } else {
+                if (lesson.challenges.length < 3) {
+                    suggestions.push('💡 Add more challenges for better retention (recommended: 5+)');
+                    qualityScore -= 5;
+                }
+                
+                const challengeTypes = new Set(lesson.challenges.map(c => c.type));
+                if (challengeTypes.size < 2) {
+                    suggestions.push('💡 Mix challenge types (multiple-choice, translate, fill-blank)');
+                    qualityScore -= 5;
+                }
+            }
+            
+            // Sentence checks
+            if (!lesson.sentences || lesson.sentences.length === 0) {
+                suggestions.push('💡 Add example sentences for context');
+                qualityScore -= 5;
+            }
+            
+            qualityScore = Math.max(0, qualityScore);
+            
+            const qualityRating = qualityScore >= 90 ? '⭐⭐⭐ Excellent' :
+                                  qualityScore >= 70 ? '⭐⭐ Good' :
+                                  qualityScore >= 50 ? '⭐ Needs improvement' :
+                                  '❌ Poor quality';
+            
+            Logger.info('tool_handlers', 'Verified custom lesson', { 
+                lessonId, 
+                qualityScore,
+                issueCount: issues.length,
+                suggestionCount: suggestions.length
+            });
+            
+            return {
+                found: true,
+                lesson: {
+                    id: lesson.id,
+                    title: lesson.title,
+                    wordCount: lesson.words?.length || 0,
+                    sentenceCount: lesson.sentences?.length || 0,
+                    challengeCount: lesson.challenges?.length || 0
+                },
+                quality: {
+                    score: qualityScore,
+                    rating: qualityRating,
+                    issues,
+                    suggestions
+                },
+                summary: issues.length === 0 && suggestions.length <= 2 
+                    ? `✅ "${lesson.title}" is ready! Quality: ${qualityRating}`
+                    : `"${lesson.title}" needs attention. ${issues.length} issues, ${suggestions.length} suggestions. Quality: ${qualityRating}`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'verify_custom_lesson failed', { error: error.message });
+            return { found: false, error: error.message };
+        }
+    });
+
+    // ==========================================================================
+    // LOOKUP & NAVIGATION TOOLS
+    // ==========================================================================
+
+    /**
+     * lookup_word - Search for a word in lesson data
+     */
+    registry.setHandler('lookup_word', async ({ word, includeRelated }) => {
+        try {
+            const { getAllLessons } = await import('../../data/LessonLoader.js');
+            const allLessons = getAllLessons();
+            const searchTerm = word.toLowerCase();
+            
+            const results = [];
+            
+            for (const lesson of allLessons) {
+                if (!lesson.words) continue;
+                
+                for (const w of lesson.words) {
+                    // Check Portuguese word
+                    if (w.pt?.toLowerCase().includes(searchTerm) || 
+                        w.en?.toLowerCase().includes(searchTerm)) {
+                        results.push({
+                            pt: w.pt,
+                            en: w.en,
+                            ipa: w.ipa || null,
+                            partOfSpeech: w.partOfSpeech || null,
+                            notes: w.notes || null,
+                            examples: w.examples || [],
+                            lessonId: lesson.id,
+                            lessonTitle: lesson.title
+                        });
+                    }
+                }
+            }
+            
+            // Also check custom AI lessons
+            const userId = localStorage.getItem('currentUserId') || 'guest';
+            const customKey = `ai_custom_lessons_${userId}`;
+            const customLessons = JSON.parse(localStorage.getItem(customKey) || '[]');
+            
+            for (const lesson of customLessons) {
+                if (!lesson.words) continue;
+                
+                for (const w of lesson.words) {
+                    if (w.pt?.toLowerCase().includes(searchTerm) || 
+                        w.en?.toLowerCase().includes(searchTerm)) {
+                        results.push({
+                            pt: w.pt,
+                            en: w.en,
+                            ipa: w.ipa || null,
+                            partOfSpeech: w.partOfSpeech || null,
+                            notes: w.notes || null,
+                            examples: w.examples || [],
+                            lessonId: lesson.id,
+                            lessonTitle: lesson.title,
+                            isCustomLesson: true
+                        });
+                    }
+                }
+            }
+            
+            Logger.info('tool_handlers', 'lookup_word', { word, resultsCount: results.length });
+            
+            if (results.length === 0) {
+                return {
+                    found: false,
+                    message: `No results found for "${word}". Try a different spelling or search term.`
+                };
+            }
+            
+            return {
+                found: true,
+                count: results.length,
+                results: results.slice(0, 10), // Limit to 10 results
+                message: `Found ${results.length} result(s) for "${word}"`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'lookup_word failed', { error: error.message });
+            return { found: false, error: error.message };
+        }
+    });
+
+    /**
+     * start_lesson - Navigate to start a specific lesson
+     */
+    registry.setHandler('start_lesson', async ({ lessonId }) => {
+        try {
+            const { getLessonById } = await import('../../data/LessonLoader.js');
+            const lesson = getLessonById(lessonId);
+            
+            // Also check custom lessons
+            if (!lesson) {
+                const userId = localStorage.getItem('currentUserId') || 'guest';
+                const customKey = `ai_custom_lessons_${userId}`;
+                const customLessons = JSON.parse(localStorage.getItem(customKey) || '[]');
+                const customLesson = customLessons.find(l => l.id === lessonId);
+                
+                if (!customLesson) {
+                    return {
+                        success: false,
+                        error: `Lesson "${lessonId}" not found`
+                    };
+                }
+            }
+            
+            // Dispatch event to start lesson (app.js listens for this)
+            window.dispatchEvent(new CustomEvent('start-lesson', { 
+                detail: { lessonId }
+            }));
+            
+            Logger.info('tool_handlers', 'start_lesson', { lessonId });
+            
+            return {
+                success: true,
+                lessonId,
+                message: `Starting lesson: ${lesson?.title || lessonId}`
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'start_lesson failed', { error: error.message });
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * get_available_lessons - Get list of all available lessons
+     */
+    registry.setHandler('get_available_lessons', async ({ topic, level, limit, includeProgress }) => {
+        try {
+            const { getAllLessons, getLessonsByTopic, LESSON_TIERS } = await import('../../data/LessonLoader.js');
+            
+            let lessons = getAllLessons();
+            
+            // Filter by topic if specified
+            if (topic) {
+                const topicLower = topic.toLowerCase();
+                lessons = lessons.filter(l => 
+                    l.topicId?.toLowerCase().includes(topicLower) ||
+                    l.topicTitle?.toLowerCase().includes(topicLower) ||
+                    l.title?.toLowerCase().includes(topicLower)
+                );
+            }
+            
+            // Filter by level if specified
+            if (level) {
+                const levelMap = {
+                    'beginner': LESSON_TIERS.BUILDING_BLOCKS,
+                    'basics': LESSON_TIERS.BUILDING_BLOCKS,
+                    'essential': LESSON_TIERS.ESSENTIAL,
+                    'intermediate': LESSON_TIERS.DAILY_TOPICS,
+                    'advanced': LESSON_TIERS.ADVANCED
+                };
+                const targetTier = levelMap[level.toLowerCase()];
+                if (targetTier) {
+                    lessons = lessons.filter(l => l.tier === targetTier);
+                }
+            }
+            
+            // Add custom AI lessons
+            const userId = localStorage.getItem('currentUserId') || 'guest';
+            const customKey = `ai_custom_lessons_${userId}`;
+            const customLessons = JSON.parse(localStorage.getItem(customKey) || '[]');
+            
+            const customFormatted = customLessons.map(l => ({
+                id: l.id,
+                title: l.title,
+                description: l.description || `AI-generated lesson with ${l.words?.length || 0} words`,
+                topicId: 'ai-generated',
+                topicTitle: 'AI Generated',
+                wordCount: l.words?.length || 0,
+                isCustomLesson: true
+            }));
+            
+            // Format standard lessons
+            const formatted = lessons.map(l => ({
+                id: l.id,
+                title: l.title,
+                description: l.description || null,
+                topicId: l.topicId,
+                topicTitle: l.topicTitle,
+                tier: l.tier,
+                wordCount: l.words?.length || 0
+            }));
+            
+            // Combine and limit
+            const allFormatted = [...formatted, ...customFormatted];
+            const limited = limit ? allFormatted.slice(0, limit) : allFormatted;
+            
+            Logger.info('tool_handlers', 'get_all_lessons', { 
+                topic, level, limit, 
+                resultCount: limited.length 
+            });
+            
+            return {
+                count: limited.length,
+                totalAvailable: allFormatted.length,
+                lessons: limited,
+                hasCustomLessons: customLessons.length > 0
+            };
+        } catch (error) {
+            Logger.error('tool_handlers', 'get_all_lessons failed', { error: error.message });
+            return { count: 0, lessons: [], error: error.message };
         }
     });
     

@@ -139,60 +139,98 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'create_custom_lesson',
-            description: 'Create a personalized lesson based on the learner\'s weaknesses. Use get_learner_weaknesses first to identify what to focus on.',
+            description: `Create a FULL, high-quality Portuguese lesson that appears in the Learn page. 
+IMPORTANT: Each word MUST have pt, en, and SHOULD have pronunciation, ipa, grammarNotes, culturalNote, aiTip, and examples.
+The lesson will auto-generate challenges if none provided. After creating, use verify_custom_lesson to check quality.
+Naming: Lessons get IDs like AI-001-topic-name automatically.`,
             parameters: {
                 type: 'object',
                 properties: {
-                    title: { type: 'string', description: 'Lesson title (e.g., "Pronunciation Practice: Nasal Sounds")' },
-                    description: { type: 'string', description: 'Brief description of what this lesson covers' },
+                    title: { type: 'string', description: 'Lesson title (e.g., "Essential Portuguese Greetings")' },
+                    description: { type: 'string', description: 'What learners will master in this lesson' },
+                    topic: { type: 'string', description: 'Topic category (e.g., "greetings", "verbs", "food", "travel")' },
                     focusArea: {
                         type: 'string',
                         enum: ['pronunciation', 'vocabulary', 'grammar', 'confusion_pairs', 'mixed'],
-                        description: 'Primary focus area for this lesson'
+                        description: 'Primary focus area'
                     },
                     words: {
                         type: 'array',
                         items: {
                             type: 'object',
                             properties: {
-                                pt: { type: 'string', description: 'Portuguese word or phrase' },
-                                en: { type: 'string', description: 'English translation' },
-                                ipa: { type: 'string', description: 'IPA pronunciation' },
-                                tip: { type: 'string', description: 'Learning tip or memory aid' },
-                                category: { type: 'string', description: 'Word category (pronoun, verb, noun, etc.)' }
+                                pt: { type: 'string', description: 'Portuguese word/phrase (REQUIRED)' },
+                                en: { type: 'string', description: 'English translation (REQUIRED)' },
+                                pronunciation: { type: 'string', description: 'Phonetic pronunciation (e.g., "oh-la")' },
+                                ipa: { type: 'string', description: 'IPA notation (e.g., "/ɔˈla/")' },
+                                type: { type: 'string', description: 'Word type (noun, verb, adjective, etc.)' },
+                                grammarNotes: { type: 'string', description: 'Grammar explanation and usage rules' },
+                                culturalNote: { type: 'string', description: 'Cultural context or when to use' },
+                                aiTip: { type: 'string', description: 'Memory tip or learning advice' },
+                                examples: { 
+                                    type: 'array', 
+                                    items: { 
+                                        type: 'object',
+                                        properties: {
+                                            pt: { type: 'string', description: 'Example sentence in Portuguese' },
+                                            en: { type: 'string', description: 'English translation' }
+                                        }
+                                    },
+                                    description: 'Example sentences showing word in context'
+                                }
                             },
                             required: ['pt', 'en']
                         },
-                        description: 'Array of words to include in the lesson (5-15 words recommended)'
+                        description: 'Array of 5-8 words with FULL details for a quality lesson'
+                    },
+                    sentences: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                pt: { type: 'string' },
+                                en: { type: 'string' }
+                            }
+                        },
+                        description: 'Practice sentences (auto-generated from examples if not provided)'
                     },
                     challenges: {
                         type: 'array',
                         items: {
                             type: 'object',
                             properties: {
-                                type: { type: 'string', enum: ['translate', 'pronunciation', 'multiple_choice', 'fill_blank'], description: 'Challenge type' },
-                                prompt: { type: 'string', description: 'Challenge prompt/question' },
-                                answer: { type: 'string', description: 'Correct answer' },
-                                options: { type: 'array', items: { type: 'string' }, description: 'Options for multiple choice' },
-                                hint: { type: 'string', description: 'Optional hint' }
-                            },
-                            required: ['type', 'prompt', 'answer']
+                                type: { type: 'string', enum: ['multiple-choice', 'translate', 'fill-blank'], description: 'Challenge type' },
+                                question: { type: 'string', description: 'Question text' },
+                                prompt: { type: 'string', description: 'For translate: sentence to translate' },
+                                options: { type: 'array', items: { type: 'string' } },
+                                correct: { type: 'number', description: 'Index of correct option (0-based)' },
+                                answer: { type: 'string', description: 'Correct answer for translate' },
+                                explanation: { type: 'string' }
+                            }
                         },
-                        description: 'Optional custom challenges beyond word learning'
-                    },
-                    targetPhonemes: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: 'Phonemes this lesson targets (e.g., ["ão", "nh", "lh"])'
+                        description: 'Challenges (auto-generated if not provided)'
                     },
                     difficulty: {
                         type: 'string',
                         enum: ['beginner', 'intermediate', 'advanced'],
-                        description: 'Lesson difficulty level',
                         default: 'beginner'
                     }
                 },
                 required: ['title', 'words']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'verify_custom_lesson',
+            description: 'Check if a created lesson has all required components and good quality. Use after create_custom_lesson to ensure the lesson is complete.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    lessonId: { type: 'string', description: 'The lesson ID returned from create_custom_lesson (e.g., "AI-001-greetings")' }
+                },
+                required: ['lessonId']
             }
         }
     },
@@ -219,6 +257,51 @@ export const TOOL_DEFINITIONS = [
                 type: 'object',
                 properties: {
                     lessonId: { type: 'string', description: 'ID of the custom lesson to delete' }
+                },
+                required: ['lessonId']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'lookup_word',
+            description: 'Look up a Portuguese word in the lesson database to get complete information including translation, IPA, examples, and grammar notes.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    word: { type: 'string', description: 'The Portuguese word to look up (e.g., "obrigado", "eu", "bom dia")' },
+                    includeExamples: { type: 'boolean', description: 'Include example sentences', default: true }
+                },
+                required: ['word']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_available_lessons',
+            description: 'Get a list of all available lessons the user can study. Use this to recommend specific lessons to the user.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    topic: { type: 'string', description: 'Filter by topic (e.g., "Building Blocks", "Basic Greetings")' },
+                    includeProgress: { type: 'boolean', description: 'Include user progress for each lesson', default: true },
+                    limit: { type: 'number', description: 'Maximum lessons to return', default: 10 }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'start_lesson',
+            description: 'Start a specific lesson for the user. Use this after recommending a lesson.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    lessonId: { type: 'string', description: 'The ID of the lesson to start' }
                 },
                 required: ['lessonId']
             }
