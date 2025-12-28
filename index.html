@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="src/styles/reset.css">
     <link rel="stylesheet" href="src/styles/buttons.css">
     <link rel="stylesheet" href="src/styles/cards.css">
+    <link rel="stylesheet" href="src/styles/lessons.css">
     <link rel="stylesheet" href="src/styles/navigation.css">
     <link rel="stylesheet" href="src/styles/modals.css">
     <link rel="stylesheet" href="src/styles/toast.css">
@@ -609,11 +610,15 @@
     <div id="loginModal" class="modal" style="display:none;">
         <div class="modal-content login-modal">
             <span class="close-modal" id="closeLogin">&times;</span>
-            <h2>👤 Admin Login</h2>
-            <p class="muted">Enter admin password for unlimited hearts</p>
+            <h2>👤 Sign In</h2>
+            <p class="muted">Use your name to save progress. Admins can add a password for unlimited hearts.</p>
             <div class="login-form">
-                <input type="password" id="adminPassword" placeholder="Password" class="login-input">
-                <button class="btn-login" id="loginBtn">Login</button>
+                <input type="text" id="usernameInput" placeholder="Name or nickname" class="login-input">
+                <input type="password" id="adminPassword" placeholder="Admin password (optional)" class="login-input">
+                <div class="login-actions">
+                    <button class="btn-login" id="loginBtn">Login</button>
+                    <button class="btn-secondary" id="guestBtn" type="button">Continue as Guest</button>
+                </div>
             </div>
             <p id="loginError" class="error-text" style="display:none;"></p>
         </div>
