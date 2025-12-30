@@ -137,16 +137,15 @@ describe('EventStreamingService - TM-002', () => {
             expect(event.data.attemptNumber).toBe(1);
         });
 
-        it('should warn when required fields are missing', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        it('should use schema validation for missing fields (TM-003)', () => {
+            // With strict validation enabled, missing fields should throw
+            eventStream.setStrictValidation(true);
             
-            eventStream.emitAnswerAttempt({});
+            expect(() => {
+                eventStream.emitAnswerAttempt({});
+            }).toThrow('Event validation failed');
             
-            expect(warnSpy).toHaveBeenCalledWith(
-                '[EventStream] answer_attempt missing required fields',
-                expect.any(Object)
-            );
-            warnSpy.mockRestore();
+            eventStream.setStrictValidation(false);
         });
     });
 
@@ -189,13 +188,14 @@ describe('EventStreamingService - TM-002', () => {
             expect(event.data.phonemeBreakdown).toEqual([]);
         });
 
-        it('should warn when wordId is missing', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        it('should use schema validation for missing wordId (TM-003)', () => {
+            eventStream.setStrictValidation(true);
             
-            eventStream.emitPronunciationScore({ overallScore: 50 });
+            expect(() => {
+                eventStream.emitPronunciationScore({ overallScore: 50 });
+            }).toThrow('Missing required field: wordId');
             
-            expect(warnSpy).toHaveBeenCalledWith('[EventStream] pronunciation_score missing wordId');
-            warnSpy.mockRestore();
+            eventStream.setStrictValidation(false);
         });
     });
 
@@ -230,13 +230,14 @@ describe('EventStreamingService - TM-002', () => {
             expect(event.data.rescueLessonsTriggered).toBe(0);
         });
 
-        it('should warn when lessonId is missing', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        it('should use schema validation for missing lessonId (TM-003)', () => {
+            eventStream.setStrictValidation(true);
             
-            eventStream.emitLessonComplete({});
+            expect(() => {
+                eventStream.emitLessonComplete({});
+            }).toThrow('Missing required field: lessonId');
             
-            expect(warnSpy).toHaveBeenCalledWith('[EventStream] lesson_complete missing lessonId');
-            warnSpy.mockRestore();
+            eventStream.setStrictValidation(false);
         });
     });
 
@@ -304,16 +305,14 @@ describe('EventStreamingService - TM-002', () => {
             expect(event.data.triggerSignal).toBe('unspecified');
         });
 
-        it('should warn when required fields are missing', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        it('should use schema validation for missing fields (TM-003)', () => {
+            eventStream.setStrictValidation(true);
             
-            eventStream.emitAITipShown({});
+            expect(() => {
+                eventStream.emitAITipShown({});
+            }).toThrow('Event validation failed');
             
-            expect(warnSpy).toHaveBeenCalledWith(
-                '[EventStream] ai_tip_shown missing required fields',
-                expect.any(Object)
-            );
-            warnSpy.mockRestore();
+            eventStream.setStrictValidation(false);
         });
     });
 
