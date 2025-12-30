@@ -442,6 +442,12 @@ export function buildQuizOptions(correctWord, pool, learnedWords = []) {
 
 /**
  * Build the sequence of challenges for a lesson
+ * 
+ * PRACTICE-FIRST FLOW (LA-001):
+ * - Lessons start with active exercises, NOT passive word lists
+ * - If lesson has pre-built challenges (rich format), use MCQ first exposure
+ * - LEARN_WORD screens come AFTER initial practice attempts
+ * 
  * @param {Object} lesson - Lesson data object
  * @param {Object} [options={}] - Build options
  * @param {Array} [options.learnedWords=[]] - Previously learned words
@@ -454,23 +460,42 @@ export function buildLessonChallenges(lesson, options = {}) {
     const challenges = [];
     let challengeIndex = 0;
     
-    // Phase 1: Learn new words (always generate for any lesson with words)
-    words.forEach((word, idx) => {
-        challenges.push({
-            type: CHALLENGE_TYPES.LEARN_WORD,
-            word,
-            phase: CHALLENGE_PHASES.LEARN,
-            index: challengeIndex++
-        });
-    });
+    // ==========================================================================
+    // PRACTICE-FIRST FLOW (LA-001)
+    // Strategy: Active exercises FIRST, then learning screens for reinforcement
+    // ==========================================================================
     
-    // If lesson has custom rich challenges, use them after the learn phase
+    // If lesson has custom rich challenges, STILL lead with MCQ for first exposure
     if (lesson.challenges && lesson.challenges.length > 0) {
+        // Phase 1: MCQ first exposure for each word (PRACTICE-FIRST)
+        const shuffledForFirstPass = shuffleArray([...words]);
+        shuffledForFirstPass.forEach((word) => {
+            challenges.push({
+                type: CHALLENGE_TYPES.MCQ,
+                word,
+                phase: CHALLENGE_PHASES.PRACTICE,
+                options: buildQuizOptions(word, words, learnedWords),
+                isFirstExposure: true,
+                index: challengeIndex++
+            });
+        });
+        
+        // Phase 2: Learning breaks AFTER practice
+        words.forEach((word, idx) => {
+            challenges.push({
+                type: CHALLENGE_TYPES.LEARN_WORD,
+                word,
+                phase: CHALLENGE_PHASES.LEARN,
+                isPracticeFirst: true,
+                index: challengeIndex++
+            });
+        });
+        
+        // Phase 3: Rich challenges from lesson data
         lesson.challenges.forEach(challenge => {
             challenges.push({
                 ...challenge,
                 index: challengeIndex++,
-                // Ensure word reference is resolved if challenge references word by index
                 word: typeof challenge.wordIndex === 'number' 
                     ? lesson.words?.[challenge.wordIndex] 
                     : challenge.word
@@ -480,9 +505,36 @@ export function buildLessonChallenges(lesson, options = {}) {
         return challenges;
     }
     
+    // ==========================================================================
     // FALLBACK: Auto-generate practice challenges from words (legacy lessons)
+    // Still practice-first pattern!
+    // ==========================================================================
     
-    // Phase 2: Pronunciation practice - say each word
+    // Phase 1: MCQ first exposure (PRACTICE-FIRST - user guesses before learning)
+    const shuffledForFirstPass = shuffleArray([...words]);
+    shuffledForFirstPass.forEach((word) => {
+        challenges.push({
+            type: CHALLENGE_TYPES.MCQ,
+            word,
+            phase: CHALLENGE_PHASES.PRACTICE,
+            options: buildQuizOptions(word, words, learnedWords),
+            isFirstExposure: true,
+            index: challengeIndex++
+        });
+    });
+    
+    // Phase 2: Learning breaks AFTER initial practice
+    words.forEach((word, idx) => {
+        challenges.push({
+            type: CHALLENGE_TYPES.LEARN_WORD,
+            word,
+            phase: CHALLENGE_PHASES.LEARN,
+            isPracticeFirst: true,
+            index: challengeIndex++
+        });
+    });
+    
+    // Phase 3: Pronunciation practice
     const pronWords = shuffleArray([...words]).slice(0, Math.min(4, words.length));
     pronWords.forEach(word => {
         challenges.push({
@@ -494,7 +546,7 @@ export function buildLessonChallenges(lesson, options = {}) {
         });
     });
     
-    // Phase 3: Multiple choice quizzes
+    // Phase 4: Reinforcement MCQs
     const shuffledWords = shuffleArray([...words]);
     shuffledWords.forEach(word => {
         challenges.push({
@@ -502,11 +554,12 @@ export function buildLessonChallenges(lesson, options = {}) {
             word,
             phase: CHALLENGE_PHASES.PRACTICE,
             options: buildQuizOptions(word, words, learnedWords),
+            isReinforcement: true,
             index: challengeIndex++
         });
     });
     
-    // Phase 4: Type the Portuguese (fill in blank)
+    // Phase 5: Type the Portuguese (fill in blank)
     const fillWords = shuffleArray([...words]).slice(0, Math.min(5, words.length));
     fillWords.forEach(word => {
         challenges.push({
@@ -518,7 +571,7 @@ export function buildLessonChallenges(lesson, options = {}) {
         });
     });
     
-    // Phase 5: Listen and type
+    // Phase 6: Listen and type
     const listenWords = shuffleArray([...words]).slice(0, Math.min(3, words.length));
     listenWords.forEach(word => {
         challenges.push({
@@ -1549,6 +1602,11 @@ export class ChallengeRenderer {
 
     /**
      * Render MCQ challenge
+     * 
+     * PRACTICE-FIRST (LA-001): When isFirstExposure is true, this is the user's
+     * first encounter with the word. We play audio, encourage guessing, and
+     * provide encouraging feedback regardless of outcome.
+     * 
      * @param {HTMLElement} container - Container element
      * @param {Object} challenge - Challenge data
      * @param {Object} state - Lesson state
@@ -1557,10 +1615,20 @@ export class ChallengeRenderer {
         const word = challenge.word;
         const resolved = resolveWordForm(word, this.speakerGender);
         const options = challenge.options;
+        const isFirstExposure = challenge.isFirstExposure === true;
+        const isReinforcement = challenge.isReinforcement === true;
+        
+        // Practice-first instruction varies based on exposure
+        const instruction = isFirstExposure 
+            ? '🎯 New word! Listen and guess the meaning'
+            : isReinforcement
+                ? '💪 Let\'s reinforce! What does this mean?'
+                : 'What does this mean?';
         
         container.innerHTML = `
-            <div class="challenge-card mcq-card">
-                <div class="challenge-instruction">What does this mean?</div>
+            <div class="challenge-card mcq-card ${isFirstExposure ? 'first-exposure' : ''} ${isReinforcement ? 'reinforcement' : ''}">
+                <div class="challenge-instruction">${instruction}</div>
+                ${isFirstExposure ? '<div class="first-exposure-hint">Don\'t worry if you don\'t know yet - just give it your best guess! 🎲</div>' : ''}
                 <div class="mcq-prompt">
                     <span class="mcq-word">${escapeHtml(resolved)}</span>
                     <button class="btn-listen-small" id="listenBtn">🔊</button>
@@ -1579,6 +1647,11 @@ export class ChallengeRenderer {
                 </div>
             </div>
         `;
+        
+        // Auto-play audio for first exposure (practice-first pattern)
+        if (isFirstExposure) {
+            setTimeout(() => this.playWord(resolved), CHALLENGE_CONFIG.autoPlayDelay);
+        }
         
         document.getElementById('listenBtn').addEventListener('click', () => this.playWord(resolved));
         document.getElementById('saveWordBtn').addEventListener('click', (e) => {
@@ -1601,7 +1674,11 @@ export class ChallengeRenderer {
                 
                 if (isCorrect) {
                     btn.classList.add('correct');
-                    this._showFeedback(true, word.en);
+                    // Enhanced feedback for first exposure success
+                    const feedbackText = isFirstExposure 
+                        ? `Great guess! "${resolved}" = "${word.en}"` 
+                        : word.en;
+                    this._showFeedback(true, feedbackText);
                     state.correct++;
                     this.onCorrect(word, state);
                 } else {
@@ -1609,10 +1686,17 @@ export class ChallengeRenderer {
                     buttons.forEach(b => {
                         if (b.dataset.key === correctKey) b.classList.add('correct');
                     });
-                    this._showFeedback(false, word.en);
+                    // Encouraging feedback for first exposure mistakes
+                    const feedbackText = isFirstExposure 
+                        ? `Good try! "${resolved}" means "${word.en}" - you\'ll learn it next!`
+                        : word.en;
+                    this._showFeedback(false, feedbackText);
                     state.mistakes++;
-                    state.wrongAnswers.push({ word: resolved, english: word.en, type: 'mcq' });
-                    this._handleMistake(state);
+                    state.wrongAnswers.push({ word: resolved, english: word.en, type: 'mcq', isFirstExposure });
+                    // Don't penalize hearts on first exposure - it's for learning!
+                    if (!isFirstExposure) {
+                        this._handleMistake(state);
+                    }
                 }
                 
                 document.getElementById('footerActions').classList.remove('hidden');

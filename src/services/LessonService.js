@@ -169,6 +169,13 @@ export function buildQuizOptions(targetWord, allWords) {
 
 /**
  * Build challenges for a lesson
+ * 
+ * PRACTICE-FIRST FLOW (LA-001):
+ * - Lessons start with active exercises (MCQ/pronunciation), NOT passive word lists
+ * - LEARN_WORD screens are now interspersed as "learning breaks" after practice
+ * - Each word is introduced AFTER a challenging exercise attempt
+ * - This follows Duolingo's proven approach: practice → reveal → reinforce
+ * 
  * @param {Object} lesson - Lesson object
  * @returns {Array} Challenge sequence
  */
@@ -191,17 +198,42 @@ export function buildLessonChallenges(lesson) {
     const words = lesson.words || [];
     const sentences = lesson.sentences || [];
     
-    // Phase 1: Learn new words (listen & see)
+    // ==========================================================================
+    // PRACTICE-FIRST FLOW (LA-001 Implementation)
+    // ==========================================================================
+    // Strategy: Present each word with ACTIVE exercise first, then learning screen
+    // Pattern: MCQ (guess from options) → LEARN_WORD (reveal/reinforce) → more practice
+    // ==========================================================================
+    
+    // Interleave practice and learning for each word
+    // This creates a cycle: attempt → learn → practice more
+    const shuffledForFirstPass = shuffleArray([...words]);
+    
+    // Phase 1: Initial exposure via MCQ (active guessing from options)
+    // User sees PT word + English options - this is practice-first!
+    shuffledForFirstPass.forEach((word, idx) => {
+        challenges.push({
+            type: CHALLENGE_TYPES.MCQ,
+            word,
+            phase: CHALLENGE_PHASES.PRACTICE,
+            options: buildQuizOptions(word, words),
+            isFirstExposure: true  // Flag for tracking/analytics
+        });
+    });
+    
+    // Phase 2: Learning breaks (after initial practice attempts)
+    // Now user sees detailed word info AFTER trying to guess
     words.forEach((word, idx) => {
         challenges.push({
             type: CHALLENGE_TYPES.LEARN_WORD,
             word,
             phase: CHALLENGE_PHASES.LEARN,
-            index: idx
+            index: idx,
+            isPracticeFirst: true  // Flag indicating this follows practice
         });
     });
     
-    // Phase 2: Pronunciation practice
+    // Phase 3: Pronunciation practice (active speaking)
     const pronWords = shuffleArray([...words]).slice(0, LESSON_CONFIG.maxPronunciationWords);
     pronWords.forEach(word => {
         challenges.push({
@@ -212,18 +244,19 @@ export function buildLessonChallenges(lesson) {
         });
     });
     
-    // Phase 3: Multiple choice quizzes
-    const shuffledWords = shuffleArray([...words]);
-    shuffledWords.forEach(word => {
+    // Phase 4: Reinforcement MCQs (second pass - should be easier now)
+    const secondPassWords = shuffleArray([...words]);
+    secondPassWords.forEach(word => {
         challenges.push({
             type: CHALLENGE_TYPES.MCQ,
             word,
             phase: CHALLENGE_PHASES.PRACTICE,
-            options: buildQuizOptions(word, words)
+            options: buildQuizOptions(word, words),
+            isReinforcement: true  // Flag for tracking
         });
     });
     
-    // Phase 4: Type the Portuguese
+    // Phase 5: Type the Portuguese (harder - requires recall)
     const fillWords = shuffleArray([...words]).slice(0, LESSON_CONFIG.maxFillWords);
     fillWords.forEach(word => {
         challenges.push({
@@ -233,7 +266,7 @@ export function buildLessonChallenges(lesson) {
         });
     });
     
-    // Phase 5: Listen and type
+    // Phase 6: Listen and type (audio comprehension)
     const listenWords = shuffleArray([...words]).slice(0, LESSON_CONFIG.maxListenWords);
     listenWords.forEach(word => {
         challenges.push({
@@ -243,7 +276,7 @@ export function buildLessonChallenges(lesson) {
         });
     });
     
-    // Phase 6: Sentences
+    // Phase 7: Sentences (application)
     sentences.forEach(sentence => {
         challenges.push({
             type: CHALLENGE_TYPES.SENTENCE,
