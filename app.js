@@ -24,7 +24,6 @@ import {
     login,
     loginAdmin,
     getUser,
-    isLoggedIn,
     logout,
     isAdmin
 } from './src/services/AuthService.js';
@@ -610,384 +609,11 @@ function renderLessonComplete(state) {
     });
 }
 
-// =========== KARAOKE-STYLE WORD CARD ===========
-// Creates clickable text with character-by-character highlighting during speech
-// eslint-disable-next-line no-unused-vars
-function createWordCard(word) {
-    const resolved = resolveWordForm(word, userData.speakerGender);
-    const alt = getAlternateForm(word, userData.speakerGender);
-    const card = document.createElement('div');
-    card.className = 'word-card karaoke-card';
-    
-    // Wrap each character in a span for highlighting
-    const ptChars = wrapCharsInSpans(resolved, 'pt-char');
-    const enChars = wrapCharsInSpans(word.en, 'en-char');
-    
-    card.innerHTML = `
-        <div class="karaoke-word">
-            <div class="portuguese karaoke-text" data-text="${escapeHtml(resolved)}">${ptChars}</div>
-            <div class="english karaoke-text" data-text="${escapeHtml(word.en)}">${enChars}</div>
-            ${alt ? `<div class="alt-form">Alternate: ${alt}</div>` : ''}
-            <div class="play-hint">🔊 Click to hear</div>
-        </div>
-        <div class="karaoke-progress" aria-hidden="true"></div>
-    `;
-    
-    card.addEventListener('click', () => {
-        playWithKaraokeHighlight(card, resolved, word.en);
-    });
-    
-    return card;
-}
-
-// Wrap each character in a span for karaoke highlighting
-function wrapCharsInSpans(text, className) {
-    return text.split('').map((char, i) => 
-        char === ' ' 
-            ? `<span class="${className} space" data-index="${i}"> </span>`
-            : `<span class="${className}" data-index="${i}">${escapeHtml(char)}</span>`
-    ).join('');
-}
-
 // Escape HTML special characters
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-// Play audio with synchronized karaoke highlighting
-// Uses Edge-TTS for proper PT-PT pronunciation with Web Speech fallback
-// eslint-disable-next-line no-unused-vars
-async function playWithKaraokeHighlight(card, ptText, _enText) {
-    // Clear any existing highlights
-    clearKaraokeHighlights(card);
-    
-    // Add playing state
-    card.classList.add('playing');
-    const progressBar = card.querySelector('.karaoke-progress');
-    if (progressBar) progressBar.style.width = '0%';
-    
-    const ptChars = card.querySelectorAll('.pt-char');
-    const enChars = card.querySelectorAll('.en-char');
-    const totalChars = ptChars.length;
-    
-    // Estimate duration based on text length and speech rate
-    const rate = voiceState.speed || 0.6;
-    const estimatedDuration = Math.max(500, (ptText.length * 80) / rate);
-    
-    let currentCharIndex = 0;
-    let animationId = null;
-    let startTime = null;
-    
-    // Animate character highlighting
-    const animateHighlight = (timestamp) => {
-        if (!startTime) startTime = timestamp;
-        const elapsed = timestamp - startTime;
-        const progress = Math.min(elapsed / estimatedDuration, 1);
-        
-        if (progressBar) progressBar.style.width = `${progress * 100}%`;
-        
-        const targetCharIndex = Math.floor(progress * totalChars);
-        
-        while (currentCharIndex <= targetCharIndex && currentCharIndex < totalChars) {
-            if (ptChars[currentCharIndex]) {
-                ptChars[currentCharIndex].classList.add('highlighted');
-            }
-            const enIndex = Math.floor((currentCharIndex / totalChars) * enChars.length);
-            if (enChars[enIndex] && !enChars[enIndex].classList.contains('highlighted')) {
-                enChars[enIndex].classList.add('highlighted');
-            }
-            currentCharIndex++;
-        }
-        
-        if (progress < 1) {
-            animationId = requestAnimationFrame(animateHighlight);
-        } else {
-            ptChars.forEach(c => c.classList.add('highlighted'));
-            enChars.forEach(c => c.classList.add('highlighted'));
-            setTimeout(() => {
-                clearKaraokeHighlights(card);
-                card.classList.remove('playing');
-                if (progressBar) progressBar.style.width = '0%';
-            }, 500);
-        }
-    };
-    
-    const cleanup = () => {
-        if (animationId) cancelAnimationFrame(animationId);
-        clearKaraokeHighlights(card);
-        card.classList.remove('playing');
-        if (progressBar) progressBar.style.width = '0%';
-    };
-    
-    const finishAnimation = () => {
-        if (animationId) cancelAnimationFrame(animationId);
-        ptChars.forEach(c => c.classList.add('highlighted'));
-        enChars.forEach(c => c.classList.add('highlighted'));
-        setTimeout(() => {
-            clearKaraokeHighlights(card);
-            card.classList.remove('playing');
-            if (progressBar) progressBar.style.width = '0%';
-        }, 500);
-    };
-    
-    // Try Edge-TTS first for proper PT-PT pronunciation
-    try {
-        const serverOk = await aiTts.checkServerHealth();
-        if (serverOk) {
-            startTime = null;
-            animationId = requestAnimationFrame(animateHighlight);
-            
-            await aiTts.speak(ptText, {
-                voice: 'pt-PT-RaquelNeural',
-                rate: rate,
-                onEnd: finishAnimation,
-                onError: cleanup
-            });
-            return;
-        }
-    } catch (e) {
-        console.warn('Edge-TTS unavailable for karaoke, using Web Speech:', e.message);
-        cleanup();
-    }
-    
-    // Fallback to Web Speech API
-    if (!('speechSynthesis' in window)) {
-        alert('Speech synthesis not supported in this browser.');
-        cleanup();
-        return;
-    }
-    
-    const utterance = new SpeechSynthesisUtterance(ptText);
-    utterance.lang = 'pt-PT';
-    utterance.rate = rate;
-    
-    // Strictly prefer pt-PT voices
-    let voices = speechSynthesis.getVoices();
-    if (voices.length === 0) {
-        await new Promise(resolve => {
-            speechSynthesis.onvoiceschanged = () => {
-                voices = speechSynthesis.getVoices();
-                resolve();
-            };
-            setTimeout(resolve, 500);
-        });
-    }
-    
-    const ptPTVoice = voices.find(v => v.lang === 'pt-PT') ||
-                     voices.find(v => v.lang.startsWith('pt-PT'));
-    if (ptPTVoice) {
-        utterance.voice = ptPTVoice;
-    }
-    
-    utterance.onstart = () => {
-        startTime = null;
-        animationId = requestAnimationFrame(animateHighlight);
-    };
-    
-    utterance.onend = finishAnimation;
-    utterance.onerror = cleanup;
-    
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utterance);
-}
-
-// Clear all karaoke highlights from a card
-function clearKaraokeHighlights(card) {
-    card.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
-}
-
-// =========== KARAOKE SENTENCE CARD ===========
-// For full sentences with word-by-word sync
-// eslint-disable-next-line no-unused-vars
-function createSentenceCard(sentence) {
-    const card = document.createElement('div');
-    card.className = 'sentence-card karaoke-card';
-    
-    // Split into words for word-level highlighting
-    const ptWords = sentence.pt.split(/\s+/);
-    const enWords = sentence.en.split(/\s+/);
-    
-    const ptWordSpans = ptWords.map((w, i) => `<span class="pt-word" data-index="${i}">${escapeHtml(w)}</span>`).join(' ');
-    const enWordSpans = enWords.map((w, i) => `<span class="en-word" data-index="${i}">${escapeHtml(w)}</span>`).join(' ');
-    
-    card.innerHTML = `
-        <div class="karaoke-sentence">
-            <div class="portuguese karaoke-text sentence-text">${ptWordSpans}</div>
-            <div class="english karaoke-text sentence-text">${enWordSpans}</div>
-            <div class="play-hint">🔊 Click to hear sentence</div>
-        </div>
-        <div class="karaoke-progress" aria-hidden="true"></div>
-    `;
-    
-    card.addEventListener('click', () => {
-        playWithWordHighlight(card, sentence.pt, sentence.en);
-    });
-    
-    return card;
-}
-
-// Play sentence with word-by-word highlighting
-// Uses Edge-TTS for proper PT-PT pronunciation
-// eslint-disable-next-line no-unused-vars
-async function playWithWordHighlight(card, ptText, _enText) {
-    // Clear any existing highlights
-    clearKaraokeHighlights(card);
-    
-    card.classList.add('playing');
-    const progressBar = card.querySelector('.karaoke-progress');
-    if (progressBar) progressBar.style.width = '0%';
-    
-    const ptWords = card.querySelectorAll('.pt-word');
-    const enWords = card.querySelectorAll('.en-word');
-    const totalWords = ptWords.length;
-    
-    const rate = voiceState.speed || 0.6;
-    const estimatedDuration = Math.max(1000, (ptText.length * 60) / rate);
-    
-    let currentWordIndex = 0;
-    let animationId = null;
-    let startTime = null;
-    
-    const animateHighlight = (timestamp) => {
-        if (!startTime) startTime = timestamp;
-        const elapsed = timestamp - startTime;
-        const progress = Math.min(elapsed / estimatedDuration, 1);
-        
-        if (progressBar) progressBar.style.width = `${progress * 100}%`;
-        
-        const targetWordIndex = Math.floor(progress * totalWords);
-        
-        while (currentWordIndex <= targetWordIndex && currentWordIndex < totalWords) {
-            ptWords.forEach(w => w.classList.remove('current'));
-            enWords.forEach(w => w.classList.remove('current'));
-            
-            if (ptWords[currentWordIndex]) {
-                ptWords[currentWordIndex].classList.add('highlighted', 'current');
-            }
-            const enIndex = Math.min(Math.floor((currentWordIndex / totalWords) * enWords.length), enWords.length - 1);
-            if (enWords[enIndex]) {
-                enWords[enIndex].classList.add('highlighted', 'current');
-            }
-            currentWordIndex++;
-        }
-        
-        if (progress < 1) {
-            animationId = requestAnimationFrame(animateHighlight);
-        } else {
-            ptWords.forEach(w => { w.classList.add('highlighted'); w.classList.remove('current'); });
-            enWords.forEach(w => { w.classList.add('highlighted'); w.classList.remove('current'); });
-            setTimeout(() => {
-                clearKaraokeHighlights(card);
-                card.classList.remove('playing');
-                if (progressBar) progressBar.style.width = '0%';
-            }, 600);
-        }
-    };
-    
-    const cleanup = () => {
-        if (animationId) cancelAnimationFrame(animationId);
-        clearKaraokeHighlights(card);
-        card.classList.remove('playing');
-        if (progressBar) progressBar.style.width = '0%';
-    };
-    
-    const finishAnimation = () => {
-        if (animationId) cancelAnimationFrame(animationId);
-        ptWords.forEach(w => { w.classList.add('highlighted'); w.classList.remove('current'); });
-        enWords.forEach(w => { w.classList.add('highlighted'); w.classList.remove('current'); });
-        setTimeout(() => {
-            clearKaraokeHighlights(card);
-            card.classList.remove('playing');
-            if (progressBar) progressBar.style.width = '0%';
-        }, 600);
-    };
-    
-    // Try Edge-TTS first for proper PT-PT pronunciation
-    try {
-        const serverOk = await aiTts.checkServerHealth();
-        if (serverOk) {
-            startTime = null;
-            animationId = requestAnimationFrame(animateHighlight);
-            
-            await aiTts.speak(ptText, {
-                voice: 'pt-PT-RaquelNeural',
-                rate: rate,
-                onEnd: finishAnimation,
-                onError: cleanup
-            });
-            return;
-        }
-    } catch (e) {
-        console.warn('Edge-TTS unavailable for word highlight, using Web Speech:', e.message);
-        cleanup();
-    }
-    
-    // Fallback to Web Speech API
-    if (!('speechSynthesis' in window)) {
-        alert('Speech synthesis not supported in this browser.');
-        cleanup();
-        return;
-    }
-    
-    const utterance = new SpeechSynthesisUtterance(ptText);
-    utterance.lang = 'pt-PT';
-    utterance.rate = rate;
-    
-    let voices = speechSynthesis.getVoices();
-    if (voices.length === 0) {
-        await new Promise(resolve => {
-            speechSynthesis.onvoiceschanged = () => {
-                voices = speechSynthesis.getVoices();
-                resolve();
-            };
-            setTimeout(resolve, 500);
-        });
-    }
-    
-    const ptPTVoice = voices.find(v => v.lang === 'pt-PT') ||
-                     voices.find(v => v.lang.startsWith('pt-PT'));
-    if (ptPTVoice) utterance.voice = ptPTVoice;
-    
-    // Use boundary events if available for more accurate word sync
-    utterance.onboundary = (event) => {
-        if (event.name === 'word') {
-            const wordIndex = getWordIndexFromCharIndex(ptText, event.charIndex);
-            if (wordIndex >= 0 && wordIndex < totalWords) {
-                ptWords.forEach(w => w.classList.remove('current'));
-                enWords.forEach(w => w.classList.remove('current'));
-                
-                ptWords[wordIndex]?.classList.add('highlighted', 'current');
-                const enIdx = Math.min(Math.floor((wordIndex / totalWords) * enWords.length), enWords.length - 1);
-                enWords[enIdx]?.classList.add('highlighted', 'current');
-            }
-        }
-    };
-    
-    utterance.onstart = () => {
-        startTime = null;
-        animationId = requestAnimationFrame(animateHighlight);
-    };
-    
-    utterance.onend = finishAnimation;
-    utterance.onerror = cleanup;
-    
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utterance);
-}
-
-// Get word index from character index in text
-function getWordIndexFromCharIndex(text, charIndex) {
-    const words = text.split(/\s+/);
-    let currentPos = 0;
-    for (let i = 0; i < words.length; i++) {
-        if (charIndex >= currentPos && charIndex < currentPos + words[i].length) {
-            return i;
-        }
-        currentPos += words[i].length + 1; // +1 for space
-    }
-    return words.length - 1;
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -1396,13 +1022,6 @@ function startLessonQuiz(lesson) {
 function resolveWordForm(word, speakerGender) {
     if (word.gendered && speakerGender === 'female' && word.ptFem) return word.ptFem;
     return word.pt;
-}
-
-function getAlternateForm(word, speakerGender) {
-    if (!word.gendered) return '';
-    if (speakerGender === 'female' && word.pt) return word.pt;
-    if (speakerGender === 'male' && word.ptFem) return word.ptFem;
-    return '';
 }
 
 function getWordKey(word) {
@@ -2173,7 +1792,7 @@ async function playWord(text, speed = 1) {
         const serverOk = await aiTts.checkServerHealth();
         if (serverOk) {
             await aiTts.speak(text, {
-                voice: 'pt-PT-RaquelNeural', // Portugal accent
+                voice: aiState.selectedVoice,  // Use user's selected voice
                 rate: speed
             });
             return;
@@ -3516,6 +3135,29 @@ function setActiveUserContext(user) {
     updateHeaderStats();
     renderLessons();
     
+    // Show/hide admin nav tab based on admin status
+    const adminNavTab = document.getElementById('adminNavTab');
+    if (adminNavTab) {
+        adminNavTab.style.display = user?.isAdmin ? 'flex' : 'none';
+    }
+    
+    // Initialize admin dashboard if admin
+    if (user?.isAdmin) {
+        try {
+            import('./src/pages/admin/AdminDashboard.js').then(module => {
+                module.initAdminDashboard();
+                const container = document.getElementById('adminDashboardContainer');
+                if (container) {
+                    container.innerHTML = module.renderAdminDashboard();
+                }
+            }).catch(err => {
+                console.warn('Failed to load admin dashboard:', err);
+            });
+        } catch (err) {
+            console.warn('Failed to import admin dashboard:', err);
+        }
+    }
+    
     console.log(`[AUTH] User context set: ${currentUserId} - all data is now user-specific`);
 }
 
@@ -3571,25 +3213,6 @@ function updateRefillCountdown() {
         countdown.textContent = 'Ready!';
     } else {
         countdown.textContent = formatRefillTime();
-    }
-}
-
-function handleAdminLogin() {
-    const passwordInput = document.getElementById('adminPassword');
-    const errorEl = document.getElementById('loginError');
-    
-    if (!passwordInput) return;
-    
-    const result = loginAdmin(passwordInput.value);
-    if (result.success) {
-        hideLoginModal();
-        setActiveUserContext(result.user);
-        showNotification('🎉 Admin mode activated - Unlimited hearts!', 'success');
-    } else {
-        if (errorEl) {
-            errorEl.textContent = result.error;
-            errorEl.style.display = 'block';
-        }
     }
 }
 
@@ -4367,7 +3990,7 @@ const aiState = {
     whisperLoading: false,
     ollamaAvailable: false,
     recording: false,
-    selectedVoice: 'pt-PT-RaquelNeural'
+    selectedVoice: 'pt-PT-DuarteNeural'  // Male voice (user preference)
 };
 
 // eslint-disable-next-line no-unused-vars
