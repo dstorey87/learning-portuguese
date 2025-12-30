@@ -8,11 +8,30 @@
 import { initAIChat } from './src/components/ai/AIChat.js';
 import * as Logger from './src/services/Logger.js';
 import { eventStream } from './src/services/eventStreaming.js';
+import { getUser, isLoggedIn } from './src/services/AuthService.js';
+
+/**
+ * Get the current user ID - uses actual logged-in user, NOT a hardcoded default
+ * @returns {string} The real user ID or 'guest' if not logged in
+ */
+function getCurrentUserId() {
+    // First check localStorage (set by bootstrapAuthUser)
+    const storedId = localStorage.getItem('currentUserId');
+    if (storedId && storedId !== 'guest' && storedId !== 'default') {
+        return storedId;
+    }
+    // Fallback: check AuthService
+    const user = getUser();
+    if (user?.loggedIn && user?.username) {
+        return user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'guest';
+    }
+    return 'guest';
+}
 
 // Configuration
 const AI_CHAT_CONFIG = {
     enabled: true,
-    userId: 'default-user',
+    get userId() { return getCurrentUserId(); }, // Dynamic - gets real user!
     position: 'bottom-right',
     autoShow: false
 };
@@ -133,8 +152,23 @@ async function toggleChat() {
     if (!chatWidget) {
         // Initialize chat on first open
         try {
+            const userId = getCurrentUserId();
+            const userIsGuest = userId === 'guest';
+            
+            if (userIsGuest) {
+                Logger.warn('ai_chat', 'User is guest - learning data will not be personalized!');
+            }
+            
             fabButton?.classList.add('hidden');
-            chatWidget = await initAIChat(AI_CHAT_CONFIG.userId, 'aiChatContainer');
+            chatWidget = await initAIChat(userId, 'aiChatContainer');
+            
+            // If guest, inject warning context for the AI
+            if (userIsGuest && chatWidget?.injectContext) {
+                chatWidget.injectContext({
+                    warning: 'User is NOT logged in. Cannot access their learning history. Recommend they log in for personalized help.',
+                    isGuest: true
+                });
+            }
             
             // Show the container after initialization
             if (container) {

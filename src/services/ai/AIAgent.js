@@ -2,16 +2,18 @@
  * AIAgent - Central AI Orchestrator
  * 
  * Manages the AI conversation loop with:
- * 1. Context-aware prompting
+ * 1. Context-aware prompting (USER-SPECIFIC)
  * 2. Tool calling via Ollama
  * 3. Learning event integration
  * 4. Graceful error handling
+ * 5. Adaptive teaching based on user's learning profile
  */
 
 import * as Logger from '../Logger.js';
 import { MemoryManager } from './MemoryManager.js';
 import { getToolRegistry } from './ToolRegistry.js';
 import { eventStream } from '../eventStreaming.js';
+import { LearnerProfiler } from '../learning/LearnerProfiler.js';
 
 const OLLAMA_CONFIG = {
     baseUrl: 'http://localhost:11434',
@@ -20,7 +22,7 @@ const OLLAMA_CONFIG = {
     options: { temperature: 0.7, top_p: 0.9, num_ctx: 8192, num_predict: 4096 }
 };
 
-const SYSTEM_PROMPT = `You are a patient, friendly tutor teaching European Portuguese (PT-PT) to complete beginners.
+const BASE_SYSTEM_PROMPT = `You are a patient, friendly tutor teaching European Portuguese (PT-PT) to complete beginners.
 
 YOUR STUDENT:
 - Absolute beginner - explain EVERYTHING simply
@@ -59,6 +61,60 @@ LIMITS:
 
 Never overwhelm. Small steps = big progress!`;
 
+/**
+ * Build a user-specific system prompt with their learning profile
+ * @param {string} userId - The user's ID
+ * @returns {string} Personalized system prompt
+ */
+function buildUserAwarePrompt(userId) {
+    const isGuest = !userId || userId === 'guest' || userId === 'default';
+    
+    if (isGuest) {
+        return BASE_SYSTEM_PROMPT + `
+
+⚠️ IMPORTANT: This user is NOT logged in (guest mode).
+- You have NO access to their learning history
+- You CANNOT see what words they struggle with
+- RECOMMEND they log in for personalized help
+- Teach general beginner content until they log in`;
+    }
+    
+    // Try to get user's learning profile
+    let userContext = '';
+    try {
+        const profiler = new LearnerProfiler(userId);
+        const summary = profiler.getSummaryForAI();
+        
+        if (summary && (summary.vocabularySize > 0 || summary.topWeaknesses?.length > 0)) {
+            userContext = `
+
+📊 THIS USER'S LEARNING PROFILE (userId: ${userId}):
+- Level: ${summary.level || 'beginner'}
+- Accuracy: ${summary.accuracy || 0}%
+- Vocabulary size: ${summary.vocabularySize || 0} words
+- Words they struggle with: ${(summary.topWeaknesses?.slice(0, 5).map(w => w.word) || []).join(', ') || 'none yet'}
+- Best learning hours: ${(summary.bestLearningHours || []).join(', ') || 'unknown'}
+
+Use this data to ADAPT your teaching! Focus on their weak areas.`;
+        } else {
+            userContext = `
+
+📊 User "${userId}" is logged in but has no learning history yet.
+- This is a brand new learner
+- Start with the basics
+- Track their progress as they learn`;
+        }
+    } catch (e) {
+        userContext = `
+
+📊 User "${userId}" is logged in.
+- Could not load their learning profile
+- Teach as if they're a beginner`;
+    }
+    
+    return BASE_SYSTEM_PROMPT + userContext;
+}
+
 export class AIAgent {
     constructor(userId, config = {}) {
         this.userId = userId;
@@ -68,10 +124,14 @@ export class AIAgent {
         this.isProcessing = false;
         this.abortController = null;
         this.conversationActive = false;
+        this.systemPrompt = buildUserAwarePrompt(userId); // User-specific!
     }
 
     async initialize() {
         try {
+            // Rebuild prompt in case user changed
+            this.systemPrompt = buildUserAwarePrompt(this.userId);
+            
             const health = await this.checkOllamaHealth();
             if (!health.available) {
                 Logger.warn('ai_agent', 'Ollama not available', { error: health.error });
@@ -129,7 +189,7 @@ export class AIAgent {
             Logger.warn('ai_agent', 'Max tool call depth reached');
             return 'I apologize, but I encountered an issue processing your request. Could you try rephrasing?';
         }
-        const messages = this.memory.getContextForLLM(SYSTEM_PROMPT);
+        const messages = this.memory.getContextForLLM(this.systemPrompt);
         const tools = this.toolRegistry.getToolsForLLM();
         const requestBody = {
             model: this.config.model,
@@ -198,7 +258,7 @@ export class AIAgent {
         this.abortController = new AbortController();
         try {
             this.memory.addMessage('user', userMessage, { isRecent: true, ...context });
-            const messages = this.memory.getContextForLLM(SYSTEM_PROMPT);
+            const messages = this.memory.getContextForLLM(this.systemPrompt);
             const response = await fetch(`${this.config.baseUrl}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
