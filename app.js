@@ -1194,6 +1194,40 @@ function updateDashboard() {
     renderSkillDashboard();
 }
 
+// ===== ADMIN DASHBOARD =====
+let adminDashboardModule = null;
+
+async function renderAdminDashboardPage() {
+    const container = document.getElementById('adminDashboardContainer');
+    if (!container) return;
+    
+    if (!isAdmin()) {
+        container.innerHTML = `
+            <div class="admin-dashboard admin-locked">
+                <h2>🔒 Admin Access Required</h2>
+                <p>Please log in as an administrator to access this dashboard.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    try {
+        if (!adminDashboardModule) {
+            adminDashboardModule = await import('./src/pages/admin/AdminDashboard.js');
+            adminDashboardModule.initAdminDashboard();
+        }
+        container.innerHTML = adminDashboardModule.renderAdminDashboard();
+    } catch (err) {
+        console.error('[ADMIN] Failed to load admin dashboard:', err);
+        container.innerHTML = `
+            <div class="admin-dashboard admin-error">
+                <h2>❌ Error Loading Dashboard</h2>
+                <p>Failed to load the admin dashboard: ${err.message}</p>
+            </div>
+        `;
+    }
+}
+
 function updatePlanAccess() {
     const paidCard = document.getElementById('paidPlan');
     const locked = document.getElementById('paidPlanLocked');
@@ -2912,8 +2946,11 @@ function switchPage(pageName) {
     const tabs = document.querySelectorAll('.nav-tab');
     
     pages.forEach(page => {
+        const isTarget = page.dataset.page === pageName;
         page.classList.remove('active');
-        if (page.dataset.page === pageName) {
+        // Ensure hidden pages stay hidden and the target page is shown
+        page.style.display = isTarget ? 'block' : 'none';
+        if (isTarget) {
             page.classList.add('active');
         }
     });
@@ -2939,14 +2976,21 @@ function switchPage(pageName) {
         hookSpeakerRadios();
     }
     
+    // Render admin dashboard when navigating to admin page
+    if (pageName === 'admin' && isAdmin()) {
+        renderAdminDashboardPage();
+    }
+    
     // Scroll to top of new page
     window.scrollTo(0, 0);
 }
 
 function initPageFromHash() {
     const hash = window.location.hash.replace('#', '') || 'home';
-    const validPages = ['home', 'learn', 'practice', 'profile'];
-    const page = validPages.includes(hash) ? hash : 'home';
+    const validPages = ['home', 'learn', 'practice', 'profile', 'admin'];
+    // Only allow admin page if user is admin
+    const user = getUser();
+    const page = validPages.includes(hash) ? (hash === 'admin' && !user?.isAdmin ? 'home' : hash) : 'home';
     switchPage(page);
 }
 

@@ -4,6 +4,7 @@
  * Provides admin functionality:
  * - User list with "Log in as" controls
  * - AI action feed per user (time-windowed)
+ * - Global event log for ALL users (when logged in as admin)
  * - Rescue triggers and lessons created
  * - Event processing status
  * 
@@ -11,8 +12,7 @@
  */
 
 import * as Logger from '../../services/Logger.js';
-import { getUser, isAdmin, getAllUsers, loginAsUser, logout } from '../../services/AuthService.js';
-import { eventStream } from '../../services/eventStreaming.js';
+import { getUser, isAdmin } from '../../services/AuthService.js';
 import { userStorage } from '../../services/userStorage.js';
 
 // ============================================================================
@@ -20,7 +20,9 @@ import { userStorage } from '../../services/userStorage.js';
 // ============================================================================
 
 const ADMIN_STORAGE_KEY = 'admin_action_log';
+const GLOBAL_EVENT_LOG_KEY = 'global_event_log';
 const MAX_ACTIONS_PER_USER = 500;
+const MAX_GLOBAL_EVENTS = 1000;
 const DEFAULT_TIME_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
 
 // ============================================================================
@@ -31,10 +33,80 @@ let adminState = {
     users: [],
     selectedUserId: null,
     actionLog: {},
+    globalEventLog: [],
     timeWindow: DEFAULT_TIME_WINDOW,
     isImpersonating: false,
-    originalAdminId: null
+    originalAdminId: null,
+    refreshInterval: null
 };
+
+// ============================================================================
+// GLOBAL EVENT LOGGING (captures ALL user events)
+// ============================================================================
+
+/**
+ * Log a global event (visible to admin regardless of which user triggered it)
+ * This captures all learning interactions across all users
+ */
+export function logGlobalEvent(event) {
+    const entry = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        userId: event.userId || 'unknown',
+        eventType: event.eventType || event.type || 'unknown',
+        details: event.data || event.details || event,
+        source: event.source || 'app'
+    };
+    
+    adminState.globalEventLog.unshift(entry);
+    
+    // Also log to per-user action log
+    if (entry.userId && entry.userId !== 'unknown') {
+        logAIAction(entry.userId, {
+            type: entry.eventType,
+            details: entry.details,
+            source: entry.source
+        });
+    }
+    
+    // Trim to max size
+    if (adminState.globalEventLog.length > MAX_GLOBAL_EVENTS) {
+        adminState.globalEventLog = adminState.globalEventLog.slice(0, MAX_GLOBAL_EVENTS);
+    }
+    
+    // Persist
+    saveGlobalEventLog();
+    
+    return entry;
+}
+
+/**
+ * Get all global events within time window
+ */
+export function getGlobalEvents(windowMs = DEFAULT_TIME_WINDOW) {
+    const cutoff = Date.now() - windowMs;
+    return adminState.globalEventLog.filter(e => e.timestamp >= cutoff);
+}
+
+function saveGlobalEventLog() {
+    try {
+        // Store in localStorage without user prefix (global)
+        localStorage.setItem(GLOBAL_EVENT_LOG_KEY, JSON.stringify(adminState.globalEventLog));
+    } catch (e) {
+        Logger.warn('Failed to save global event log', { error: e.message });
+    }
+}
+
+function loadGlobalEventLog() {
+    try {
+        const saved = localStorage.getItem(GLOBAL_EVENT_LOG_KEY);
+        if (saved) {
+            adminState.globalEventLog = JSON.parse(saved);
+        }
+    } catch (e) {
+        Logger.warn('Failed to load global event log', { error: e.message });
+    }
+}
 
 // ============================================================================
 // ACTION LOGGING
@@ -117,41 +189,41 @@ function loadActionLog() {
 
 /**
  * Log in as another user (admin only)
+ * Note: This sets up viewing context, not actual authentication
  */
 export function impersonateUser(targetUserId) {
     const currentUser = getUser();
     
     if (!isAdmin()) {
-        Logger.error('admin_dashboard', 'Impersonation requires admin role');
+        Logger.error('Impersonation requires admin role');
         return { success: false, error: 'Admin access required' };
     }
     
     // Save original admin ID for return
     if (!adminState.isImpersonating) {
-        adminState.originalAdminId = currentUser.userId;
+        adminState.originalAdminId = currentUser.username || 'admin';
     }
     
     // Log the impersonation
     logAIAction(targetUserId, {
         type: 'impersonation_start',
-        adminId: currentUser.userId,
+        adminId: currentUser.username || 'admin',
         reason: 'Admin audit'
     });
     
-    // Switch to target user
-    const result = loginAsUser(targetUserId);
+    // Set viewing context to target user
+    adminState.isImpersonating = true;
+    adminState.selectedUserId = targetUserId;
     
-    if (result.success) {
-        adminState.isImpersonating = true;
-        adminState.selectedUserId = targetUserId;
-        
-        Logger.info('admin_dashboard', 'Impersonation started', { 
-            adminId: adminState.originalAdminId, 
-            targetUserId 
-        });
-    }
+    Logger.info('Impersonation started', { 
+        adminId: adminState.originalAdminId, 
+        targetUserId 
+    });
     
-    return result;
+    // Refresh dashboard to show target user's data
+    refreshDashboard();
+    
+    return { success: true };
 }
 
 /**
@@ -171,21 +243,20 @@ export function endImpersonation() {
         duration: Date.now() - (adminState.actionLog[targetUserId]?.[0]?.timestamp || Date.now())
     });
     
-    // Switch back to admin
-    const result = loginAsUser(adminState.originalAdminId);
+    adminState.isImpersonating = false;
+    adminState.selectedUserId = null;
     
-    if (result.success) {
-        adminState.isImpersonating = false;
-        adminState.selectedUserId = null;
-        
-        Logger.info('admin_dashboard', 'Impersonation ended', { 
-            adminId: adminState.originalAdminId, 
-            wasImpersonating: targetUserId 
-        });
-    }
+    Logger.info('Impersonation ended', { 
+        adminId: adminState.originalAdminId, 
+        wasImpersonating: targetUserId 
+    });
     
     adminState.originalAdminId = null;
-    return result;
+    
+    // Refresh dashboard
+    refreshDashboard();
+    
+    return { success: true };
 }
 
 /**
@@ -203,20 +274,63 @@ export function isImpersonating() {
  * Get list of all users with their stats
  */
 export function getUserList() {
-    const users = getAllUsers();
+    // Get all users from localStorage by scanning for user-prefixed keys
+    const userIds = new Set();
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        // Match user-prefixed keys like "userId_progress" or "userId_events"
+        const match = key.match(/^([^_]+)_(?:progress|events|portulingo_progress|learner_profile|stuckWords)/);
+        if (match && match[1] !== 'admin' && match[1] !== 'global') {
+            userIds.add(match[1]);
+        }
+    }
     
-    return users.map(user => {
-        const actions = getUserActions(user.userId, DEFAULT_TIME_WINDOW);
-        const userEvents = userStorage.get('events') || [];
+    // Also check the auth storage for logged users
+    try {
+        const authData = localStorage.getItem('portugueseAuth');
+        if (authData) {
+            const auth = JSON.parse(authData);
+            if (auth.username) {
+                userIds.add(auth.username);
+            }
+        }
+    } catch (e) {
+        // Ignore parse errors
+    }
+    
+    // Add admin user
+    userIds.add('admin');
+    
+    const users = Array.from(userIds).map(userId => {
+        const actions = getUserActions(userId, DEFAULT_TIME_WINDOW);
+        let userEvents = [];
+        try {
+            const eventsData = localStorage.getItem(`${userId}_events`);
+            if (eventsData) {
+                userEvents = JSON.parse(eventsData) || [];
+            }
+        } catch (e) {
+            // Ignore
+        }
         
         return {
-            ...user,
+            userId,
+            username: userId,
+            isAdmin: userId === 'admin',
+            role: userId === 'admin' ? 'admin' : 'user',
             recentActionCount: actions.length,
             lastAction: actions[0]?.timestamp || null,
             totalEvents: userEvents.length,
-            stuckWordsCount: getStuckWordsCount(user.userId),
-            rescueLessonsCreated: countRescueLessons(user.userId)
+            stuckWordsCount: getStuckWordsCount(userId),
+            rescueLessonsCreated: countRescueLessons(userId)
         };
+    });
+    
+    return users.sort((a, b) => {
+        // Admin first, then by recent activity
+        if (a.isAdmin) return -1;
+        if (b.isAdmin) return 1;
+        return (b.lastAction || 0) - (a.lastAction || 0);
     });
 }
 
@@ -265,6 +379,7 @@ export function renderAdminDashboard() {
     
     const users = getUserList();
     const recentActions = getAllActions(adminState.timeWindow);
+    const globalEvents = getGlobalEvents(adminState.timeWindow);
     
     return `
         <div class="admin-dashboard">
@@ -272,9 +387,9 @@ export function renderAdminDashboard() {
                 <h2>🛡️ Admin Dashboard</h2>
                 ${adminState.isImpersonating ? `
                     <div class="impersonation-banner">
-                        ⚠️ Impersonating: <strong>${adminState.selectedUserId}</strong>
+                        ⚠️ Viewing as: <strong>${adminState.selectedUserId}</strong>
                         <button onclick="window.adminDashboard.endImpersonation()" class="btn-small btn-warning">
-                            Return to Admin
+                            Return to Admin View
                         </button>
                     </div>
                 ` : ''}
@@ -289,17 +404,29 @@ export function renderAdminDashboard() {
                     </div>
                 </section>
                 
-                <!-- AI Activity Feed -->
-                <section class="admin-panel activity-panel">
-                    <h3>🤖 AI Activity Feed</h3>
+                <!-- Global Event Log (ALL users) -->
+                <section class="admin-panel global-events-panel">
+                    <h3>📊 Global Event Log (All Users)</h3>
                     <div class="time-filter">
                         <label>Show last:</label>
                         <select onchange="window.adminDashboard.setTimeWindow(this.value)">
-                            <option value="3600000">1 hour</option>
-                            <option value="86400000" selected>24 hours</option>
-                            <option value="604800000">7 days</option>
+                            <option value="3600000" ${adminState.timeWindow === 3600000 ? 'selected' : ''}>1 hour</option>
+                            <option value="86400000" ${adminState.timeWindow === 86400000 ? 'selected' : ''}>24 hours</option>
+                            <option value="604800000" ${adminState.timeWindow === 604800000 ? 'selected' : ''}>7 days</option>
                         </select>
+                        <button onclick="window.adminDashboard.refreshDashboard()" class="btn-small">🔄 Refresh</button>
                     </div>
+                    <div class="global-event-feed">
+                        ${globalEvents.length === 0 ? 
+                            '<p class="muted">No events recorded yet. User interactions will appear here.</p>' :
+                            globalEvents.slice(0, 100).map(e => renderGlobalEventEntry(e)).join('')
+                        }
+                    </div>
+                </section>
+                
+                <!-- AI Activity Feed -->
+                <section class="admin-panel activity-panel">
+                    <h3>🤖 AI Activity Feed</h3>
                     <div class="activity-feed">
                         ${recentActions.length === 0 ? 
                             '<p class="muted">No recent AI activity</p>' :
@@ -317,8 +444,8 @@ export function renderAdminDashboard() {
                             <span class="stat-label">Total Users</span>
                         </div>
                         <div class="stat-card">
-                            <span class="stat-value">${recentActions.length}</span>
-                            <span class="stat-label">AI Actions (24h)</span>
+                            <span class="stat-value">${globalEvents.length}</span>
+                            <span class="stat-label">Events (${getTimeWindowLabel()})</span>
                         </div>
                         <div class="stat-card">
                             <span class="stat-value">${users.reduce((sum, u) => sum + u.stuckWordsCount, 0)}</span>
@@ -329,10 +456,130 @@ export function renderAdminDashboard() {
                             <span class="stat-label">Rescue Lessons</span>
                         </div>
                     </div>
+                    
+                    <!-- Logger Stats -->
+                    <div class="logger-stats">
+                        <h4>📝 Logger Statistics</h4>
+                        <div id="loggerStatsContent">
+                            ${renderLoggerStats()}
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Logger History -->
+                <section class="admin-panel logs-panel">
+                    <h3>📜 Recent Logs (All Users)</h3>
+                    <div class="activity-feed">
+                        ${renderLoggerHistory()}
+                    </div>
                 </section>
             </div>
         </div>
     `;
+}
+
+function getTimeWindowLabel() {
+    if (adminState.timeWindow <= 3600000) return '1h';
+    if (adminState.timeWindow <= 86400000) return '24h';
+    return '7d';
+}
+
+function renderGlobalEventEntry(event) {
+    const time = new Date(event.timestamp).toLocaleTimeString();
+    const date = new Date(event.timestamp).toLocaleDateString();
+    
+    const typeIcons = {
+        'word_attempt': '📝',
+        'pronunciation': '🎤',
+        'quiz_answer': '❓',
+        'lesson_nav': '📚',
+        'session_start': '🟢',
+        'session_end': '🔴',
+        'ui_action': '👆',
+        'chat': '💬',
+        'tool_call': '🔧',
+        'lesson_created': '📚',
+        'rescue_lesson': '🆘',
+        'error': '❌',
+        'tip_generated': '💡'
+    };
+    
+    const icon = typeIcons[event.eventType] || '📌';
+    
+    // Format details for display
+    let detailsStr = '';
+    if (event.details) {
+        if (typeof event.details === 'string') {
+            detailsStr = event.details;
+        } else {
+            const keys = Object.keys(event.details).slice(0, 3);
+            detailsStr = keys.map(k => `${k}: ${JSON.stringify(event.details[k]).slice(0, 30)}`).join(', ');
+        }
+    }
+    
+    return `
+        <div class="global-event-entry event-type-${event.eventType}">
+            <span class="event-icon">${icon}</span>
+            <div class="event-content">
+                <div class="event-header">
+                    <span class="event-user" title="User ID">${event.userId}</span>
+                    <span class="event-type">${event.eventType}</span>
+                    <span class="event-time">${time}</span>
+                </div>
+                ${detailsStr ? `<div class="event-detail">${detailsStr}</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function renderLoggerStats() {
+    try {
+        const stats = Logger.getStats();
+        return `
+            <div class="logger-stat-row">
+                <span>Total Logs:</span> <strong>${stats.totalLogs}</strong>
+            </div>
+            <div class="logger-stat-row">
+                <span>Debug:</span> ${stats.counts.debug} |
+                <span>Info:</span> ${stats.counts.info} |
+                <span>Warn:</span> ${stats.counts.warn} |
+                <span>Error:</span> ${stats.counts.error}
+            </div>
+            <div class="logger-stat-row">
+                <span>Console:</span> ${stats.consoleEnabled ? '✅' : '❌'} |
+                <span>History:</span> ${stats.historyEnabled ? '✅' : '❌'}
+            </div>
+        `;
+    } catch (e) {
+        return '<p class="muted">Logger stats unavailable</p>';
+    }
+}
+
+function renderLoggerHistory() {
+    try {
+        const entries = Logger.getHistory({ limit: 50 });
+        if (!entries.length) return '<p class="muted">No log history yet.</p>';
+        return entries
+            .slice(-50)
+            .reverse()
+            .map(entry => {
+                return `
+                    <div class="action-entry action-type-${entry.levelLabel?.toLowerCase() || 'info'}">
+                        <span class="action-icon">${entry.levelLabel || 'LOG'}</span>
+                        <div class="action-content">
+                            <div class="action-header">
+                                <span class="action-user">${entry.context || 'app'}</span>
+                                <span class="action-time">${entry.timestamp}</span>
+                            </div>
+                            <div class="action-detail">${entry.message}</div>
+                        </div>
+                    </div>
+                `;
+            })
+            .join('');
+    } catch (e) {
+        return '<p class="muted">Failed to load log history.</p>';
+    }
 }
 
 function renderUserCard(user) {
@@ -462,37 +709,66 @@ export function refreshDashboard() {
  */
 export function initAdminDashboard() {
     loadActionLog();
+    loadGlobalEventLog();
     
     // Subscribe to AI events for logging
     window.addEventListener('ai-tool-call', (e) => {
-        const userId = e.detail.userId || userStorage.getCurrentUserId();
-        if (userId) {
-            logAIAction(userId, {
-                type: 'tool_call',
-                details: e.detail
-            });
-        }
+        const userId = e.detail.userId || userStorage.getCurrentUserId() || 'unknown';
+        logGlobalEvent({
+            userId,
+            eventType: 'tool_call',
+            details: e.detail,
+            source: 'ai-agent'
+        });
     });
     
     window.addEventListener('ai-chat-response', (e) => {
-        const userId = e.detail.userId || userStorage.getCurrentUserId();
-        if (userId) {
-            logAIAction(userId, {
-                type: 'chat',
-                details: { messageLength: e.detail.response?.length || 0 }
-            });
-        }
+        const userId = e.detail.userId || userStorage.getCurrentUserId() || 'unknown';
+        logGlobalEvent({
+            userId,
+            eventType: 'chat',
+            details: { messageLength: e.detail.response?.length || 0 },
+            source: 'ai-chat'
+        });
     });
     
     window.addEventListener('ai-rescue-lesson-needed', (e) => {
         const { userId, wordKeys } = e.detail;
-        if (userId) {
-            logAIAction(userId, {
-                type: 'rescue_lesson',
-                details: { wordCount: wordKeys.length, words: wordKeys.slice(0, 5) }
-            });
-        }
+        logGlobalEvent({
+            userId: userId || 'unknown',
+            eventType: 'rescue_lesson',
+            details: { wordCount: wordKeys?.length || 0, words: wordKeys?.slice(0, 5) },
+            source: 'stuck-words'
+        });
     });
+    
+    // Subscribe to event streaming batch events
+    window.addEventListener('ai-event-batch', (e) => {
+        const events = e.detail?.events || [];
+        events.forEach(event => {
+            logGlobalEvent({
+                userId: event.userId || 'unknown',
+                eventType: event.eventType,
+                details: event.data,
+                source: 'event-stream'
+            });
+        });
+    });
+    
+    // Subscribe to learning events
+    window.addEventListener('learning_event', (e) => {
+        logGlobalEvent({
+            userId: e.detail?.userId || userStorage.getCurrentUserId() || 'unknown',
+            eventType: e.detail?.eventType || 'learning',
+            details: e.detail,
+            source: 'learning'
+        });
+    });
+    
+    // Start auto-refresh if admin
+    if (isAdmin()) {
+        startAutoRefresh();
+    }
     
     // Expose to window for onclick handlers
     window.adminDashboard = {
@@ -500,10 +776,38 @@ export function initAdminDashboard() {
         endImpersonation,
         viewUserActions,
         setTimeWindow,
-        refreshDashboard
+        refreshDashboard,
+        logGlobalEvent,
+        getGlobalEvents
     };
     
-    Logger.info('admin_dashboard', 'Admin dashboard initialized');
+    Logger.info('Admin dashboard initialized');
+}
+
+/**
+ * Start auto-refresh interval
+ */
+function startAutoRefresh() {
+    if (adminState.refreshInterval) {
+        clearInterval(adminState.refreshInterval);
+    }
+    // Refresh every 30 seconds when on admin page
+    adminState.refreshInterval = setInterval(() => {
+        const adminPage = document.getElementById('page-admin');
+        if (adminPage && adminPage.classList.contains('active')) {
+            refreshDashboard();
+        }
+    }, 30000);
+}
+
+/**
+ * Stop auto-refresh
+ */
+function stopAutoRefresh() {
+    if (adminState.refreshInterval) {
+        clearInterval(adminState.refreshInterval);
+        adminState.refreshInterval = null;
+    }
 }
 
 // Auto-initialize when loaded
