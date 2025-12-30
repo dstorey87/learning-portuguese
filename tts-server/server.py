@@ -12,8 +12,10 @@ Notes:
 
 import asyncio
 import hashlib
+import io
 import os
 import pathlib
+import wave
 from functools import lru_cache
 
 import httpx
@@ -29,7 +31,7 @@ DEFAULT_MODEL_URL = (
 DEFAULT_MODEL_SHA256 = (
     "223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4"
 )
-DEFAULT_MODEL_PATH = pathlib.Path("./models/pt_PT-tugao-medium.onnx")
+DEFAULT_MODEL_PATH = pathlib.Path("c:/learning_portuguese/pt_PT-tugA3o-medium.onnx")
 
 MODEL_URL = os.getenv("MODEL_URL", DEFAULT_MODEL_URL)
 MODEL_SHA256 = os.getenv("MODEL_SHA256", DEFAULT_MODEL_SHA256)
@@ -48,7 +50,7 @@ app.add_middleware(
 
 async def download_model(url: str, dest: pathlib.Path, expected_sha: str) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
         resp = await client.get(url)
         resp.raise_for_status()
         data = resp.content
@@ -95,7 +97,11 @@ async def tts(payload: dict) -> Response:
 
     # Piper ignores lang/voiceKey for this single-model server; they are accepted for API symmetry.
     try:
-        audio_bytes = voice.synthesize(text)
+        # Synthesize to in-memory WAV file
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wav_file:
+            voice.synthesize_wav(text, wav_file)
+        audio_bytes = buffer.getvalue()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"synthesis failed: {exc}") from exc
 

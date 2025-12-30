@@ -135,7 +135,8 @@ export class WordCard {
         this.checkServerHealth = options.checkServerHealth || (async () => false);
         this.getSpeechRate = options.getSpeechRate || (() => WORD_CARD_CONFIG.defaultRate);
         this.speakerGender = options.speakerGender || 'male';
-        this.defaultVoice = options.defaultVoice || 'pt-PT-RaquelNeural';
+        // Default to male Duarte voice - consistent with TTSService.TTS_CONFIG.defaultVoice
+        this.defaultVoice = options.defaultVoice || 'pt-PT-DuarteNeural';
     }
 
     /**

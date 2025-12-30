@@ -1,8 +1,8 @@
 import { getAllLessonsFlat } from './data.js';
 import { 
-    getAllTopics, 
+    getAllTopics,
     getAllLessons,
-    getLessonById as loaderGetLessonById, 
+    getLessonById as loaderGetLessonById,
     getLessonImage
 } from './src/data/LessonLoader.js';
 import {
@@ -31,14 +31,14 @@ import { userStorage } from './src/services/userStorage.js';
 import * as ProgressTracker from './src/services/ProgressTracker.js';
 import { getLearnedWords, SRS_INTERVALS } from './src/services/ProgressTracker.js';
 import Toast from './src/components/common/Toast.js';
-import { 
-    getWordKnowledge, 
-    generateBasicPronunciationTip, 
-    getPronunciationChallengeType 
+import {
+    getWordKnowledge,
+    generateBasicPronunciationTip,
+    getPronunciationChallengeType
 } from './word-knowledge.js';
 import * as aiSpeech from './ai-speech.js';
 import * as TTSService from './src/services/TTSService.js';
-import { 
+import {
     getPortugueseVoiceOptions,
     getDownloadableVoices,
     markVoiceDownloaded,
@@ -51,21 +51,17 @@ const aiTts = {
     async checkServerHealth() { return TTSService.checkServerHealth(); },
     async speak(text, options = {}) { return TTSService.speak(text, options); }
 };
-const aiTutor = {
-    async checkOllamaStatus() { return { available: false }; },
-    async getPronunciationFeedback() { return { feedback: '', corrections: [] }; }
-};
 
 // =========== VOICE/SPEECH STATE ===========
-const voiceState = { 
-    speed: 0.6, 
-    selectedVoiceKey: null, 
-    detectedSystemOptions: [] 
+const voiceState = {
+    speed: 0.6,
+    selectedVoiceKey: null,
+    detectedSystemOptions: []
 };
-const speechState = { 
-    listening: false, 
-    recognizer: null, 
-    reason: 'Speech recognition unavailable.' 
+const speechState = {
+    listening: false,
+    recognizer: null,
+    reason: 'Speech recognition unavailable.'
 };
 
 // =========== FEATURE CONSTANTS (stubs for unimplemented features) ===========
@@ -77,23 +73,28 @@ const GRAMMAR_CARDS = {};
 const MNEMONICS = {};
 
 // =========== STUB FUNCTIONS ===========
-function toggleTheme() { 
-    document.body.classList.toggle('dark-theme'); 
+function toggleTheme() {
+    document.body.classList.toggle('dark-theme');
     localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
 }
-function loadVoiceSettings() { 
-    try { return JSON.parse(localStorage.getItem('voiceSettings') || '{}'); } 
-    catch { return {}; } 
+
+function loadVoiceSettings() {
+    try { return JSON.parse(localStorage.getItem('voiceSettings') || '{}'); }
+    catch { return {}; }
 }
-function saveVoiceSettings(settings) { 
-    localStorage.setItem('voiceSettings', JSON.stringify(settings)); 
+
+function saveVoiceSettings(settings) {
+    localStorage.setItem('voiceSettings', JSON.stringify(settings));
 }
-function ensureSpeechRecognition() { 
-    return !!(window.SpeechRecognition || window.webkitSpeechRecognition); 
+
+function ensureSpeechRecognition() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
-function scoreSpeechTranscript(transcribed, expected) { 
-    return aiSpeech.scorePronunciation(transcribed, expected); 
+
+function scoreSpeechTranscript(transcribed, expected) {
+    return aiSpeech.scorePronunciation(transcribed, expected);
 }
+
 function speakWithEngine(options, state) {
     const opts = typeof options === 'string' ? { text: options } : { ...(options || {}) };
     if (!opts.text) return;
@@ -101,7 +102,7 @@ function speakWithEngine(options, state) {
     return voiceSpeakWithEngine({ ...opts, rate: resolvedRate });
 }
 
-// Debounce helper with namespace support for existing code
+// Debounce helper with namespace support
 const _debounceTimers = {};
 function debounce(namespace, fn, delay) {
     if (_debounceTimers[namespace]) clearTimeout(_debounceTimers[namespace]);
@@ -128,22 +129,11 @@ function bootstrapAuthUser() {
     }
     const userId = sanitizeUserId(activeUser.username || 'guest');
     localStorage.setItem('currentUserId', userId);
-    
-    // CRITICAL: Set user context for ALL user-isolated services
-    try {
-        userStorage.setCurrentUser(userId);
-    } catch (err) {
-        console.warn('Failed to set userStorage context', err);
-    }
-    
-    // Initialize ProgressTracker with this user's data
-    try {
-        ProgressTracker.setCurrentUser(userId);
-    } catch (err) {
-        console.warn('Failed to set ProgressTracker user context', err);
-    }
-    
-    console.log(`[AUTH] Bootstrap user: ${userId} - all services now user-isolated`);
+
+    // Set user context for isolated services
+    try { userStorage.setCurrentUser(userId); } catch (err) { console.warn('Failed to set userStorage context', err); }
+    try { ProgressTracker.setCurrentUser(userId); } catch (err) { console.warn('Failed to set ProgressTracker user context', err); }
+
     return userId;
 }
 
@@ -616,91 +606,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// eslint-disable-next-line no-unused-vars
-function renderFillBlanks(lesson) {
-    const container = document.getElementById('fillBlanks');
-    if (!container) return;
-    container.innerHTML = '';
-    const shuffled = shuffleArray([...lesson.words]);
-    const targets = shuffled.slice(0, Math.min(6, lesson.words.length));
-    if (!targets.length) {
-        container.innerHTML = '<p class="muted">No words found for this lesson yet.</p>';
-        return;
-    }
-
-    targets.forEach(word => {
-        const resolved = resolveWordForm(word, userData.speakerGender);
-        const row = document.createElement('div');
-        row.className = 'fill-item';
-        row.innerHTML = `
-            <div class="fill-prompt">${word.en}</div>
-            <input type="text" aria-label="Type the Portuguese" placeholder="Type in Portuguese" />
-            <button class="btn-small">Check</button>
-            <div class="fill-feedback" aria-live="polite"></div>
-        `;
-
-        const input = row.querySelector('input');
-        const button = row.querySelector('button');
-        const feedback = row.querySelector('.fill-feedback');
-
-        button.addEventListener('click', () => {
-            const typed = normalizeText(input.value);
-            const target = normalizeText(resolved);
-            const isCorrect = typed === target;
-            if (isCorrect) {
-                feedback.textContent = '✅ Correct!';
-                feedback.className = 'fill-feedback success';
-                recordSuccess({ ...word, pt: resolved }, { source: 'fill-blank', lessonId: lesson.id, boostMistake: true, mistakeKey: getWordKey(word) });
-            } else {
-                feedback.textContent = `❌ Expected: ${resolved}`;
-                feedback.className = 'fill-feedback error';
-                recordMistake({ ...word, pt: resolved }, { source: 'fill-blank', details: `Typed: ${input.value}`, lessonId: lesson.id });
-            }
-        });
-
-        container.appendChild(row);
-    });
-}
-
-// eslint-disable-next-line no-unused-vars
-function renderSpeakPractice(lesson) {
-    const container = document.getElementById('speakPractice');
-    if (!container) return;
-    container.innerHTML = '';
-    const samples = (lesson.sentences && lesson.sentences.length ? lesson.sentences : lesson.words).slice(0, 2);
-
-    if (!samples.length) {
-        container.innerHTML = '<p class="muted">Add sentences to practice speaking for this lesson.</p>';
-        return;
-    }
-
-    samples.forEach(sample => {
-        const targetText = sample.pt || resolveWordForm(sample, userData.speakerGender);
-        const card = document.createElement('div');
-        card.className = 'speak-card';
-        card.innerHTML = `
-            <div class="speak-target">${targetText}</div>
-            <div class="speak-actions">
-                <button class="btn-small" data-target="${targetText}">Check my speech</button>
-                <button class="btn-small ghost" data-play="${targetText}">Play demo</button>
-            </div>
-            <div class="speak-feedback" aria-live="polite"></div>
-        `;
-        const playBtn = card.querySelector('button[data-play]');
-        const checkBtn = card.querySelector('button[data-target]');
-        const feedback = card.querySelector('.speak-feedback');
-
-        playBtn.addEventListener('click', () => {
-            playPortugueseText(targetText, { rate: 0.9 });
-        });
-
-        checkBtn.addEventListener('click', () => {
-            handleSpeakCheck(targetText, feedback, checkBtn, lesson.id);
-        });
-
-        container.appendChild(card);
-    });
-}
+// Removed unused fill-in and speak practice renderers (no UI containers)
 
 function handleSpeakCheck(target, feedbackEl, buttonEl, lessonId) {
     const supported = ensureSpeechRecognition();
@@ -3829,158 +3735,6 @@ function findWordByKey(key) {
     return fromLessons.find(w => getWordKey(w) === key) || null;
 }
 
-// === SPACED REPETITION DRILL MODE (3 rounds: recognition, production, context) ===
-// eslint-disable-next-line no-unused-vars
-function renderRepetitionDrill(lesson) {
-    const container = document.getElementById('repetitionDrill');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div class="drill-card">
-            <h4>🔄 Spaced Repetition Drill</h4>
-            <p class="muted">Master words through 3 rounds: Recognition → Production → Context</p>
-            <button class="btn-small" id="startDrillBtn">Start Drill</button>
-            <div id="drillStage"></div>
-        </div>
-    `;
-    
-    const startBtn = document.getElementById('startDrillBtn');
-    if (startBtn) startBtn.addEventListener('click', () => startRepetitionDrill(lesson));
-}
-
-function startRepetitionDrill(lesson) {
-    const stage = document.getElementById('drillStage');
-    if (!stage) return;
-    
-    const words = shuffleArray(lesson.words).slice(0, Math.min(8, lesson.words.length));
-    const state = { round: 1, wordIndex: 0, scores: {} };
-    
-    const renderRound = () => {
-        if (state.round > 3) return finishDrill();
-        if (state.wordIndex >= words.length) {
-            state.wordIndex = 0;
-            state.round += 1;
-            return renderRound();
-        }
-        
-        const word = words[state.wordIndex];
-        const key = getWordKey(word);
-        stage.innerHTML = '';
-        
-        if (state.round === 1) {
-            // Round 1: PT → EN recognition
-            stage.innerHTML = `
-                <div class="drill-question">
-                    <div class="drill-round">Round 1/3: Recognition</div>
-                    <div class="drill-prompt">${resolveWordForm(word, userData.speakerGender)}</div>
-                    <p>What does this mean?</p>
-                    <input type="text" placeholder="Type in English" id="drillInput" />
-                    <button class="btn-small" id="drillCheck">Check</button>
-                    <div class="drill-feedback" aria-live="polite"></div>
-                </div>
-            `;
-            
-            const input = document.getElementById('drillInput');
-            const checkBtn = document.getElementById('drillCheck');
-            const feedback = stage.querySelector('.drill-feedback');
-            
-            checkBtn.addEventListener('click', () => {
-                const answer = normalizeText(input.value);
-                const correct = normalizeText(word.en);
-                const passed = answer === correct;
-                
-                feedback.textContent = passed ? '✅ Correct!' : `❌ Answer: ${word.en}`;
-                feedback.className = `drill-feedback ${passed ? 'success' : 'error'}`;
-                
-                state.scores[key] = (state.scores[key] || 0) + (passed ? 1 : 0);
-                
-                setTimeout(() => {
-                    state.wordIndex += 1;
-                    renderRound();
-                }, 1200);
-            });
-            
-        } else if (state.round === 2) {
-            // Round 2: EN → PT production
-            stage.innerHTML = `
-                <div class="drill-question">
-                    <div class="drill-round">Round 2/3: Production</div>
-                    <div class="drill-prompt">${word.en}</div>
-                    <p>Type this in Portuguese:</p>
-                    <input type="text" placeholder="Type in Portuguese" id="drillInput" />
-                    <button class="btn-small" id="drillCheck">Check</button>
-                    <div class="drill-feedback" aria-live="polite"></div>
-                </div>
-            `;
-            
-            const input = document.getElementById('drillInput');
-            const checkBtn = document.getElementById('drillCheck');
-            const feedback = stage.querySelector('.drill-feedback');
-            
-            checkBtn.addEventListener('click', () => {
-                const answer = normalizeText(input.value);
-                const correct = normalizeText(resolveWordForm(word, userData.speakerGender));
-                const passed = answer === correct;
-                
-                feedback.textContent = passed ? '✅ Excellent!' : `❌ Answer: ${resolveWordForm(word, userData.speakerGender)}`;
-                feedback.className = `drill-feedback ${passed ? 'success' : 'error'}`;
-                
-                state.scores[key] = (state.scores[key] || 0) + (passed ? 1 : 0);
-                
-                setTimeout(() => {
-                    state.wordIndex += 1;
-                    renderRound();
-                }, 1200);
-            });
-            
-        } else if (state.round === 3) {
-            // Round 3: Context sentence completion
-            const sentence = lesson.sentences && lesson.sentences.length ? lesson.sentences[0] : null;
-            if (sentence) {
-                stage.innerHTML = `
-                    <div class="drill-question">
-                        <div class="drill-round">Round 3/3: Context</div>
-                        <div class="drill-prompt">${sentence.pt}</div>
-                        <p>Say this sentence aloud:</p>
-                        <button class="btn-small" data-speak="${sentence.pt}">🎤 Check Speech</button>
-                        <div class="drill-feedback" aria-live="polite"></div>
-                    </div>
-                `;
-                
-                const speakBtn = stage.querySelector('button[data-speak]');
-                const feedback = stage.querySelector('.drill-feedback');
-                
-                speakBtn.addEventListener('click', () => {
-                    handleSpeakCheck(sentence.pt, feedback, speakBtn, lesson.id);
-                    setTimeout(() => {
-                        state.wordIndex += 1;
-                        renderRound();
-                    }, 2500);
-                });
-            } else {
-                state.wordIndex += 1;
-                renderRound();
-            }
-        }
-    };
-    
-    const finishDrill = () => {
-        const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
-        const maxScore = words.length * 2;
-        const percentage = Math.round((totalScore / maxScore) * 100);
-        
-        stage.innerHTML = `
-            <div class="quiz-summary">
-                <div class="quiz-score">${percentage}%</div>
-                <p>Mastery Score: ${totalScore} / ${maxScore}</p>
-                <p class="muted">Great work! Repeat daily to boost retention.</p>
-            </div>
-        `;
-    };
-    
-    renderRound();
-}
-
 // Quiz scoring is now handled inline in the finish() function
 
 // ===== AI Tutor Integration =====
@@ -3992,348 +3746,6 @@ const aiState = {
     recording: false,
     selectedVoice: 'pt-PT-DuarteNeural'  // Male voice (user preference)
 };
-
-// eslint-disable-next-line no-unused-vars
-async function initAITutor() {
-    // Check Edge-TTS server status
-    checkTTSStatus();
-    
-    // Check Ollama status
-    checkOllamaStatus();
-    
-    // Setup AI Tutor event listeners
-    setupAITutorEvents();
-}
-
-async function checkTTSStatus() {
-    const statusDot = document.getElementById('ttsStatus');
-    const statusText = document.getElementById('ttsStatusText');
-    
-    if (!statusDot || !statusText) return;
-    
-    try {
-        const available = await aiTts.checkServerHealth();
-        aiState.ttsAvailable = available;
-        
-        if (available) {
-            statusDot.className = 'status-dot status-online';
-            statusText.textContent = 'Online';
-        } else {
-            statusDot.className = 'status-dot status-offline';
-            statusText.textContent = 'Offline (using fallback)';
-        }
-    } catch (error) {
-        console.warn('TTS status check failed:', error);
-        statusDot.className = 'status-dot status-offline';
-        statusText.textContent = 'Offline';
-    }
-}
-
-async function checkOllamaStatus() {
-    const statusDot = document.getElementById('ollamaStatus');
-    const statusText = document.getElementById('ollamaStatusText');
-    
-    if (!statusDot || !statusText) return;
-    
-    try {
-        const status = await aiTutor.checkOllamaStatus();
-        aiState.ollamaAvailable = status.available;
-        
-        if (status.available) {
-            statusDot.className = 'status-dot status-online';
-            statusText.textContent = `Online (${status.model || 'ready'})`;
-        } else {
-            statusDot.className = 'status-dot status-offline';
-            statusText.textContent = 'Offline (using rules)';
-        }
-    } catch (error) {
-        console.warn('Ollama status check failed:', error);
-        statusDot.className = 'status-dot status-offline';
-        statusText.textContent = 'Offline';
-    }
-}
-
-function setupAITutorEvents() {
-    // Voice selection
-    const voiceSelect = document.getElementById('aiVoiceSelect');
-    if (voiceSelect) {
-        voiceSelect.addEventListener('change', (e) => {
-            aiState.selectedVoice = e.target.value;
-        });
-    }
-    
-    // Test voice button
-    const testVoiceBtn = document.getElementById('testVoiceBtn');
-    const voiceTestStatus = document.getElementById('voiceTestStatus');
-    if (testVoiceBtn) {
-        testVoiceBtn.addEventListener('click', async () => {
-            if (voiceTestStatus) voiceTestStatus.textContent = 'Playing...';
-            testVoiceBtn.disabled = true;
-            
-            try {
-                await aiTts.speak('Olá! Eu sou a voz portuguesa.', {
-                    voice: aiState.selectedVoice,
-                    rate: 1.0
-                });
-                if (voiceTestStatus) voiceTestStatus.textContent = 'Done!';
-            } catch (error) {
-                console.error('Voice test failed:', error);
-                if (voiceTestStatus) voiceTestStatus.textContent = 'Failed - trying fallback';
-                // Try Web Speech fallback
-                speakWithEngine(
-                    'Olá! Vamos praticar português.',
-                    { rate: voiceState.rate },
-                    (result) => {
-                        if (voiceTestStatus) {
-                            voiceTestStatus.textContent = result.success ? 'Fallback OK' : 'Error';
-                        }
-                    }
-                );
-            }
-            
-            testVoiceBtn.disabled = false;
-        });
-    }
-    
-    // Hear phrase button
-    const hearPhraseBtn = document.getElementById('hearPhraseBtn');
-    const practicePhrase = document.getElementById('practicePhrase');
-    if (hearPhraseBtn && practicePhrase) {
-        hearPhraseBtn.addEventListener('click', async () => {
-            const phrase = practicePhrase.value.trim() || 'Bom dia, como está?';
-            hearPhraseBtn.disabled = true;
-            
-            try {
-                await aiTts.speak(phrase, {
-                    voice: aiState.selectedVoice,
-                    rate: 1.0
-                });
-            } catch (error) {
-                console.warn('Edge-TTS failed, using fallback:', error);
-                speakWithEngine(phrase, { rate: voiceState.rate });
-            }
-            
-            hearPhraseBtn.disabled = false;
-        });
-    }
-    
-    // Load Whisper button
-    const loadWhisperBtn = document.getElementById('loadWhisperBtn');
-    const recordBtn = document.getElementById('recordBtn');
-    const recordingStatus = document.getElementById('recordingStatus');
-    const whisperStatusDot = document.getElementById('whisperStatus');
-    const whisperStatusText = document.getElementById('whisperStatusText');
-    
-    if (loadWhisperBtn) {
-        loadWhisperBtn.addEventListener('click', async () => {
-            if (aiState.whisperLoading || aiState.whisperLoaded) return;
-            
-            aiState.whisperLoading = true;
-            loadWhisperBtn.disabled = true;
-            loadWhisperBtn.textContent = '⏳ Loading...';
-            if (recordingStatus) recordingStatus.textContent = 'Loading Whisper model...';
-            if (whisperStatusDot) whisperStatusDot.className = 'status-dot status-checking';
-            if (whisperStatusText) whisperStatusText.textContent = 'Loading...';
-            
-            try {
-                await aiSpeech.initializeWhisper('tiny', (progress) => {
-                    if (recordingStatus) {
-                        recordingStatus.textContent = `Loading: ${Math.round(progress * 100)}%`;
-                    }
-                });
-                
-                aiState.whisperLoaded = true;
-                aiState.whisperLoading = false;
-                loadWhisperBtn.textContent = '✓ Loaded';
-                if (recordBtn) recordBtn.disabled = false;
-                if (recordingStatus) recordingStatus.textContent = 'Ready to record';
-                if (whisperStatusDot) whisperStatusDot.className = 'status-dot status-online';
-                if (whisperStatusText) whisperStatusText.textContent = 'Loaded';
-            } catch (error) {
-                console.error('Whisper loading failed:', error);
-                aiState.whisperLoading = false;
-                loadWhisperBtn.disabled = false;
-                loadWhisperBtn.textContent = '📥 Load Whisper';
-                if (recordingStatus) recordingStatus.textContent = 'Failed - try Web Speech';
-                if (whisperStatusDot) whisperStatusDot.className = 'status-dot status-offline';
-                if (whisperStatusText) whisperStatusText.textContent = 'Failed';
-                
-                // Enable recording with Web Speech fallback
-                if (recordBtn) recordBtn.disabled = false;
-            }
-        });
-    }
-    
-    // Record button
-    if (recordBtn) {
-        recordBtn.addEventListener('click', async () => {
-            if (aiState.recording) {
-                // Stop recording
-                aiState.recording = false;
-                recordBtn.classList.remove('recording');
-                recordBtn.textContent = '🎙️ Record';
-                if (recordingStatus) recordingStatus.textContent = 'Processing...';
-                
-                try {
-                    let transcription;
-                    if (aiState.whisperLoaded) {
-                        transcription = await aiSpeech.stopRecording();
-                    } else {
-                        // Use Web Speech API fallback
-                        transcription = await stopWebSpeechRecording();
-                    }
-                    
-                    await handleTranscription(transcription);
-                } catch (error) {
-                    console.error('Transcription failed:', error);
-                    if (recordingStatus) recordingStatus.textContent = 'Error - try again';
-                }
-            } else {
-                // Start recording
-                aiState.recording = true;
-                recordBtn.classList.add('recording');
-                recordBtn.textContent = '⏹️ Stop';
-                if (recordingStatus) recordingStatus.textContent = 'Recording...';
-                
-                try {
-                    if (aiState.whisperLoaded) {
-                        await aiSpeech.startRecording();
-                    } else {
-                        // Use Web Speech API fallback
-                        startWebSpeechRecording();
-                    }
-                } catch (error) {
-                    console.error('Recording failed:', error);
-                    aiState.recording = false;
-                    recordBtn.classList.remove('recording');
-                    recordBtn.textContent = '🎙️ Record';
-                    if (recordingStatus) recordingStatus.textContent = 'Microphone error';
-                }
-            }
-        });
-    }
-}
-
-// Web Speech API fallback for recording
-let webSpeechRecognizer = null;
-let webSpeechResult = '';
-
-function startWebSpeechRecording() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        throw new Error('Web Speech API not supported');
-    }
-    
-    webSpeechRecognizer = new SpeechRecognition();
-    webSpeechRecognizer.lang = 'pt-PT';
-    webSpeechRecognizer.continuous = true;
-    webSpeechRecognizer.interimResults = false;
-    webSpeechResult = '';
-    
-    webSpeechRecognizer.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-                webSpeechResult += event.results[i][0].transcript + ' ';
-            }
-        }
-    };
-    
-    webSpeechRecognizer.start();
-}
-
-function stopWebSpeechRecording() {
-    return new Promise((resolve) => {
-        if (webSpeechRecognizer) {
-            webSpeechRecognizer.onend = () => {
-                resolve(webSpeechResult.trim());
-            };
-            webSpeechRecognizer.stop();
-        } else {
-            resolve('');
-        }
-    });
-}
-
-async function handleTranscription(transcription) {
-    const transcriptionResult = document.getElementById('transcriptionResult');
-    const transcribedText = document.getElementById('transcribedText');
-    const recordingStatus = document.getElementById('recordingStatus');
-    const practicePhrase = document.getElementById('practicePhrase');
-    const aiFeedback = document.getElementById('aiFeedback');
-    const pronunciationScore = document.getElementById('pronunciationScore');
-    const scoreBarFill = document.getElementById('scoreBarFill');
-    const scoreText = document.getElementById('scoreText');
-    
-    if (!transcription) {
-        if (recordingStatus) recordingStatus.textContent = 'No speech detected';
-        return;
-    }
-    
-    // Show transcription
-    if (transcriptionResult && transcribedText) {
-        transcriptionResult.style.display = 'block';
-        transcribedText.textContent = transcription;
-    }
-    
-    if (recordingStatus) recordingStatus.textContent = 'Getting feedback...';
-    
-    const expectedPhrase = practicePhrase?.value.trim() || 'Bom dia, como está?';
-    
-    // Calculate pronunciation score
-    const score = aiSpeech.scorePronunciation(transcription, expectedPhrase);
-    
-    // Show score
-    if (pronunciationScore && scoreBarFill && scoreText) {
-        pronunciationScore.style.display = 'block';
-        scoreBarFill.style.width = `${score.similarity}%`;
-        scoreText.textContent = `${score.similarity}% match`;
-    }
-    
-    // Get AI feedback
-    if (aiFeedback) {
-        aiFeedback.innerHTML = '<p class="muted">Analyzing your pronunciation...</p>';
-        
-        try {
-            const feedback = await aiTutor.getPronunciationFeedback({
-                expected: expectedPhrase,
-                actual: transcription,
-                score: score.similarity
-            });
-            
-            // Format and display feedback
-            let feedbackHtml = '';
-            if (score.similarity >= 90) {
-                feedbackHtml = `<p class="feedback-correct">✓ Excellent! Your pronunciation is very accurate.</p>`;
-            } else if (score.similarity >= 70) {
-                feedbackHtml = `<p>Good attempt! Score: ${score.similarity}%</p>`;
-            } else {
-                feedbackHtml = `<p class="feedback-error">Needs work. Score: ${score.similarity}%</p>`;
-            }
-            
-            if (feedback.feedback) {
-                feedbackHtml += `<p class="feedback-suggestion">${feedback.feedback}</p>`;
-            }
-            
-            if (feedback.corrections && feedback.corrections.length > 0) {
-                feedbackHtml += '<ul>';
-                feedback.corrections.forEach(c => {
-                    feedbackHtml += `<li><strong>${c.word}</strong>: ${c.suggestion}</li>`;
-                });
-                feedbackHtml += '</ul>';
-            }
-            
-            aiFeedback.innerHTML = feedbackHtml;
-        } catch (error) {
-            console.error('AI feedback failed:', error);
-            aiFeedback.innerHTML = `
-                <p>Score: ${score.similarity}%</p>
-                <p class="muted">AI feedback unavailable. ${score.similarity >= 80 ? 'Good job!' : 'Keep practicing!'}</p>
-            `;
-        }
-    }
-    
-    if (recordingStatus) recordingStatus.textContent = 'Ready to record';
-}
 
 // ============================================================================
 // BOOTSTRAP

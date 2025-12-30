@@ -4,7 +4,7 @@ playwright-report/
 .DS_Store
 npm-debug.log*
 
-# Large TTS model artifacts (keep out of git)
-pt_PT-tugA3o-medium.onnx
-tts-server/models/
+# Large model artifacts (keep out of git)
 *.onnx
+*.onnx.json
+models/

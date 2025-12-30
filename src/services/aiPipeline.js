@@ -5,18 +5,89 @@
 
 import { AI_CONFIG, API_ENDPOINTS } from '../config/constants.js';
 import { userStorage } from './userStorage.js';
-import { eventStream } from './eventStreaming.js';
+import { LearnerProfiler } from './learning/LearnerProfiler.js';
+
+// Stuck word threshold - consistent with StuckWordsService
+const STUCK_THRESHOLD = 3;
 
 class AIPipelineService {
     constructor() {
         this.isAvailable = false;
         this.lastCheck = null;
         this.memoryCache = new Map();
+        this.profilers = new Map(); // userId -> LearnerProfiler
+        this.pendingRescueWords = new Map(); // userId -> Set of wordKeys
+        this.rescueDebounceTimer = null;
         
         // Subscribe to event batches
         window.addEventListener('ai-event-batch', (e) => {
             this.processEventBatch(e.detail.events);
         });
+        
+        // Subscribe to word-stuck events for automatic rescue lesson generation
+        window.addEventListener('word-stuck', (e) => {
+            this._handleWordStuck(e.detail);
+        });
+    }
+    
+    /**
+     * Handle when a word becomes stuck - queue for rescue lesson
+     */
+    _handleWordStuck(detail) {
+        const { wordKey, word, userId } = detail;
+        if (!userId || userId === 'guest' || userId === 'default') return;
+        
+        // Add to pending rescue words for this user
+        if (!this.pendingRescueWords.has(userId)) {
+            this.pendingRescueWords.set(userId, new Set());
+        }
+        this.pendingRescueWords.get(userId).add(wordKey);
+        
+        console.log(`[AI Pipeline] Word stuck: ${word.pt} for user ${userId}`);
+        
+        // Debounce rescue lesson creation (wait for more stuck words or 5s)
+        if (this.rescueDebounceTimer) {
+            clearTimeout(this.rescueDebounceTimer);
+        }
+        this.rescueDebounceTimer = setTimeout(() => {
+            this._triggerRescueLessons();
+        }, 5000);
+    }
+    
+    /**
+     * Trigger rescue lesson creation for all users with stuck words
+     */
+    async _triggerRescueLessons() {
+        for (const [userId, wordKeys] of this.pendingRescueWords.entries()) {
+            if (wordKeys.size === 0) continue;
+            
+            console.log(`[AI Pipeline] Triggering rescue lesson for ${userId} with ${wordKeys.size} stuck words`);
+            
+            // Dispatch event for UI/AIChat to handle rescue lesson creation
+            window.dispatchEvent(new CustomEvent('ai-rescue-lesson-needed', {
+                detail: {
+                    userId,
+                    wordKeys: Array.from(wordKeys),
+                    timestamp: Date.now()
+                }
+            }));
+            
+            // Clear pending words for this user
+            wordKeys.clear();
+        }
+    }
+    
+    /**
+     * Get or create a LearnerProfiler for a user
+     */
+    getProfiler(userId) {
+        if (!userId || userId === 'guest' || userId === 'default') {
+            return null;
+        }
+        if (!this.profilers.has(userId)) {
+            this.profilers.set(userId, new LearnerProfiler(userId));
+        }
+        return this.profilers.get(userId);
     }
 
     /**
@@ -55,8 +126,30 @@ class AIPipelineService {
      * Process a batch of user events
      */
     async processEventBatch(events) {
+        if (!events || events.length === 0) return;
+        
+        // Group events by user
+        const eventsByUser = {};
+        events.forEach(event => {
+            const userId = event.userId || 'default';
+            if (!eventsByUser[userId]) eventsByUser[userId] = [];
+            eventsByUser[userId].push(event);
+        });
+        
+        // Process each user's events through their profiler
+        for (const [userId, userEvents] of Object.entries(eventsByUser)) {
+            const profiler = this.getProfiler(userId);
+            if (profiler) {
+                userEvents.forEach(event => {
+                    // Map event to profiler format if needed
+                    const mappedEvent = this._mapEventForProfiler(event);
+                    profiler.processEvent(mappedEvent);
+                });
+            }
+        }
+        
         if (!this.isAvailable) {
-            console.log('[AI Pipeline] Skipping batch - AI unavailable');
+            console.log('[AI Pipeline] Skipping AI analysis - Ollama unavailable');
             return;
         }
 
@@ -66,10 +159,38 @@ class AIPipelineService {
         // Update user learning profile
         this._updateLearningProfile(analysis);
         
-        // Check if custom lesson needed
+        // Check if custom lesson needed (threshold = 3, not 5)
         if (analysis.strugglingWords.length > 0) {
             await this._checkForCustomLesson(analysis.strugglingWords);
         }
+    }
+    
+    /**
+     * Map raw event to LearnerProfiler event format
+     */
+    _mapEventForProfiler(event) {
+        // Map word_attempt to answer_correct/answer_incorrect
+        if (event.eventType === 'word_attempt') {
+            return {
+                eventType: event.data?.correct ? 'answer_correct' : 'answer_incorrect',
+                timestamp: event.timestamp,
+                wordId: event.data?.wordId,
+                userAnswer: event.data?.userInput,
+                correctAnswer: event.data?.wordId,
+                responseTime: event.data?.responseTime
+            };
+        }
+        // Map pronunciation events
+        if (event.eventType === 'pronunciation') {
+            return {
+                eventType: 'pronunciation_score',
+                timestamp: event.timestamp,
+                wordId: event.data?.wordId,
+                score: event.data?.score,
+                phonemes: event.data?.phonemeBreakdown
+            };
+        }
+        return event;
     }
 
     /**
@@ -224,9 +345,9 @@ class AIPipelineService {
             }
         });
         
-        // Identify struggling words
+        // Identify struggling words (threshold = 3 per AI_TUTOR_REVIEW_2.0.md)
         const strugglingWords = Object.entries(wordAttempts)
-            .filter(([_, data]) => data.incorrect >= 5)
+            .filter(([_, data]) => data.incorrect >= STUCK_THRESHOLD)
             .map(([wordId]) => wordId);
         
         return {

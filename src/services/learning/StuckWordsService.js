@@ -26,7 +26,6 @@ import * as Logger from '../Logger.js';
 const STUCK_THRESHOLD = 3;           // Failures to be considered stuck
 const PRONUNCIATION_THRESHOLD = 60;  // Score below this is struggling
 const STORAGE_KEY = 'stuck_words';
-const RESCUE_ATTEMPTS_KEY = 'rescue_attempts';
 
 // Rescue technique effectiveness ratings (from research)
 export const RESCUE_TECHNIQUES = {
@@ -214,6 +213,17 @@ export function recordFailure({ wordKey, pt, en, failureType, confusedWith, pron
     if (isStuck && !word.stuckSince) {
         word.stuckSince = new Date().toISOString();
         Logger.info('stuck_words', 'Word marked as stuck', { wordKey, pt, failureCount: word.failureCount });
+        
+        // Auto-trigger rescue lesson generation
+        // This event will be picked up by the AI pipeline or UI to create a rescue lesson
+        window.dispatchEvent(new CustomEvent('word-stuck', {
+            detail: {
+                wordKey,
+                word: word,
+                userId,
+                timestamp: Date.now()
+            }
+        }));
     }
     
     saveStuckWords(userId);
@@ -283,7 +293,7 @@ export function markAsStuck(wordKey, pt, en, reason = 'manual') {
             failureCount: STUCK_THRESHOLD, // Auto-meet threshold
             pronunciationFailures: 0,
             avgPronunciationScore: 100,
-            failureTypes: ['manual'],
+            failureTypes: [reason],
             confusedWith: [],
             stuckSince: new Date().toISOString(),
             lastAttempt: new Date().toISOString(),
@@ -293,7 +303,7 @@ export function markAsStuck(wordKey, pt, en, reason = 'manual') {
         };
     } else {
         stuckWordsState.words[wordKey].stuckSince = new Date().toISOString();
-        stuckWordsState.words[wordKey].failureTypes.push('manual');
+        stuckWordsState.words[wordKey].failureTypes.push(reason);
     }
     
     saveStuckWords(userId);

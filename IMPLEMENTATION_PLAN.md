@@ -8,17 +8,17 @@
 
 | Metric | Value | Target |
 |--------|-------|--------|
-| **Completion** | ~40% | 100% |
+| **Completion** | ~55% | 100% |
 | **Core Services** | Built | Integrated |
-| **AI Intelligence** | Basic | Research-Backed |
+| **AI Intelligence** | Integrated | Research-Backed |
 
 ### Current Focus
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **P0** | AI Pedagogy Integration | [ ] In Progress |
+| **P0** | AI Pedagogy Integration | [x] Complete |
 | **P0** | Service Integration (app.js cleanup) | [ ] Blocked |
-| **P1** | Admin Dashboard | [ ] Not Started |
+| **P1** | Admin Dashboard | [x] Complete |
 | **P1** | Monitoring Dashboard | [ ] Not Started |
 
 ---
@@ -31,10 +31,10 @@
 | 2 | Building Blocks Lessons | ✅ DONE | 10 lesson files |
 | 3 | Navigation | ✅ DONE | 8 components |
 | 4 | Lesson Layout & Accordion | ✅ DONE | Right panel working |
-| 5 | AI Pipeline | 🔄 IN PROGRESS | Core built, needs pedagogy |
-| 6 | AI Governance | [ ] NOT STARTED | Dashboard needed |
+| 5 | AI Pipeline | ✅ DONE | Pedagogy integrated |
+| 6 | AI Governance | ✅ DONE | Admin dashboard built |
 | 7 | Authentication | ✅ DONE | AuthService complete |
-| 8 | Voice System | 🔄 PARTIAL | TTS working, fixes needed |
+| 8 | Voice System | ✅ DONE | TTS + speed control working |
 | 9 | Monitoring | [ ] NOT STARTED | Critical for debugging |
 | 14 | Pronunciation | ✅ DONE | 5 services, 55 tests |
 
@@ -49,9 +49,9 @@ The AI must be trained on evidence-based teaching methodology.
 | Task ID | Task | Status | File |
 |---------|------|--------|------|
 | PED-001 | Create AI_PEDAGOGY_BIBLE.md | [x] | docs/AI_PEDAGOGY_BIBLE.md |
-| PED-002 | Integrate pedagogy into system prompts | [ ] | src/services/ai/AIAgent.js |
-| PED-003 | Add FSRS algorithm from ts-fsrs | [ ] | src/services/FSRSEngine.js |
-| PED-004 | Wire LearnerProfiler to event stream | [ ] | src/services/LearnerProfiler.js |
+| PED-002 | Integrate pedagogy into system prompts | [x] | src/services/ai/AIAgent.js |
+| PED-003 | Add FSRS algorithm from ts-fsrs | [x] | src/services/learning/FSRSEngine.js |
+| PED-004 | Wire LearnerProfiler to event stream | [x] | src/services/aiPipeline.js |
 | PED-005 | Create stuck-word rescue techniques | [x] | src/services/ai/StuckWordsService.js |
 | PED-006 | Implement mnemonic generation | [x] | Uses pedagogy prompts |
 
@@ -126,12 +126,14 @@ Current AI knows facts but doesn't understand *how to teach effectively*.
 
 | Task ID | Task | Status | Priority |
 |---------|------|--------|----------|
-| AI-INTEL-001 | Add pedagogy to AIAgent system prompt | [ ] | P0 |
-| AI-INTEL-002 | Create technique selector based on failure type | [ ] | P0 |
+| AI-INTEL-001 | Add pedagogy to AIAgent system prompt | [x] | P0 |
+| AI-INTEL-002 | Create technique selector based on failure type | [x] | P0 |
 | AI-INTEL-003 | Implement mnemonic generation prompt | [x] | P0 |
-| AI-INTEL-004 | Add ts-fsrs for scheduling | [ ] | P0 |
+| AI-INTEL-004 | Add ts-fsrs for scheduling | [x] | P0 |
 | AI-INTEL-005 | Wire pronunciation scores to LearnerProfiler | [x] | P0 |
 | AI-INTEL-006 | Create custom lesson generator with interleaving | [ ] | P1 |
+
+**Docs (lesson variety):** Draft plan captured in docs/AI_LESSON_VARIATION_PLAN.md (exercise catalog, DoD, telemetry, 50+ sources).
 
 ---
 
@@ -163,12 +165,12 @@ const progress = ProgressTracker.loadProgress();  // Uses user's data only
 - ✅ Web Speech API integration
 - ✅ Portuguese voice playback
 - ✅ Pronunciation assessment (5 services)
+- ✅ Voice speed slider (wired to voiceState.speed)
 
 ### Needs Work
 
 | Issue | Fix Required | Priority |
 |-------|--------------|----------|
-| Speed slider not applied | Wire rate to utterance | P0 |
 | Download doesn't activate | Refresh dropdown after download | P1 |
 | No voice refresh button | Add catalog check | P2 |
 
@@ -194,22 +196,22 @@ Admin needs visibility into:
 
 ---
 
-## ⚙️ ADMIN DASHBOARD (NOT STARTED)
+## ⚙️ ADMIN DASHBOARD (COMPLETE)
 
-Admin capabilities needed:
+Admin capabilities implemented:
 
-- Create/edit users
-- Adjust hearts/XP/streaks manually
-- Delete user learning data
-- View AI activity
-- Manage whitelist sources
+- ✅ User list with stats
+- ✅ "Log in as" impersonation
+- ✅ AI activity feed (time-windowed)
+- ✅ Rescue lesson tracking
+- ✅ Admin-only nav tab
 
 ### Implementation Tasks
 
 | Task ID | Task | Status | Priority |
 |---------|------|--------|----------|
-| ADMIN-001 | Create admin page layout | [ ] | P1 |
-| ADMIN-002 | User list with "Log in as" | [ ] | P1 |
+| ADMIN-001 | Create admin page layout | [x] | P1 |
+| ADMIN-002 | User list with "Log in as" | [x] | P1 |
 | ADMIN-003 | Hearts/XP/Streak controls | [ ] | P1 |
 | ADMIN-004 | Data deletion controls | [ ] | P1 |
 
@@ -268,17 +270,19 @@ Admin capabilities needed:
 
 ## 🧭 NEXT STEPS (Priority Order)
 
-1. **AI Pedagogy Integration** - Make AI actually intelligent
-   - Inject pedagogy into system prompts
-   - Add FSRS scheduling
-   - Create technique-based interventions
+1. ~~**AI Pedagogy Integration**~~ ✅ DONE
+   - ✅ Pedagogy in system prompts
+   - ✅ FSRS scheduling
+   - ✅ Technique-based interventions
 
-2. **Voice Speed Fix** - Critical UX issue
-   - Wire slider value to utterance.rate
+2. ~~**Voice Speed Fix**~~ ✅ DONE
+   - ✅ Slider wired to voiceState.speed
 
-3. **Admin Dashboard** - For debugging and management
-   - User management
-   - AI activity view
+3. ~~**Admin Dashboard**~~ ✅ DONE
+   - ✅ User list with "Login as"
+   - ✅ AI activity feed
+   - [ ] Hearts/XP/Streak controls (remaining)
+   - [ ] Data deletion controls (remaining)
 
 4. **Monitoring Dashboard** - For debugging
    - Component health checks

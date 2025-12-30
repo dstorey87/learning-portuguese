@@ -8,7 +8,7 @@
 import { initAIChat } from './src/components/ai/AIChat.js';
 import * as Logger from './src/services/Logger.js';
 import { eventStream } from './src/services/eventStreaming.js';
-import { getUser, isLoggedIn } from './src/services/AuthService.js';
+import { getUser } from './src/services/AuthService.js';
 
 /**
  * Get the current user ID - uses actual logged-in user, NOT a hardcoded default

@@ -422,12 +422,13 @@ export function getGenderTrick(word, gender) {
 /**
  * Get verb conjugation memory aid
  */
-export function getVerbMemoryAid(infinitive, type = 'present') {
+export function getVerbMemoryAid(infinitive, tense = 'present') {
     const irregular = VERB_MEMORY_PATTERNS.irregularVerbs[infinitive];
     if (irregular) {
         return {
             verb: infinitive,
             irregular: true,
+            tense,
             ...irregular
         };
     }
@@ -440,6 +441,7 @@ export function getVerbMemoryAid(infinitive, type = 'present') {
         verb: infinitive,
         irregular: false,
         type: ending,
+        tense,
         ...regular
     } : null;
 }

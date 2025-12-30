@@ -97,6 +97,14 @@ If the user explicitly instructs **NO GIT** (e.g., "do not run git commands"), t
 - Re-test the original change once fixes pass to confirm it still holds.
 - No bugs allowed: continue the fix/test loop until zero failures.
 
+## Lesson Variation & DoD Enforcement (MANDATORY)
+- Use docs/AI_LESSON_VARIATION_PLAN.md as the single source for exercise definitions, task scopes, DoD, and prioritized sources; do not invent new flows without adding them there first.
+- Honor practice-first sequencing: quiz/check before reveal; interleave rescue flows after failures (mnemonics, minimal pairs, memory palace, input flood) per plan.
+- Enforce lesson ordering: Building Blocks → Essential Communication → Daily Topics; do not surface greetings before building blocks.
+- Each exercise type must meet its DoD (correct assets/audio, telemetry hooks, validation steps, targeted tests) before marking done.
+- AI Tips must be dynamic from user performance (AITipGenerator + reference data) and cannot be hardcoded text.
+- LLMs must remain swappable (Edge/remote/other); keep prompts/configs in one place and avoid provider lock-in.
+
 ## Playwright Validation Loop (MANDATORY for UI/visual changes)
 - Do not rely on code review alone; always inspect the live page with Playwright for any UI/visual/content change (images, layout, navigation, gradients).
 - Use the MCP Playwright tools to interact: navigate with `mcp_playwright_browser_navigate`, click/interact with `mcp_playwright_browser_click`, and capture state (evaluate/snapshot/screenshot) to confirm behavior.

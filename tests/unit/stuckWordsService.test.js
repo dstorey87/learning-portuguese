@@ -6,11 +6,13 @@
 
 import { test, expect } from '@playwright/test';
 
+const HOME_URL = 'http://localhost:4321';
+
 test.describe('StuckWordsService Unit Tests', () => {
     
     test.beforeEach(async ({ page }) => {
         // Navigate to app and clear localStorage
-        await page.goto('http://localhost:4174');
+        await page.goto(HOME_URL);
         await page.evaluate(() => {
             // Clear any existing stuck words data
             Object.keys(localStorage).forEach(key => {

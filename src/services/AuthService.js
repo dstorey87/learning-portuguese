@@ -609,6 +609,165 @@ export function updatePreferences(prefs) {
 }
 
 // ============================================================================
+// USER MANAGEMENT (ADMIN FUNCTIONS)
+// ============================================================================
+
+/**
+ * Get all users from localStorage (admin function)
+ * Scans localStorage for user data patterns
+ * @returns {Array} Array of user objects
+ */
+export function getAllUsers() {
+    const users = [];
+    const seenUserIds = new Set();
+    
+    // Scan localStorage for user data
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        
+        // Look for user-specific keys (pattern: userId_*)
+        const match = key.match(/^([^_]+)_(progress|stuck_words|events|preferences)$/);
+        if (match) {
+            const userId = match[0].split('_')[0];
+            if (!seenUserIds.has(userId) && userId !== 'admin' && userId !== 'undefined') {
+                seenUserIds.add(userId);
+            }
+        }
+        
+        // Also check for direct auth keys
+        if (key === AUTH_CONFIG.storageKey) {
+            try {
+                const authData = JSON.parse(localStorage.getItem(key));
+                if (authData.username && !seenUserIds.has(authData.username)) {
+                    seenUserIds.add(authData.username);
+                }
+            } catch (e) {
+                // Ignore parse errors
+            }
+        }
+    }
+    
+    // Also check for registered users list
+    try {
+        const registeredUsers = localStorage.getItem('registered_users');
+        if (registeredUsers) {
+            const parsed = JSON.parse(registeredUsers);
+            parsed.forEach(u => {
+                if (u.userId && !seenUserIds.has(u.userId)) {
+                    seenUserIds.add(u.userId);
+                }
+            });
+        }
+    } catch (e) {
+        // Ignore
+    }
+    
+    // Build user objects
+    seenUserIds.forEach(userId => {
+        try {
+            const userAuth = localStorage.getItem(`${userId}_auth`);
+            const parsed = userAuth ? JSON.parse(userAuth) : {};
+            
+            users.push({
+                userId,
+                username: parsed.username || userId,
+                isAdmin: parsed.isAdmin || false,
+                role: parsed.role || USER_ROLES.USER,
+                lastActive: parsed.lastActiveDate || null
+            });
+        } catch (e) {
+            users.push({
+                userId,
+                username: userId,
+                isAdmin: false,
+                role: USER_ROLES.USER,
+                lastActive: null
+            });
+        }
+    });
+    
+    // Add current user if not in list
+    const currentUser = getUser();
+    if (currentUser.username && !seenUserIds.has(currentUser.username)) {
+        users.push({
+            userId: currentUser.username,
+            username: currentUser.username,
+            isAdmin: currentUser.isAdmin,
+            role: currentUser.role || USER_ROLES.USER,
+            lastActive: currentUser.lastActiveDate
+        });
+    }
+    
+    return users;
+}
+
+/**
+ * Login as a specific user (admin impersonation)
+ * @param {string} targetUserId - User ID to login as
+ * @returns {Object} Result { success, user?, error? }
+ */
+export function loginAsUser(targetUserId) {
+    const currentUser = getUser();
+    
+    // Only admins can impersonate
+    if (!currentUser.isAdmin) {
+        return { success: false, error: 'Admin access required for impersonation' };
+    }
+    
+    // Try to load the target user's data
+    try {
+        const targetAuth = localStorage.getItem(`${targetUserId}_auth`);
+        let targetData;
+        
+        if (targetAuth) {
+            targetData = JSON.parse(targetAuth);
+        } else {
+            // Create minimal user data if doesn't exist
+            targetData = {
+                ...defaultUserState,
+                loggedIn: true,
+                username: targetUserId,
+                role: USER_ROLES.USER
+            };
+        }
+        
+        // Mark as impersonated session
+        targetData.impersonatedBy = currentUser.username;
+        targetData.impersonationStart = Date.now();
+        
+        saveUser(targetData);
+        
+        dispatchAuthEvent(AUTH_EVENTS.LOGIN, { user: targetData, impersonation: true });
+        
+        return { success: true, user: targetData };
+    } catch (e) {
+        return { success: false, error: `Failed to impersonate: ${e.message}` };
+    }
+}
+
+/**
+ * Register a new user (for tracking purposes)
+ * @param {string} userId - User ID
+ * @param {Object} metadata - Optional metadata
+ */
+export function registerUser(userId, metadata = {}) {
+    try {
+        const registeredUsers = JSON.parse(localStorage.getItem('registered_users') || '[]');
+        
+        if (!registeredUsers.find(u => u.userId === userId)) {
+            registeredUsers.push({
+                userId,
+                registeredAt: Date.now(),
+                ...metadata
+            });
+            localStorage.setItem('registered_users', JSON.stringify(registeredUsers));
+        }
+    } catch (e) {
+        console.warn('Failed to register user:', e);
+    }
+}
+
+// ============================================================================
 // EXPORTS FOR BACKWARDS COMPATIBILITY
 // ============================================================================
 
@@ -674,6 +833,9 @@ export default {
     // Admin
     resetUserStats,
     getUserStats,
+    getAllUsers,
+    loginAsUser,
+    registerUser,
     
     // Preferences
     getPreferences,

@@ -20,6 +20,11 @@ Targeted examples (Playwright):
 - `npx playwright test tests/e2e/lesson.e2e.test.js`
 - `npx playwright test --grep "NAV-E001"`
 
+MCP Playwright (UI/visual/content changes):
+- Use MCP Playwright tools (`mcp_playwright_browser_navigate`, `mcp_playwright_browser_click`, `mcp_playwright_browser_type`, `mcp_playwright_browser_take_screenshot`, `mcp_playwright_browser_evaluate`) on http://localhost:63436.
+- Capture screenshots and note asset URLs for all exercised flows; failures must be fixed and re-run before completion.
+- Mandatory flows when lessons/UX change: practice-first lesson entry, word-order/cloze/picture exercises, image typing (e.g., pastel), numbers with finger image, voice dictation with speed slider, adaptive lesson mix after profile seed.
+
 Before merge:
 - `npm test`
 

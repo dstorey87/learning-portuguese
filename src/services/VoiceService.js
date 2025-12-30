@@ -46,7 +46,6 @@ export const VOICE_PROVIDERS = {
     APPLE: 'Apple',
     AMAZON: 'Amazon',
     ESPEAK: 'eSpeak',
-    PIPER: 'Piper',
     SYSTEM: 'System'
 };
 
@@ -75,12 +74,12 @@ let state = {
     audioContext: null
 };
 
-// Default bundled voice metadata
+// Default bundled voice metadata (legacy - Edge-TTS is now the primary TTS)
 const DEFAULT_BUNDLED_META = {
     downloaded: false,
-    sizeBytes: 63_201_294,
+    sizeBytes: 0,
     updatedAt: null,
-    version: 'piper-pt-pt-tugao-medium',
+    version: null,
     voiceKey: null,
     url: null,
     sha256: null,
@@ -94,43 +93,14 @@ const DEFAULT_BUNDLED_META = {
 /**
  * Catalog of downloadable EU-PT voices
  */
-const DOWNLOADABLE_VOICES = [
-    {
-        key: 'piper-joana',
-        name: 'Joana',
-        gender: 'female',
-        provider: 'Piper',
-        quality: 'high',
-        description: 'Clear, natural female voice from Piper TTS. Excellent for beginners.',
-        sizeBytes: 63_201_294,
-        sizeMB: 60,
-        url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx',
-        configUrl: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx.json',
-        sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4',
-        sampleRate: 22050,
-        requiresBackend: true
-    }
-];
+// Downloadable voices (Edge-TTS provides voices via server, no client download needed)
+const DOWNLOADABLE_VOICES = [];
 
 /**
- * Bundled voice options for compatibility
+ * Bundled voice options (legacy - Edge-TTS is now the primary TTS)
+ * Edge-TTS provides Duarte/Raquel voices via server without client bundling
  */
-const BUNDLED_VOICE_OPTIONS = [
-    {
-        key: 'bundled|pt-pt|piper-tugao-medium',
-        name: 'Joana (Piper EU-PT)',
-        displayName: 'Joana',
-        gender: 'female',
-        provider: 'Piper',
-        quality: 'high',
-        description: 'Clear, natural female voice. Excellent for beginners.',
-        sizeBytes: 63_201_294,
-        url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx',
-        sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4',
-        sampleRate: 22050,
-        recommended: true
-    }
-];
+const BUNDLED_VOICE_OPTIONS = [];
 
 // ============================================================================
 // AUDIO CONTEXT
@@ -509,7 +479,6 @@ function detectVoiceProvider(voice) {
     if (uri.includes('apple') || name.includes('siri') || name.includes('com.apple')) return VOICE_PROVIDERS.APPLE;
     if (uri.includes('amazon') || name.includes('polly')) return VOICE_PROVIDERS.AMAZON;
     if (name.includes('espeak')) return VOICE_PROVIDERS.ESPEAK;
-    if (name.includes('piper')) return VOICE_PROVIDERS.PIPER;
     return VOICE_PROVIDERS.SYSTEM;
 }
 
@@ -947,7 +916,7 @@ export async function speakWithEngine(options = {}) {
             provider: 'HTTP TTS',
             name: 'Bundled EU-PT voice',
             lang,
-            voiceKey: voiceKey || 'bundled|pt-pt|piper-tugao-medium',
+            voiceKey: voiceKey || 'edge-tts|pt-pt|duarte',
             forcedKey: voiceKey,
             rate
         };

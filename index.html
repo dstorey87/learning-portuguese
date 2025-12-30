@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="src/styles/toast.css">
     <link rel="stylesheet" href="src/styles/animations.css">
     <link rel="stylesheet" href="src/styles/accordion.css">
+    <link rel="stylesheet" href="src/styles/admin.css">
     <!-- Main styles (can override modular components) -->
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -562,6 +563,20 @@
         </div>
     </section>
     </div>
+
+    <!-- Admin Page (Admin only) -->
+    <div class="page" id="page-admin" data-page="admin" style="display:none;">
+        <section class="admin-section">
+            <div id="adminDashboardContainer">
+                <!-- Admin Dashboard renders here -->
+                <div class="admin-dashboard admin-locked">
+                    <h2>🔒 Admin Access Required</h2>
+                    <p>Please log in as an administrator to access this dashboard.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
     </main>
 
     <!-- Bottom Navigation Bar -->
@@ -581,6 +596,10 @@
         <button class="nav-tab" data-page="profile">
             <span class="nav-icon">👤</span>
             <span class="nav-label">Profile</span>
+        </button>
+        <button class="nav-tab admin-only" data-page="admin" id="adminNavTab" style="display:none;">
+            <span class="nav-icon">🛡️</span>
+            <span class="nav-label">Admin</span>
         </button>
     </nav>
 

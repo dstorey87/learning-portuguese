@@ -2,7 +2,7 @@
 
 A professional, AI-powered language learning platform for European Portuguese, featuring real-time adaptive learning, comprehensive pronunciation training, and a modern Duolingo-inspired interface.
 
-**Current version:** 2.0.0 (Major Restructure)  
+**Current version:** 4.0.0 (Major Restructure)  
 **Status:** Active Development
 
 ---
@@ -61,7 +61,7 @@ src/
 
 ### 🗣️ Voice & Pronunciation
 - **EU-PT Only** - European Portuguese voices exclusively (no Brazilian)
-- **System + Bundled Voices** - Uses device voices when available, Piper TTS fallback
+- **Edge-TTS Neural Voices** - High-quality Microsoft neural voices (Duarte, Raquel)
 - **Speed Control** - Adjustable playback speed (0.5x - 2.0x)
 - **Speech Recognition** - Practice pronunciation with instant feedback
 - **Phoneme Analysis** - Detects nasals, sibilants, digraphs, rhotics, stress patterns
@@ -86,14 +86,14 @@ src/
 | Phase | Description | Status |
 |-------|-------------|--------|
 | **Phase 1** | Foundation & File Structure | ✅ Complete |
-| **Phase 1B** | Service Integration & Cleanup | 🔄 In Progress |
-| **Phase 2** | Lesson Reordering (Building Blocks First) | ⏳ Planned |
-| **Phase 3** | Navigation Redesign | ⏳ Planned |
-| **Phase 4** | Lesson Layout & Options Panel | ⏳ Planned |
-| **Phase 5** | Real-Time AI Pipeline | ⏳ Planned |
-| **Phase 6** | AI Governance Dashboard | ⏳ Planned |
-| **Phase 7** | Authentication System | ⏳ Planned |
-| **Phase 8** | Voice System Fixes | ⏳ Planned |
+| **Phase 1B** | Service Integration & Cleanup | 🔄 In Progress (needs app.js split) |
+| **Phase 2** | Lesson Reordering (Building Blocks First) | ✅ Complete |
+| **Phase 3** | Navigation Redesign | ✅ Complete |
+| **Phase 4** | Lesson Layout & Options Panel | ✅ Complete |
+| **Phase 5** | Real-Time AI Pipeline | ✅ Complete |
+| **Phase 6** | AI Governance Dashboard | ✅ Complete |
+| **Phase 7** | Authentication System | ✅ Complete |
+| **Phase 8** | Voice System Fixes | ✅ Complete |
 | **Phase 9** | Monitoring & Health Checks | ⏳ Planned |
 | **Phase 10** | UI Polish & Animations | ⏳ Planned |
 | **Phase 11** | Practice & Flashcards | ⏳ Planned |
@@ -111,7 +111,7 @@ See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for detailed task breakdown
 | **Testing** | Playwright (E2E), Unit tests |
 | **Linting** | ESLint |
 | **AI** | Ollama (local LLM, no API keys) |
-| **TTS** | Piper EU-PT, System voices, Edge-TTS |
+| **TTS** | Microsoft Edge-TTS (neural voices) |
 | **Hosting** | GitHub Pages / Netlify / Vercel |
 
 ---
@@ -309,18 +309,17 @@ The AI uses this data to:
 ## 🔊 Voice System
 
 ### Voice Priority
-1. **System EU-PT voices** - Best quality, no download
-2. **Piper bundled voice** - Downloaded on-demand (~50-120MB)
+1. **Edge-TTS Neural Voices** - High-quality Microsoft neural voices (primary)
+2. **System EU-PT voices** - Device voices as fallback
 3. **Text-only fallback** - When no voice available
 
-### Supported System Voices
-- **iOS/macOS**: Siri "Joana"/"Inês"
-- **Android**: Google/Samsung TTS Portuguese (Portugal)
-- **Windows 11**: Natural voices "Duarte"/"Fernanda"
+### Edge-TTS Voices
+- **Portugal**: Duarte (Male), Raquel (Female) - Recommended
+- **Brazil**: António (Male), Francisca (Female), Macério (Male), Thalita (Female)
 
 ### Neural TTS Server
-For the highest quality, run the included FastAPI server:
-- Uses Edge-TTS with 6 Microsoft neural voices
+For the highest quality, run the included Node.js server:
+- Uses Edge-TTS with Microsoft neural voices
 - No API keys required
 - Runs locally on your machine
 
@@ -389,7 +388,7 @@ Free to use and modify.
 
 ## 🙏 Acknowledgments
 
-- Voice models: Piper TTS, Microsoft Edge-TTS
+- Voice: Microsoft Edge-TTS neural voices
 - AI: Ollama project
 - Inspiration: Duolingo's gamification approach
 - Testing: Playwright team

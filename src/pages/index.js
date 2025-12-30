@@ -12,7 +12,18 @@
 // export { ProgressPage } from './ProgressPage.js';
 
 // Admin pages
-// export { AdminDashboard } from './admin/AdminDashboard.js';
+export { 
+    AdminDashboard, 
+    logAIAction,
+    getUserActions,
+    getAllActions,
+    impersonateUser,
+    endImpersonation,
+    isImpersonating,
+    getUserList,
+    renderAdminDashboard,
+    initAdminDashboard
+} from './admin/index.js';
 // export { UserManagement } from './admin/UserManagement.js';
 // export { MonitoringDashboard } from './admin/MonitoringDashboard.js';
 
@@ -20,5 +31,5 @@
 // export { LoginPage } from './auth/LoginPage.js';
 // export { ProfilePage } from './auth/ProfilePage.js';
 
-// Placeholder export until pages are built
+// Page version
 export const PAGES_VERSION = '0.1.0';

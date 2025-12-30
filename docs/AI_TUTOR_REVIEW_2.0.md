@@ -1,17 +1,16 @@
 # AI Tutor Review 2.0
 
 ## Purpose
-Codify the required behavior for the AI tutor so it continuously adapts to each logged-in user, varies teaching techniques, and exposes its actions to administrators.
+Single source of truth for AI tutor guardrails and acceptance.
 
 ## Non‑negotiables
-- **Per-user isolation:** Every AI input/output and stored artifact is keyed to the active user (no guest/default mixing). Login must set the userId in `userStorage`, `ProgressTracker`, event stream, and profiler contexts before any AI call.
-- **Continuous ingestion:** All lesson/quiz/pronunciation/AI interactions stream into the AI pipeline in near real time; the pipeline must not idle or drop events.
-- **Detection thresholds:** Mark a word as "struggling" after ≥3 failures (wrong answers, poor pronunciation, or confusion) within a short window; keep attempt counts per user.
-- **Automatic rescue lessons:** When the struggling threshold is hit, auto-create a rescue/custom lesson that blends the weak words with relevant topic content.
-- **Technique rotation everywhere:** Rotate teaching techniques across both standard and AI/custom lessons (not just AI lessons). Techniques include keyword mnemonics, multi-sensory drills, minimal pairs, memory palace, context flood, spaced retrieval, and varied challenge types.
-- **Admin observability:** Admins can see what the AI is doing for each user (recent actions, lessons created, tool calls, rescue triggers, outcomes) without waiting for logout/login cycles.
-- **Admin impersonation:** Provide a dynamic user list with a "Log in as" control per user to enter their session for debugging/audit.
-- **Performance posture:** The AI runs continuously within existing resource budgets—no excessive polling or heavyweight jobs.
+- **Per-user isolation:** Key every AI input/output to the active user; set userId in userStorage, ProgressTracker, event stream, profiler before any AI call.
+- **Continuous ingestion:** Stream lesson/quiz/pronunciation/AI events in near real time; do not idle or drop.
+- **Detection/rescue:** After ≥3 failures in a short window, auto-create rescue lessons mixing weak + topic words.
+- **Technique rotation:** Rotate techniques across all lessons (mnemonics, multi-sensory, minimal pairs, memory palace, context flood, spaced retrieval, varied challenges).
+- **Admin visibility:** Dynamic user list, login-as, AI action feed (recent window) without relogging.
+- **Performance posture:** Stay within budgets; avoid heavyweight polling.
+- **Voice path:** WebSpeechService (STT) + TTSService (Edge-TTS) until VAD/Whisper is ready.
 
 ## Required behaviors
 1) **Per-user context thread**
@@ -19,18 +18,17 @@ Codify the required behavior for the AI tutor so it continuously adapts to each 
    - LearnerProfiler, ProgressTracker, event stream, and tool handlers must reject/guard against missing user IDs.
 
 2) **Event flow into AI**
-   - Batch/debounce user events, but always forward them to the AI/Profiler so the model’s system prompt has up-to-date weaknesses, confusion pairs, pronunciation issues, and timing/hesitation signals.
-   - Preserve the last 500–1000 events per user for admin audit and AI context.
+   - Batch/debounce but forward quickly so prompts include fresh weaknesses, confusion pairs, pronunciation issues, timing/hesitation.
+   - Keep the last 500–1000 events per user for admin audit and AI context.
 
 3) **Adaptive remediation**
-   - When a word is marked struggling, enqueue a rescue lesson generation using multiple techniques and interleaving known vs. weak words.
-   - Rotate techniques across repeated attempts; do not reuse the same pattern for the same user/word back-to-back.
-   - Apply variation to baseline lesson challenges (MCQ/type/listen/pronounce/sentence) to avoid one-note flows.
+   - On struggling flag, enqueue rescue lesson generation using multiple techniques and mixing known/weak words.
+   - Rotate techniques per user/word; no back-to-back repeats.
+   - Vary baseline challenges (MCQ/type/listen/pronounce/sentence).
 
 4) **Admin audit surface**
-   - Dashboard: user list (dynamic) with per-user AI action feed (time-window filter), rescue triggers, lessons created, tool calls, and whether events were processed.
-   - Impersonation: "Log in as" button per user that opens their session with their data context; provide a way back to the admin account.
-   - All actions are time-stamped and tied to userId/sessionId.
+   - Dashboard shows user list, AI action feed (time-windowed), rescue triggers, lessons created, tool calls, and processing status.
+   - Impersonation: "Log in as" per user with a way back to admin; everything time-stamped to userId/sessionId.
 
 5) **Quality/guardrails**
    - Enforce European Portuguese only; include IPA and pronunciation tips when generating lessons.
