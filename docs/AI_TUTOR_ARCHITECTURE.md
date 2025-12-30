@@ -46,6 +46,13 @@ Transform the AI from a passive tip generator into an **autonomous, goal-oriente
 - **Optimal Model:** Qwen2.5-7B-Instruct-Q4_K_M (~4.5GB VRAM)
 - **Parallel Config:** OLLAMA_NUM_PARALLEL=2, OLLAMA_FLASH_ATTENTION=1
 
+### Revision Note: AI Tutor Review 2.0
+- Enforce per-user data isolation and continuous event flow into the agent (no idle AI state).
+- Rotate teaching techniques across all lessons (standard + AI/custom), not only rescue flows.
+- Auto-create rescue lessons after repeated failures and interleave weak words with topic content.
+- Provide admin observability with a dynamic user list and “Log in as” controls plus time-window AI action feed.
+- Full acceptance criteria live in docs/AI_TUTOR_REVIEW_2.0.md.
+
 ---
 
 ## Stage 1: Core AI Agent Architecture
