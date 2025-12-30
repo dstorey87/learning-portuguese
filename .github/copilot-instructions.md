@@ -10,11 +10,17 @@
 - **VERIFY** with `git status -sb` before every task
 - See `operations.md` for full git workflow
 
-## Rule 2: MCP PLAYWRIGHT EVIDENCE
-- **EVERY** change MUST use MCP Playwright tools for validation
-- **REQUIRED**: `mcp_playwright_browser_navigate`, `mcp_playwright_browser_snapshot`, `mcp_playwright_browser_click`, `mcp_playwright_browser_take_screenshot`, `mcp_playwright_browser_evaluate`
+## Rule 2: MCP PLAYWRIGHT EVIDENCE (Browser validation is NOT manual)
+- **ONLY** MCP Playwright tools determine pass/fail - NOT manual browser viewing
+- **REFUSE** to mark complete based on "I checked in browser" - must use MCP tools
+- **REQUIRED TOOLS** (use ALL of these):
+  - `mcp_playwright_browser_navigate` - Navigate to page
+  - `mcp_playwright_browser_snapshot` - Capture accessibility tree
+  - `mcp_playwright_browser_click` - Test interactions
+  - `mcp_playwright_browser_take_screenshot` - Visual evidence
+  - `mcp_playwright_browser_evaluate` - Extract/verify data
 - **EVIDENCE**: Screenshot path + evaluated data in final response
-- **NO EXCEPTIONS** - even "simple" changes need validation
+- **NO EXCEPTIONS** - even "simple" changes need MCP Playwright validation
 
 ## Rule 3: ZERO TOLERANCE FOR BUGS
 ```
@@ -73,8 +79,10 @@ IMPLEMENT → TEST → FIX → REPEAT → COMMIT (only when ALL pass)
 - User data isolated: `${userId}_` prefix on storage
 
 ### Voice
-- Edge-TTS pt-PT Duarte voice
-- Speed control must actually work
+- Edge-TTS voices ONLY (pt-PT)
+- Male: Duarte, Female: Raquel (or equivalent)
+- Voice selection (male/female) configurable from admin dashboard
+- Speed control must actually work (verify with MCP Playwright)
 
 ### Code
 - Max 500 lines/file, source in `src/`

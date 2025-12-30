@@ -393,7 +393,7 @@ Each exercise type has a complete specification including Definition of Done, te
 
 | Attribute | Specification |
 |-----------|---------------|
-| **Audio Source** | Edge-TTS (Duarte voice) or recorded native |
+| **Audio Source** | Edge-TTS pt-PT voices (Male: Duarte, Female: Raquel) - configurable from admin |
 | **Controls** | Play, Replay, Speed slider (0.5x - 1.5x) |
 | **Scoring** | WER-style (word error rate) |
 | **Telemetry** | `wer_score`, `replay_count`, `speed_used`, `time_to_submit` |
@@ -609,7 +609,7 @@ Each exercise type has a complete specification including Definition of Done, te
 
 | Attribute | Specification |
 |-----------|---------------|
-| **Audio** | Number spoken in Portuguese (Edge-TTS) |
+| **Audio** | Number spoken in Portuguese (Edge-TTS pt-PT, male/female from admin config) |
 | **Visual** | Finger image (1-10) or digit display (11+) |
 | **Input** | Numeric keyboard input |
 | **Telemetry** | `off_by_error` (how far from correct), `response_time` |
