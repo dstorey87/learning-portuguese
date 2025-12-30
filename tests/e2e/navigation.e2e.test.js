@@ -19,17 +19,20 @@ test.describe('Navigation Bar E2E Tests', () => {
         await expect(page.locator('.bottom-nav')).toBeVisible();
     });
     
-    test('NAV-E002: All 4 navigation tabs are present', async ({ page }) => {
+    test('NAV-E002: All 5 navigation tabs are present', async ({ page }) => {
         await page.goto(HOME_URL);
         
-        // Must have exactly 4 tabs
-        await expect(page.locator('.nav-tab')).toHaveCount(4);
+        // Must have exactly 5 tabs (Home, Learn, Practice, Profile, Admin)
+        // Note: Admin tab may be hidden for non-admin users
+        await expect(page.locator('.nav-tab')).toHaveCount(5);
         
         // Each tab should have data-page attribute
         await expect(page.locator('.nav-tab[data-page="home"]')).toBeVisible();
         await expect(page.locator('.nav-tab[data-page="learn"]')).toBeVisible();
         await expect(page.locator('.nav-tab[data-page="practice"]')).toBeVisible();
         await expect(page.locator('.nav-tab[data-page="profile"]')).toBeVisible();
+        // Admin tab exists but is hidden for non-admin users
+        await expect(page.locator('.nav-tab[data-page="admin"]')).toBeAttached();
     });
     
     test('NAV-E003: Home tab is active by default', async ({ page }) => {
@@ -73,12 +76,13 @@ test.describe('Navigation Bar E2E Tests', () => {
     test('NAV-E007: Navigation tabs have icons and labels', async ({ page }) => {
         await page.goto(HOME_URL);
         
-        // Each tab should have an icon
-        await expect(page.locator('.nav-tab .nav-icon')).toHaveCount(4);
-        // Each tab should have a label
-        await expect(page.locator('.nav-tab .nav-label')).toHaveCount(4);
+        // Visible tabs (4 for non-admin: Home, Learn, Practice, Profile)
+        // Admin tab exists but is hidden
+        const visibleTabs = page.locator('.nav-tab:visible');
+        await expect(visibleTabs.locator('.nav-icon')).toHaveCount(4);
+        await expect(visibleTabs.locator('.nav-label')).toHaveCount(4);
         
-        // Verify specific labels
+        // Verify specific labels for visible tabs
         await expect(page.locator('.nav-label').filter({ hasText: 'Home' })).toBeVisible();
         await expect(page.locator('.nav-label').filter({ hasText: 'Learn' })).toBeVisible();
         await expect(page.locator('.nav-label').filter({ hasText: 'Practice' })).toBeVisible();
