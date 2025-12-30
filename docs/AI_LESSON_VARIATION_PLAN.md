@@ -1447,8 +1447,44 @@ This section provides explicit step-by-step instructions for AI agents to autono
 │                                                                 │
 │  10. REPORT                                                     │
 │      Include: screenshot paths, test results, telemetry proof   │
+│                                                                 │
+│  11. ARCHIVE COMPLETED TASK                                     │
+│      CUT the full task spec from this document                  │
+│      PASTE into docs/COMPLETED_FEATURES.md (correct Track)      │
+│      ADD completion metadata (date, commit hash)                │
+│      UPDATE statistics table in COMPLETED_FEATURES.md           │
+│      COMMIT both files: "[TASK-ID] Archive to COMPLETED"        │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Task Archiving Rule (MANDATORY)
+
+**WHY:** This document must stay small enough for AI agent context windows (~8k-32k tokens). Moving completed tasks to the archive keeps the working document focused on remaining work.
+
+**WHEN:** Immediately after merge to main, BEFORE starting next task.
+
+**HOW:**
+1. Open `docs/COMPLETED_FEATURES.md`
+2. Find the correct Track section (LA/AI/TM/TV/LM)
+3. Cut the ENTIRE task specification from this document
+4. Paste into the archive with completion metadata:
+   ```markdown
+   ### [TASK-ID] - Task Name
+   
+   **Completed:** YYYY-MM-DD | **Commit:** [hash]
+   ...full task spec...
+   ```
+5. Update the Statistics table at the bottom of COMPLETED_FEATURES.md
+6. Commit BOTH files together:
+   ```bash
+   git add docs/AI_LESSON_VARIATION_PLAN.md docs/COMPLETED_FEATURES.md
+   git commit -m "[TASK-ID] Archive completed task to COMPLETED_FEATURES.md"
+   git push
+   ```
+
+**FAILURE TO ARCHIVE = INCOMPLETE TASK**
+
+---
 
 ### Branch Naming Convention
 
@@ -1502,6 +1538,307 @@ Evidence:
 ## Detailed Task Specifications (Agentic-Ready)
 
 Below are fully specified tasks with everything an AI agent needs to execute autonomously.
+
+---
+
+### Task: LA-001 - Remove Word-List-First Screens
+
+**Branch:** `feature/LA-001-remove-word-lists`
+
+**Prerequisites:** None (PRIORITY - do this first)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Remove/skip word-list rendering
+- `src/data/lessons/*.js` - Update lesson flow to start with exercise
+
+**Implementation Steps:**
+1. Identify any `renderWordList()` or similar function in ChallengeRenderer.js
+2. Remove or comment out word-list rendering logic
+3. Ensure `startLesson()` immediately renders first exercise
+4. Update lesson data files to not include `wordList` as first step
+5. Add CSS to hide any residual word-list elements
+
+**Definition of Done Checklist:**
+- [ ] No word-list screen appears before first exercise
+- [ ] First screen is always an active exercise (input/click/drag)
+- [ ] Lesson can still access word data internally (just not displayed first)
+- [ ] Playwright Scenario 8 passes
+- [ ] No DOM element with class containing "word-list" visible
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "practice-first"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_click on any lesson card
+3. mcp_playwright_browser_snapshot - capture first screen
+4. mcp_playwright_browser_evaluate(() => {
+     return document.querySelector('[class*="word-list"]') !== null;
+   }) - must return false
+5. mcp_playwright_browser_evaluate(() => {
+     return document.querySelector('input, button[data-exercise], .tile') !== null;
+   }) - must return true (exercise element exists)
+6. mcp_playwright_browser_take_screenshot("test-results/LA-001-practice-first.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-001] Remove word-list-first screens (Sources: 1, 2)
+
+Implementation:
+- Removed renderWordList() from ChallengeRenderer.js
+- Updated lesson flow to start with first exercise
+- Practice-first pattern now enforced
+
+Testing:
+- E2E: lesson.e2e.test.js - ✅
+- MCP Playwright: Scenario 8 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-001-practice-first.png
+- No word-list DOM elements found"
+```
+
+---
+
+### Task: LA-002 - Add English Titles to All Lessons
+
+**Branch:** `feature/LA-002-english-titles`
+
+**Prerequisites:** None
+
+**Files to Change:**
+- `src/components/lesson/LessonCard.js` - Display English title prominently
+- `src/data/lessons/*.js` - Add `titleEn` field to all lesson metadata
+
+**Implementation Steps:**
+1. Add `titleEn` field to every lesson object in data files
+2. Update LessonCard.js to render `titleEn` as primary title
+3. Optionally show Portuguese title as subtitle (smaller)
+4. Ensure title is visible on grid view and detail view
+
+**Definition of Done Checklist:**
+- [ ] Every lesson has `titleEn` field in metadata
+- [ ] LessonCard displays English title prominently
+- [ ] No Portuguese-only titles visible on lesson grid
+- [ ] Playwright Scenario 7 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "english-titles"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_snapshot - capture lesson grid
+3. mcp_playwright_browser_evaluate(() => {
+     const cards = document.querySelectorAll('.lesson-card');
+     return Array.from(cards).map(c => c.querySelector('.title')?.textContent);
+   }) - verify all titles are English
+4. mcp_playwright_browser_take_screenshot("test-results/LA-002-english-titles.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-002] Add English titles to all lessons (Sources: 2, 30)
+
+Implementation:
+- Added titleEn field to all lesson metadata
+- LessonCard now displays English title prominently
+- Portuguese available as subtitle
+
+Testing:
+- MCP Playwright: Scenario 7 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-002-english-titles.png"
+```
+
+---
+
+### Task: LA-003 - Add Subline Descriptions
+
+**Branch:** `feature/LA-003-subline-descriptions`
+
+**Prerequisites:** LA-002 (English titles)
+
+**Files to Change:**
+- `src/components/lesson/LessonCard.js` - Add subline element
+- `src/data/lessons/*.js` - Add `descriptionEn` field to all lessons
+
+**Implementation Steps:**
+1. Add `descriptionEn` field to every lesson object
+2. Update LessonCard.js to render description under title
+3. Style subline as smaller, muted text
+4. Keep descriptions concise (max 10 words)
+
+**Definition of Done Checklist:**
+- [ ] Every lesson has `descriptionEn` field
+- [ ] Subline visible under title on all cards
+- [ ] Descriptions are in English
+- [ ] Playwright Scenario 7 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "sublines"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_evaluate(() => {
+     const cards = document.querySelectorAll('.lesson-card');
+     return Array.from(cards).every(c => 
+       c.querySelector('.subline, .description')?.textContent?.length > 0
+     );
+   }) - must return true
+3. mcp_playwright_browser_take_screenshot("test-results/LA-003-sublines.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-003] Add subline descriptions to lessons (Sources: 2, 30)
+
+Implementation:
+- Added descriptionEn to all lesson metadata
+- LessonCard displays subline under title
+- Concise English descriptions
+
+Testing:
+- MCP Playwright: Scenario 7 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-003-sublines.png"
+```
+
+---
+
+### Task: LA-004 - Implement Fundamentals Gate (80%)
+
+**Branch:** `feature/LA-004-fundamentals-gate`
+
+**Prerequisites:** TM-001 (User-prefixed storage)
+
+**Files to Change:**
+- `src/services/ProgressTracker.js` - Add accuracy check for prerequisites
+- `src/services/LessonService.js` - Implement unlock logic
+- `src/components/lesson/LessonCard.js` - Show lock icon + requirement
+
+**Implementation Steps:**
+1. Add `prerequisites` array to lesson metadata (list of required lesson IDs)
+2. Implement `canUnlockLesson(lessonId, userId)` in LessonService
+3. Check if all prerequisites have ≥80% accuracy
+4. Show lock icon on LessonCard if locked
+5. Display "Complete X with 80% to unlock" message
+
+**Definition of Done Checklist:**
+- [ ] Lessons have `prerequisites` field in metadata
+- [ ] `canUnlockLesson()` checks 80% threshold
+- [ ] Locked lessons show lock icon
+- [ ] Clicking locked lesson shows requirement message
+- [ ] Unit test confirms gate logic
+- [ ] Building Blocks lessons unlock first (no prereqs)
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/lessonService.test.js --grep "gate"
+npx playwright test tests/unit/progressTracker.test.js --grep "accuracy"
+```
+
+**MCP Playwright Validation:**
+```
+1. Clear user progress: mcp_playwright_browser_evaluate(() => localStorage.clear())
+2. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+3. mcp_playwright_browser_snapshot - verify some lessons locked
+4. mcp_playwright_browser_click on locked lesson
+5. mcp_playwright_browser_snapshot - verify requirement message shown
+6. mcp_playwright_browser_take_screenshot("test-results/LA-004-locked.png")
+7. Seed 80% progress on prereq lesson
+8. mcp_playwright_browser_navigate to refresh
+9. Verify lesson now unlocked
+10. mcp_playwright_browser_take_screenshot("test-results/LA-004-unlocked.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-004] Implement 80% fundamentals gate (Sources: 17, 21, 30)
+
+Implementation:
+- Added prerequisites field to lesson metadata
+- canUnlockLesson() checks 80% accuracy threshold
+- Lock icon + requirement message on locked lessons
+- Building Blocks tier has no prerequisites
+
+Testing:
+- Unit tests: lessonService.test.js, progressTracker.test.js - ✅
+- MCP Playwright: gate behavior verified - ✅
+
+Evidence:
+- Screenshots: test-results/LA-004-locked.png, LA-004-unlocked.png"
+```
+
+---
+
+### Task: LA-005 - Reorder Lessons by Tier
+
+**Branch:** `feature/LA-005-lesson-ordering`
+
+**Prerequisites:** LA-004 (Fundamentals gate)
+
+**Files to Change:**
+- `src/data/lessons/*.js` - Add `tier` and `order` fields
+- `src/services/LessonService.js` - Sort lessons by tier then order
+- `src/data/index.js` - Update lesson export order
+
+**Implementation Steps:**
+1. Add `tier` field: 1 = Building Blocks, 2 = Essential, 3 = Daily Topics
+2. Add `order` field for position within tier
+3. Update `getAllLessons()` to sort by tier, then order
+4. Verify Building Blocks appear first in UI
+
+**Definition of Done Checklist:**
+- [ ] All lessons have `tier` and `order` fields
+- [ ] Lessons sorted: Building Blocks → Essential → Daily Topics
+- [ ] Within each tier, lessons sorted by `order`
+- [ ] Unit test confirms sort order
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/lessonService.test.js --grep "order"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_evaluate(() => {
+     const cards = document.querySelectorAll('.lesson-card');
+     return Array.from(cards).map(c => c.dataset.tier);
+   }) - verify order is [1,1,1,...,2,2,...,3,3,...]
+3. mcp_playwright_browser_take_screenshot("test-results/LA-005-order.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-005] Reorder lessons by tier (Sources: 17, 21, 30)
+
+Implementation:
+- Added tier (1/2/3) and order fields to all lessons
+- Building Blocks (1) → Essential (2) → Daily Topics (3)
+- getAllLessons() sorts by tier then order
+
+Testing:
+- Unit tests: lessonService.test.js - ✅
+- MCP Playwright: order verified - ✅
+
+Evidence:
+- Screenshot: test-results/LA-005-order.png"
+```
+
+---
 
 ### Task: LA-006 - Implement Word Order Builder
 
@@ -1571,6 +1908,195 @@ Evidence:
 
 ---
 
+### Task: LA-007 - Implement Sentence Builder with Distractors
+
+**Branch:** `feature/LA-007-sentence-builder`
+
+**Prerequisites:** LA-006 (Word order builder - similar pattern)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add sentence builder exercise
+- `src/data/lessons/*.js` - Add sentence builder challenges
+
+**Implementation Steps:**
+1. Add `renderSentenceBuilderExercise()` function
+2. Display target sentence in English
+3. Show word bank with correct words + ≥2 distractors
+4. Distractors should be plausible (same category)
+5. Log wrong picks but allow exercise to continue
+6. Validate final sentence matches target translation
+
+**Definition of Done Checklist:**
+- [ ] Word bank displays correct + distractor words
+- [ ] Distractors are plausible (e.g., drinks category for café)
+- [ ] Wrong picks logged but exercise continues
+- [ ] Correct sentence validated on submit
+- [ ] Telemetry: `wrong_token_picks`, `attempt_count`, `time_per_selection`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "sentence-builder"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to sentence builder lesson
+2. mcp_playwright_browser_snapshot - verify word bank visible
+3. mcp_playwright_browser_click on wrong word (distractor)
+4. mcp_playwright_browser_evaluate(() => window.wrongPicks) - verify logged
+5. mcp_playwright_browser_click on correct words in order
+6. mcp_playwright_browser_take_screenshot("test-results/LA-007-sentence-builder.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-007] Implement sentence builder with distractors (Sources: 1, 14, 52)
+
+Implementation:
+- Added renderSentenceBuilderExercise()
+- Word bank includes correct words + plausible distractors
+- Wrong picks logged for learning analytics
+- Telemetry: wrong_token_picks, attempt_count, time_per_selection
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+- MCP Playwright: word bank verified - ✅
+
+Evidence:
+- Screenshot: test-results/LA-007-sentence-builder.png"
+```
+
+---
+
+### Task: LA-008 - Implement Cloze Translation
+
+**Branch:** `feature/LA-008-cloze-translation`
+
+**Prerequisites:** None
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add cloze exercise
+- `src/data/lessons/*.js` - Add cloze challenges
+
+**Implementation Steps:**
+1. Add `renderClozeExercise()` function
+2. Display sentence with _____ blank
+3. Support keyboard input OR word bank click (configurable)
+4. Implement accent tolerance (accept "cafe" for "café", note if missing)
+5. Categorize errors: `spelling_error` vs `lexical_error` vs `correct`
+6. Show different feedback per error type
+
+**Definition of Done Checklist:**
+- [ ] Blank renders clearly in sentence
+- [ ] Accepts keyboard input with accent tolerance
+- [ ] Categorizes error type correctly
+- [ ] Shows different feedback for spelling vs lexical errors
+- [ ] Telemetry: `latency`, `error_type`, `attempts`, `accent_used`
+- [ ] Playwright Scenario 2 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "cloze"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to cloze lesson
+2. mcp_playwright_browser_snapshot - verify blank visible
+3. mcp_playwright_browser_type("cafe") - without accent
+4. mcp_playwright_browser_click submit
+5. mcp_playwright_browser_snapshot - verify feedback mentions accent
+6. mcp_playwright_browser_take_screenshot("test-results/LA-008-cloze.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-008] Implement cloze translation exercise (Sources: 1, 14, 23)
+
+Implementation:
+- Added renderClozeExercise() with blank in context
+- Accent-tolerant input with feedback
+- Error categorization: spelling vs lexical
+- Telemetry: latency, error_type, attempts, accent_used
+
+Testing:
+- E2E: lesson.e2e.test.js - ✅
+- MCP Playwright: Scenario 2 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-008-cloze.png"
+```
+
+---
+
+### Task: LA-009 - Implement Picture Flashcard
+
+**Branch:** `feature/LA-009-picture-flashcard`
+
+**Prerequisites:** LA-021 (Asset preload) recommended
+
+**Files to Change:**
+- `src/components/lesson/LessonCard.js` - Add picture flashcard view
+- `src/components/lesson/ChallengeRenderer.js` - Add picture selection
+- `assets/` folder - Add required images
+
+**Implementation Steps:**
+1. Add `renderPictureFlashcardExercise()` function
+2. Display 3-6 images in grid
+3. Play audio/show text of target word
+4. User clicks matching image
+5. All images must have alt text
+6. Preload images before rendering
+
+**Definition of Done Checklist:**
+- [ ] 3+ images render in grid
+- [ ] Images preloaded (no lazy-load failures)
+- [ ] Alt text present on all images
+- [ ] Correct selection triggers success feedback
+- [ ] Wrong selection triggers try-again feedback
+- [ ] Telemetry: `chosen_option`, `asset_load_success`, `time_to_select`
+- [ ] Playwright Scenario 2 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "picture"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to picture flashcard lesson
+2. mcp_playwright_browser_snapshot - verify images visible
+3. mcp_playwright_browser_evaluate(() => {
+     const imgs = document.querySelectorAll('.flashcard-image');
+     return Array.from(imgs).every(img => img.complete && img.alt);
+   }) - must return true
+4. mcp_playwright_browser_click on wrong image
+5. mcp_playwright_browser_snapshot - verify try-again feedback
+6. mcp_playwright_browser_click on correct image
+7. mcp_playwright_browser_take_screenshot("test-results/LA-009-picture.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-009] Implement picture flashcard exercise (Sources: 1, 4, 15, 47)
+
+Implementation:
+- Added renderPictureFlashcardExercise()
+- 3-6 images in grid with preloading
+- Alt text on all images
+- Audio plays target word
+- Telemetry: chosen_option, asset_load_success, time_to_select
+
+Testing:
+- E2E: lesson.e2e.test.js - ✅
+- MCP Playwright: Scenario 2 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-009-picture.png"
+```
+
+---
+
 ### Task: LA-010 - Implement Image→Type Exercise (pastel→pastry)
 
 **Branch:** `feature/LA-010-image-type-exercise`
@@ -1636,6 +2162,854 @@ Testing:
 Evidence:
 - Screenshot: test-results/LA-010-image-type.png
 - Image URL verified as subject-matched"
+```
+
+---
+
+### Task: LA-011 - Implement Audio→Type Dictation
+
+**Branch:** `feature/LA-011-audio-dictation`
+
+**Prerequisites:** Voice services working
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add dictation exercise
+- `src/services/VoiceService.js` - Ensure TTS integration
+- `src/services/TTSService.js` - Edge-TTS pt-PT voices
+
+**Implementation Steps:**
+1. Add `renderDictationExercise()` function
+2. Auto-play audio on exercise start (Edge-TTS pt-PT)
+3. Add replay button (unlimited replays)
+4. Add speed slider (0.5x - 1.5x) that affects playback
+5. Calculate WER score on submit
+6. Voice configurable: Duarte (male) or Raquel (female) from admin
+
+**Definition of Done Checklist:**
+- [ ] Audio plays on exercise start
+- [ ] Replay button works (unlimited)
+- [ ] Speed slider visibly moves and affects playback
+- [ ] WER score calculated and displayed
+- [ ] Telemetry: `wer_score`, `replay_count`, `speed_used`, `time_to_submit`
+- [ ] Playwright Scenario 5 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/voice.e2e.test.js --grep "dictation"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to dictation lesson
+2. mcp_playwright_browser_evaluate(() => {
+     const audio = document.querySelector('audio');
+     return audio && audio.currentTime > 0;
+   }) - verify audio played
+3. mcp_playwright_browser_click on speed slider, drag to 0.75
+4. mcp_playwright_browser_evaluate(() => {
+     return document.querySelector('.speed-slider')?.value;
+   }) - verify < 1.0
+5. mcp_playwright_browser_type transcript
+6. mcp_playwright_browser_click submit
+7. mcp_playwright_browser_take_screenshot("test-results/LA-011-dictation.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-011] Implement audio→type dictation (Sources: 5, 38, 39)
+
+Implementation:
+- Added renderDictationExercise() with auto-play
+- Replay button + speed slider (0.5x-1.5x)
+- WER scoring on submit
+- Edge-TTS pt-PT voices (Duarte/Raquel)
+- Telemetry: wer_score, replay_count, speed_used
+
+Testing:
+- E2E: voice.e2e.test.js - ✅
+- MCP Playwright: Scenario 5 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-011-dictation.png"
+```
+
+---
+
+### Task: LA-012 - Implement Audio→Pick MCQ
+
+**Branch:** `feature/LA-012-audio-mcq`
+
+**Prerequisites:** LA-011 (Audio infrastructure)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add audio MCQ
+
+**Implementation Steps:**
+1. Add `renderAudioMCQExercise()` function
+2. Play audio of Portuguese phrase
+3. Display 4 English translation options
+4. Randomize option order each attempt
+5. Distractors should be plausible (similar structure)
+
+**Definition of Done Checklist:**
+- [ ] 4 options displayed clearly
+- [ ] Order randomized (not alphabetical)
+- [ ] Correct answer validated
+- [ ] Distractors are plausible
+- [ ] Telemetry: `chosen_option`, `was_distractor`, `audio_replay_count`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "audio-mcq"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to audio MCQ lesson
+2. mcp_playwright_browser_snapshot - verify 4 options visible
+3. mcp_playwright_browser_evaluate(() => {
+     const opts = document.querySelectorAll('.mcq-option');
+     return opts.length === 4;
+   })
+4. mcp_playwright_browser_click on correct option
+5. mcp_playwright_browser_take_screenshot("test-results/LA-012-audio-mcq.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-012] Implement audio→pick MCQ (Sources: 1, 52)
+
+Implementation:
+- Added renderAudioMCQExercise()
+- 4 options with randomized order
+- Plausible distractors (similar structure)
+- Telemetry: chosen_option, was_distractor, audio_replay_count
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-012-audio-mcq.png"
+```
+
+---
+
+### Task: LA-013 - Implement Minimal Pair Picker
+
+**Branch:** `feature/LA-013-minimal-pairs`
+
+**Prerequisites:** LA-011 (Audio infrastructure)
+
+**Files to Change:**
+- `src/services/PronunciationService.js` - Add minimal pair logic
+- `src/components/lesson/ChallengeRenderer.js` - Add minimal pair UI
+
+**Implementation Steps:**
+1. Add `renderMinimalPairExercise()` function
+2. Display two audio buttons for similar words (e.g., avô/avó)
+3. Prompt: "Select 'avô' (grandfather)"
+4. On wrong answer, explain IPA difference
+5. Log confusion to user's phoneme profile
+
+**Definition of Done Checklist:**
+- [ ] Two audio options clearly labeled
+- [ ] Both play distinct audio files
+- [ ] Selection captured correctly
+- [ ] Confusion logged to user's phoneme profile
+- [ ] Feedback includes IPA explanation
+- [ ] Telemetry: `confusion_matrix` entry, `attempts`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/pronunciationService.test.js --grep "minimal"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to minimal pair lesson
+2. mcp_playwright_browser_click first audio button
+3. mcp_playwright_browser_click second audio button
+4. mcp_playwright_browser_click wrong option
+5. mcp_playwright_browser_snapshot - verify IPA feedback shown
+6. mcp_playwright_browser_take_screenshot("test-results/LA-013-minimal-pair.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-013] Implement minimal pair picker (Sources: 32, 38, 50)
+
+Implementation:
+- Added renderMinimalPairExercise()
+- Two audio buttons for similar phonemes
+- IPA explanation on wrong answer
+- Confusion logged to phoneme profile
+- Telemetry: confusion_matrix, attempts
+
+Testing:
+- Unit tests: pronunciationService.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-013-minimal-pair.png"
+```
+
+---
+
+### Task: LA-014 - Implement Word-Image Match Grid
+
+**Branch:** `feature/LA-014-match-grid`
+
+**Prerequisites:** LA-021 (Asset preload)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add match grid
+
+**Implementation Steps:**
+1. Add `renderMatchGridExercise()` function
+2. Display 4-6 words on left, 4-6 images on right
+3. Shuffle both columns independently
+4. Implement line-drawing or click-pair matching
+5. All pairs must match to complete
+
+**Definition of Done Checklist:**
+- [ ] Grid displays shuffled words and images
+- [ ] Matching interaction works (line or click)
+- [ ] All pairs must match to complete
+- [ ] Per-pair telemetry logged
+- [ ] Telemetry: `attempts_per_pair`, `total_time`, `wrong_matches`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "match-grid"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to match grid lesson
+2. mcp_playwright_browser_snapshot - verify grid layout
+3. mcp_playwright_browser_click on word, then matching image
+4. mcp_playwright_browser_evaluate(() => window.matchedPairs?.length)
+5. Complete all pairs
+6. mcp_playwright_browser_take_screenshot("test-results/LA-014-match-grid.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-014] Implement word-image match grid (Sources: 1, 4, 8)
+
+Implementation:
+- Added renderMatchGridExercise()
+- 4-6 word-image pairs, both shuffled
+- Click-pair matching interaction
+- Per-pair telemetry: attempts_per_pair, total_time, wrong_matches
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-014-match-grid.png"
+```
+
+---
+
+### Task: LA-015 - Implement Grammar Transform
+
+**Branch:** `feature/LA-015-grammar-transform`
+
+**Prerequisites:** None
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add grammar transform
+- `src/data/ai-reference/grammar-patterns.js` - Grammar rules reference
+
+**Implementation Steps:**
+1. Add `renderGrammarTransformExercise()` function
+2. Prompt: "Change to past tense: eu falo"
+3. Validate morphological correctness (not just string match)
+4. Categorize errors: tense/person/gender/number
+
+**Definition of Done Checklist:**
+- [ ] Prompt clearly states transformation required
+- [ ] Validates morphology (not just string match)
+- [ ] Categorizes errors correctly
+- [ ] References grammar-patterns.js for rules
+- [ ] Telemetry: `error_category`, `transform_type`, `attempts`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "grammar"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to grammar transform lesson
+2. mcp_playwright_browser_snapshot - verify prompt visible
+3. mcp_playwright_browser_type("eu falei")
+4. mcp_playwright_browser_click submit
+5. mcp_playwright_browser_take_screenshot("test-results/LA-015-grammar.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-015] Implement grammar transform (Sources: 20, 24, 49)
+
+Implementation:
+- Added renderGrammarTransformExercise()
+- Morphological validation (tense/person/gender/number)
+- Uses grammar-patterns.js for rules
+- Error categorization in telemetry
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-015-grammar.png"
+```
+
+---
+
+### Task: LA-016 - Implement Dialogue Reorder
+
+**Branch:** `feature/LA-016-dialogue-reorder`
+
+**Prerequisites:** LA-011 (Audio infrastructure)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add dialogue reorder
+- Audio assets for dialogue clips
+
+**Implementation Steps:**
+1. Add `renderDialogueReorderExercise()` function
+2. Display 2-4 audio clips in shuffled order
+3. Each clip plays when clicked
+4. User drags/clicks to arrange in correct conversation order
+5. Validate logical flow on submit
+
+**Definition of Done Checklist:**
+- [ ] Multiple clips play independently
+- [ ] Drag/click to reorder works
+- [ ] Order validated on submit
+- [ ] Telemetry: `mis_order_count`, `clips_played`, `total_time`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "dialogue"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to dialogue lesson
+2. mcp_playwright_browser_click on each clip to play
+3. mcp_playwright_browser_drag clips to reorder
+4. mcp_playwright_browser_click submit
+5. mcp_playwright_browser_take_screenshot("test-results/LA-016-dialogue.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-016] Implement dialogue reorder (Sources: 9, 29)
+
+Implementation:
+- Added renderDialogueReorderExercise()
+- 2-4 audio clips, shuffled
+- Drag/click to reorder
+- Telemetry: mis_order_count, clips_played, total_time
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-016-dialogue.png"
+```
+
+---
+
+### Task: LA-017 - Implement Pronunciation Shadowing
+
+**Branch:** `feature/LA-017-pronunciation-shadowing`
+
+**Prerequisites:** LA-011 (Audio), PronunciationService working
+
+**Files to Change:**
+- `src/services/PronunciationService.js` - Add shadowing scoring
+- `src/services/PhoneticScorer.js` - Per-phoneme analysis
+- `src/components/lesson/ChallengeRenderer.js` - Add shadowing UI
+
+**Implementation Steps:**
+1. Add `renderShadowingExercise()` function
+2. Play target audio with transcript visible
+3. User clicks record and repeats phrase
+4. Compare recording to target via PhoneticScorer
+5. Display per-phoneme feedback (green/yellow/red)
+6. Show IPA differences for problem phonemes
+
+**Definition of Done Checklist:**
+- [ ] Target audio plays with transcript shown
+- [ ] Recording captures user audio
+- [ ] Phonetic scoring returns per-phoneme
+- [ ] Per-phoneme feedback displayed (green/yellow/red)
+- [ ] IPA differences explained
+- [ ] Telemetry: `per_phoneme_accuracy[]`, `overall_score`, `problem_phonemes[]`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/phoneticScorer.test.js
+npx playwright test tests/unit/pronunciationService.test.js --grep "shadowing"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to shadowing lesson
+2. mcp_playwright_browser_click play target
+3. mcp_playwright_browser_click record button
+4. Wait 3 seconds
+5. mcp_playwright_browser_click stop
+6. mcp_playwright_browser_snapshot - verify phoneme feedback visible
+7. mcp_playwright_browser_take_screenshot("test-results/LA-017-shadowing.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-017] Implement pronunciation shadowing (Sources: 16, 35, 50)
+
+Implementation:
+- Added renderShadowingExercise()
+- Records user audio, compares to target
+- Per-phoneme scoring with IPA feedback
+- Telemetry: per_phoneme_accuracy, overall_score, problem_phonemes
+
+Testing:
+- Unit tests: phoneticScorer.test.js, pronunciationService.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-017-shadowing.png"
+```
+
+---
+
+### Task: LA-018 - Implement Number Comprehension
+
+**Branch:** `feature/LA-018-number-comprehension`
+
+**Prerequisites:** LA-011 (Audio)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add number exercise
+- Number assets (finger images for 1-10)
+
+**Implementation Steps:**
+1. Add `renderNumberExercise()` function
+2. Play number audio in Portuguese
+3. For 1-10: show finger image
+4. For 11+: show digit display
+5. User types numeric answer
+6. Calculate "off-by" error magnitude
+
+**Definition of Done Checklist:**
+- [ ] Audio plays number clearly
+- [ ] Finger/digit image visible alongside audio
+- [ ] Numeric input accepts only digits
+- [ ] Feedback shows correct/incorrect
+- [ ] Telemetry: `off_by_error`, `response_time`
+- [ ] Playwright Scenario 4 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "number"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to number lesson
+2. mcp_playwright_browser_click play audio
+3. mcp_playwright_browser_snapshot - verify finger image (for 1-10)
+4. mcp_playwright_browser_type("5")
+5. mcp_playwright_browser_click submit
+6. mcp_playwright_browser_take_screenshot("test-results/LA-018-number.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-018] Implement number comprehension (Sources: 40, 59, 60)
+
+Implementation:
+- Added renderNumberExercise()
+- Finger images for 1-10, digits for 11+
+- Off-by error calculation
+- Telemetry: off_by_error, response_time
+
+Testing:
+- E2E: lesson.e2e.test.js - ✅
+- MCP Playwright: Scenario 4 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-018-number.png"
+```
+
+---
+
+### Task: LA-019 - Implement Rapid Recall
+
+**Branch:** `feature/LA-019-rapid-recall`
+
+**Prerequisites:** Multiple exercises implemented
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add rapid recall mode
+- Timer utility
+
+**Implementation Steps:**
+1. Add `renderRapidRecallExercise()` function
+2. Display visible countdown timer (30-60s configurable)
+3. Flash card appears: image + audio
+4. User types answer quickly
+5. Auto-advance after answer or 5s timeout
+6. Calculate items/second + accuracy at end
+
+**Definition of Done Checklist:**
+- [ ] Timer displays and counts down visibly
+- [ ] Items cycle with auto-advance
+- [ ] Score calculated at end
+- [ ] Items per second + accuracy shown
+- [ ] Telemetry: `items_per_second`, `accuracy`, `timeout_count`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "rapid"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to rapid recall lesson
+2. mcp_playwright_browser_snapshot - verify timer visible
+3. mcp_playwright_browser_type first answer
+4. mcp_playwright_browser_snapshot - verify auto-advanced
+5. Wait for timer to end
+6. mcp_playwright_browser_take_screenshot("test-results/LA-019-rapid.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-019] Implement rapid recall (Sources: 23, 27, 51)
+
+Implementation:
+- Added renderRapidRecallExercise()
+- Countdown timer (30-60s)
+- Auto-advance after answer or timeout
+- Score: items/second + accuracy
+- Telemetry: items_per_second, accuracy, timeout_count
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-019-rapid.png"
+```
+
+---
+
+### Task: LA-020 - Implement Multi-Modal Dual Coding
+
+**Branch:** `feature/LA-020-dual-coding`
+
+**Prerequisites:** LA-011 (Audio), LA-021 (Assets)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add dual coding exercise
+
+**Implementation Steps:**
+1. Add `renderDualCodingExercise()` function
+2. Present word with text + image + audio simultaneously
+3. Audio auto-plays on load
+4. User types English translation
+5. After submit, ask "Which helped you remember?" (text/image/audio)
+6. Log modality preference for future lessons
+
+**Definition of Done Checklist:**
+- [ ] All three modalities render simultaneously
+- [ ] Audio plays on load
+- [ ] User can click to replay audio
+- [ ] Translation validated
+- [ ] Modality preference captured
+- [ ] Telemetry: `modality_clicked`, `modality_preference`, `recall_success`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "dual-coding"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to dual coding lesson
+2. mcp_playwright_browser_snapshot - verify text + image + audio controls
+3. mcp_playwright_browser_type("cat")
+4. mcp_playwright_browser_click submit
+5. mcp_playwright_browser_click "image" preference
+6. mcp_playwright_browser_take_screenshot("test-results/LA-020-dual.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-020] Implement multi-modal dual coding (Sources: 25, 26, 47)
+
+Implementation:
+- Added renderDualCodingExercise()
+- Text + image + audio presented simultaneously
+- Modality preference survey after answer
+- Telemetry: modality_clicked, modality_preference, recall_success
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-020-dual.png"
+```
+
+---
+
+### Task: LA-021 - Asset Preload System
+
+**Branch:** `feature/LA-021-asset-preload`
+
+**Prerequisites:** None (can be done early or late)
+
+**Files to Change:**
+- `src/utils/assetLoader.js` - Create asset preloader
+- `src/components/lesson/LessonCard.js` - Use preloader
+
+**Implementation Steps:**
+1. Create `preloadAssets(urls)` utility function
+2. Load all images before lesson renders
+3. Require alt text on all images
+4. Fail build if asset missing or invalid
+5. Log asset load times for performance monitoring
+
+**Definition of Done Checklist:**
+- [ ] All images preloaded before render
+- [ ] No lazy-load failures during exercises
+- [ ] Alt text required on every image
+- [ ] Build fails if asset missing
+- [ ] Telemetry: `asset_load_time`, `asset_failures`
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/assetLoader.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to image-heavy lesson
+2. mcp_playwright_browser_evaluate(() => {
+     const imgs = document.querySelectorAll('img');
+     return Array.from(imgs).every(img => img.complete && img.naturalWidth > 0);
+   }) - must return true (all loaded)
+3. mcp_playwright_browser_evaluate(() => {
+     const imgs = document.querySelectorAll('img');
+     return Array.from(imgs).every(img => img.alt && img.alt.length > 0);
+   }) - must return true (all have alt)
+4. mcp_playwright_browser_take_screenshot("test-results/LA-021-preload.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-021] Implement asset preload system (Sources: 4, 15, 47)
+
+Implementation:
+- Created preloadAssets() utility
+- All images preloaded before render
+- Alt text required (enforced)
+- Build fails on missing assets
+- Telemetry: asset_load_time, asset_failures
+
+Testing:
+- Unit tests: assetLoader.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LA-021-preload.png
+- All images loaded and have alt text"
+```
+
+---
+
+### Task: AI-001 - Phase 1 Static Seed Generation
+
+**Branch:** `feature/AI-001-static-seed`
+
+**Prerequisites:** None (foundation task)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add phase detection and template generation
+
+**Implementation Steps:**
+1. Add `getInteractionCount(userId)` function
+2. If count < 50, use template-based generation
+3. Create `generateFromTemplate(lessonId, options)` function
+4. Use fixed exercise type mix: word_order, cloze, picture_flashcard
+5. No profiler signals consumed in this phase
+6. Telemetry still captured for future phases
+
+**Definition of Done Checklist:**
+- [ ] AIAgent detects interaction count < 50
+- [ ] Uses template-based generation (no profiler signals)
+- [ ] Exercise mix follows default distribution
+- [ ] Telemetry captured for future phases
+- [ ] Unit test confirms phase detection
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiService.test.js --grep "phase-1"
+```
+
+**MCP Playwright Validation:**
+```
+1. Clear user data: mcp_playwright_browser_evaluate(() => localStorage.clear())
+2. mcp_playwright_browser_navigate to lesson
+3. mcp_playwright_browser_evaluate(() => window.aiPhase) - should be 1
+4. Complete 10 exercises
+5. mcp_playwright_browser_evaluate(() => window.aiPhase) - still 1
+6. mcp_playwright_browser_take_screenshot("test-results/AI-001-phase1.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-001] Implement Phase 1 static seed generation (Sources: 17, 37)
+
+Implementation:
+- Added phase detection based on interaction count
+- Template-based generation for < 50 interactions
+- Fixed exercise mix: word_order, cloze, picture_flashcard
+- No profiler signals consumed yet
+- Telemetry captured for future phases
+
+Testing:
+- Unit tests: aiService.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/AI-001-phase1.png"
+```
+
+---
+
+### Task: AI-002 - Phase 2 Adaptive Selection
+
+**Branch:** `feature/AI-002-adaptive-selection`
+
+**Prerequisites:** AI-001 (Phase 1), TM-002 (Events)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add adaptive logic
+- `src/services/learning/LearnerProfiler.js` - Consume signals
+
+**Implementation Steps:**
+1. Detect 50+ interactions → switch to Phase 2
+2. Consume LearnerProfiler signals:
+   - `pronunciation_weak_phonemes[]`
+   - `confusion_pairs[]`
+   - `avg_response_latency`
+   - `repeated_fail_words[]`
+3. Adjust exercise mix based on weaknesses
+4. Start interleaving (20% review from prior tier)
+
+**Definition of Done Checklist:**
+- [ ] AIAgent detects 50+ interactions
+- [ ] Consumes LearnerProfiler signals
+- [ ] Exercise mix changes based on weaknesses
+- [ ] Interleaving begins (20% review)
+- [ ] Unit test confirms signal consumption
+- [ ] Playwright Scenario 6 passes
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiService.test.js --grep "phase-2"
+npx playwright test tests/unit/learnerProfiler.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Seed user with 60 interactions + weak phoneme /ão/
+2. mcp_playwright_browser_navigate to lesson
+3. mcp_playwright_browser_evaluate(() => window.aiPhase) - should be 2
+4. mcp_playwright_browser_snapshot - verify minimal pair or shadowing exercise
+5. mcp_playwright_browser_take_screenshot("test-results/AI-002-phase2.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-002] Implement Phase 2 adaptive selection (Sources: 19, 21, 37)
+
+Implementation:
+- Phase 2 activates at 50+ interactions
+- Consumes LearnerProfiler signals
+- Exercise mix adapts to weaknesses
+- 20% review items interleaved
+- Telemetry includes profiler signals
+
+Testing:
+- Unit tests: aiService.test.js, learnerProfiler.test.js - ✅
+- MCP Playwright: Scenario 6 - ✅
+
+Evidence:
+- Screenshot: test-results/AI-002-phase2.png"
+```
+
+---
+
+### Task: AI-003 - Phase 3 Portfolio-Based
+
+**Branch:** `feature/AI-003-portfolio-based`
+
+**Prerequisites:** AI-002 (Phase 2), AI-006 (FSRS)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add portfolio logic
+- `src/services/learning/FSRSEngine.js` - FSRS integration
+
+**Implementation Steps:**
+1. Detect 200+ interactions → switch to Phase 3
+2. Use FSRS scheduling for review ratio (10-30%)
+3. Generate custom mini-lessons for weak areas
+4. Add save/discard flow for generated lessons
+5. Include performance predictions
+
+**Definition of Done Checklist:**
+- [ ] AIAgent detects 200+ interactions
+- [ ] FSRS scheduling determines review items
+- [ ] Custom lesson generation works
+- [ ] Save/discard flow implemented
+- [ ] Telemetry includes FSRS intervals
+- [ ] Integration test for full adaptive path
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiService.test.js --grep "phase-3"
+npx playwright test tests/integration/aiPipeline.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Seed user with 250 interactions
+2. mcp_playwright_browser_navigate to lesson
+3. mcp_playwright_browser_evaluate(() => window.aiPhase) - should be 3
+4. mcp_playwright_browser_snapshot - verify FSRS-based review
+5. mcp_playwright_browser_take_screenshot("test-results/AI-003-phase3.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-003] Implement Phase 3 portfolio-based generation (Sources: 22, 37)
+
+Implementation:
+- Phase 3 activates at 200+ interactions
+- FSRS scheduling for review (10-30%)
+- Custom mini-lesson generation
+- Save/discard flow for user approval
+- Performance predictions
+
+Testing:
+- Unit tests: aiService.test.js - ✅
+- Integration tests: aiPipeline.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/AI-003-phase3.png"
 ```
 
 ---
@@ -1714,6 +3088,241 @@ Evidence:
 
 ---
 
+### Task: AI-005 - Dynamic AI Tips from Performance
+
+**Branch:** `feature/AI-005-dynamic-tips`
+
+**Prerequisites:** AI-002 (LearnerProfiler), TM-002 (Events)
+
+**Files to Change:**
+- `src/services/ai/AITipGenerator.js` - Create tip generator
+- `src/data/ai-reference/phonemes.js` - Phoneme reference
+- `src/data/ai-reference/grammar-patterns.js` - Grammar reference
+- `src/data/ai-reference/mnemonic-patterns.js` - Memory tips
+
+**Implementation Steps:**
+1. Create `generateTips(userId, exerciseResult, context)` function
+2. Consume signals: pronunciation scores, confusion pairs, latency, hint usage
+3. Generate tips from reference data (NEVER hardcode)
+4. Rotate tips - no repeats within session
+5. Maximum 2 tips per exercise
+
+**Definition of Done Checklist:**
+- [ ] Tips generated from user data (not hardcoded)
+- [ ] Uses reference material (phonemes.js, grammar-patterns.js)
+- [ ] Rotates tips within session
+- [ ] Max 2 tips per exercise enforced
+- [ ] Telemetry: `ai_tip_shown` with tipId, category
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiTipGenerator.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Seed user with weak phoneme /ão/
+2. mcp_playwright_browser_navigate to exercise
+3. Complete with pronunciation error
+4. mcp_playwright_browser_snapshot - verify tip displayed
+5. mcp_playwright_browser_evaluate(() => window.lastTip) - verify generated
+6. mcp_playwright_browser_take_screenshot("test-results/AI-005-tips.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-005] Implement dynamic AI tips (Sources: 48, 36)
+
+Implementation:
+- Created AITipGenerator with generateTips()
+- Uses phonemes.js, grammar-patterns.js, mnemonic-patterns.js
+- Tips rotate within session (no repeats)
+- Max 2 tips per exercise
+- Never hardcoded
+
+Testing:
+- Unit tests: aiTipGenerator.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/AI-005-tips.png"
+```
+
+---
+
+### Task: AI-006 - FSRS Integration for Review
+
+**Branch:** `feature/AI-006-fsrs-integration`
+
+**Prerequisites:** TM-002 (Events track word performance)
+
+**Files to Change:**
+- `src/services/learning/FSRSEngine.js` - Implement FSRS scheduler
+- `src/services/ai/AIAgent.js` - Use FSRS for review selection
+
+**Implementation Steps:**
+1. Implement FSRS algorithm (based on Anki's algorithm)
+2. Calculate next review interval per word
+3. `getDueItems(userId)` returns items due for review
+4. Calculate review ratio (10-30% based on due items)
+5. Integrate with AIAgent for lesson generation
+
+**Definition of Done Checklist:**
+- [ ] FSRS algorithm implemented
+- [ ] Next review intervals calculated correctly
+- [ ] getDueItems() returns due items
+- [ ] 10-30% review items interleaved
+- [ ] Unit test confirms FSRS calculations
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/fsrsEngine.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Seed user with varied word performance
+2. mcp_playwright_browser_navigate to lesson
+3. mcp_playwright_browser_evaluate(() => {
+     return window.lessonConfig?.reviewRatio;
+   }) - verify 0.10-0.30
+4. mcp_playwright_browser_take_screenshot("test-results/AI-006-fsrs.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-006] Implement FSRS integration (Sources: 22, 24)
+
+Implementation:
+- FSRSEngine with interval calculation
+- getDueItems() returns due review words
+- Review ratio 10-30% based on due items
+- Integrated with AIAgent
+
+Testing:
+- Unit tests: fsrsEngine.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/AI-006-fsrs.png"
+```
+
+---
+
+### Task: AI-007 - Encouragement Tips at < 70%
+
+**Branch:** `feature/AI-007-encouragement-tips`
+
+**Prerequisites:** AI-005 (AITipGenerator)
+
+**Files to Change:**
+- `src/services/ai/AITipGenerator.js` - Add encouragement logic
+
+**Implementation Steps:**
+1. Check `profile.recentAccuracy` before generating tips
+2. If < 70%, always include encouragement tip
+3. Use mnemonic-patterns.js for encouragement templates
+4. Generate (never hardcode) - include user's recent success
+5. Encouragement tip counts toward 2-tip max
+
+**Definition of Done Checklist:**
+- [ ] Encouragement triggers at accuracy < 70%
+- [ ] Tips are generated (not hardcoded)
+- [ ] References user's actual progress
+- [ ] Counts toward 2-tip maximum
+- [ ] Unit test confirms threshold
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiTipGenerator.test.js --grep "encouragement"
+```
+
+**MCP Playwright Validation:**
+```
+1. Seed user with 60% recent accuracy
+2. mcp_playwright_browser_navigate to exercise
+3. Complete exercise
+4. mcp_playwright_browser_snapshot - verify encouragement tip shown
+5. mcp_playwright_browser_evaluate(() => window.lastTip?.category) - "encouragement"
+6. mcp_playwright_browser_take_screenshot("test-results/AI-007-encourage.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-007] Implement encouragement tips at <70% (Sources: 18, 48)
+
+Implementation:
+- Encouragement triggers when accuracy < 70%
+- Generated from user's actual progress
+- Uses mnemonic-patterns.js templates
+- Never hardcoded
+- Counts toward 2-tip max
+
+Testing:
+- Unit tests: aiTipGenerator.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/AI-007-encourage.png"
+```
+
+---
+
+### Task: TM-001 - User-Prefixed Storage Keys
+
+**Branch:** `feature/TM-001-user-prefixed-storage`
+
+**Prerequisites:** None (PRIORITY - do early)
+
+**Files to Change:**
+- All services using localStorage
+- `src/services/userStorage.js` - Create helper
+
+**Implementation Steps:**
+1. Create `userStorage.js` with `get(key)`, `set(key, value)`
+2. All methods auto-prefix with `${userId}_`
+3. Find/replace all direct localStorage calls
+4. Add validation that key has prefix
+
+**Definition of Done Checklist:**
+- [ ] All keys use `${userId}_` prefix
+- [ ] No direct localStorage calls remain
+- [ ] userStorage.js enforces prefix
+- [ ] Unit test checks all storage calls
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/userStorage.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Login as user "test123"
+2. Complete exercise
+3. mcp_playwright_browser_evaluate(() => {
+     const keys = Object.keys(localStorage);
+     return keys.filter(k => !k.startsWith('test123_'));
+   }) - should return [] (no unprefixed keys)
+4. mcp_playwright_browser_take_screenshot("test-results/TM-001-prefix.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TM-001] Implement user-prefixed storage keys (Sources: 56)
+
+Implementation:
+- Created userStorage.js helper
+- Auto-prefixes all keys with userId
+- Replaced all direct localStorage calls
+- Validation enforces prefix
+
+Testing:
+- Unit tests: userStorage.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TM-001-prefix.png
+- No unprefixed keys in localStorage"
+```
+
+---
+
 ### Task: TM-002 - Implement All Required Events
 
 **Branch:** `feature/TM-002-telemetry-events`
@@ -1763,6 +3372,935 @@ npx playwright test tests/unit/eventStreaming.test.js
 7. Complete lesson
 8. mcp_playwright_browser_evaluate - verify lesson_complete event
 9. mcp_playwright_browser_take_screenshot("test-results/TM-002-events.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TM-002] Implement all required events (Sources: 57)
+
+Implementation:
+- All 7 event types now emitted
+- Payloads validated with required fields
+- Events use userId prefix
+- Logger and EventStreaming integrated
+
+Testing:
+- Unit tests: logger.test.js, eventStreaming.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TM-002-events.png"
+```
+
+---
+
+### Task: TM-003 - Event Payload Validation
+
+**Branch:** `feature/TM-003-payload-validation`
+
+**Prerequisites:** TM-002 (Events exist)
+
+**Files to Change:**
+- `tests/unit/eventSchemas.test.js` - Create schema tests
+- `src/services/eventStreaming.js` - Add validation
+
+**Implementation Steps:**
+1. Define JSON schema for each event type
+2. Add validation in EventStreaming.emit()
+3. Throw error on missing required fields
+4. Unit tests for all 7 event schemas
+
+**Definition of Done Checklist:**
+- [ ] Payloads match schema
+- [ ] Missing fields throw error
+- [ ] All 7 schemas tested
+- [ ] Runtime validation active
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/eventSchemas.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to lesson
+2. mcp_playwright_browser_evaluate(() => {
+     try {
+       EventStreaming.emit('answer_attempt', {}); // missing fields
+       return false;
+     } catch(e) { return true; }
+   }) - should return true (error thrown)
+3. mcp_playwright_browser_take_screenshot("test-results/TM-003-validation.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TM-003] Implement event payload validation (Sources: 57)
+
+Implementation:
+- JSON schemas for all 7 event types
+- Validation in EventStreaming.emit()
+- Missing fields throw errors
+- Runtime validation active
+
+Testing:
+- Unit tests: eventSchemas.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TM-003-validation.png"
+```
+
+---
+
+### Task: TM-004 - Isolation Verification
+
+**Branch:** `feature/TM-004-isolation-verification`
+
+**Prerequisites:** TM-001 (User-prefixed storage)
+
+**Files to Change:**
+- `tests/integration/userIsolation.test.js` - Create isolation tests
+
+**Implementation Steps:**
+1. Create test with two users in same browser
+2. User A saves progress
+3. User B logs in - should see no User A data
+4. Verify no cross-contamination
+5. Test with concurrent activity
+
+**Definition of Done Checklist:**
+- [ ] Two users in same browser have separate data
+- [ ] No cross-contamination
+- [ ] Integration test passes
+- [ ] Edge case: rapid user switching
+
+**Test Commands:**
+```bash
+npx playwright test tests/integration/userIsolation.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Login as user "alice"
+2. Complete exercise, save progress
+3. mcp_playwright_browser_evaluate(() => {
+     return Object.keys(localStorage).filter(k => k.startsWith('alice_')).length;
+   }) - should be > 0
+4. Logout, login as "bob"
+5. mcp_playwright_browser_evaluate(() => {
+     return Object.keys(localStorage).filter(k => k.startsWith('bob_')).length;
+   }) - should be 0 (fresh user)
+6. mcp_playwright_browser_evaluate(() => {
+     const aliceKeys = Object.keys(localStorage).filter(k => k.startsWith('alice_'));
+     return aliceKeys.every(k => !k.includes('bob'));
+   }) - should be true
+7. mcp_playwright_browser_take_screenshot("test-results/TM-004-isolation.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TM-004] Implement isolation verification (Sources: 56)
+
+Implementation:
+- Integration test for multi-user isolation
+- Two users in same browser verified
+- No cross-contamination
+- Edge case: rapid switching tested
+
+Testing:
+- Integration tests: userIsolation.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TM-004-isolation.png"
+```
+
+---
+
+### Task: TV-001 - MCP Playwright Scenario 1 (App Load)
+
+**Branch:** `test/TV-001-app-load-scenario`
+
+**Prerequisites:** App must be running
+
+**Files to Change:**
+- `tests/e2e/appLoad.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to http://localhost:63436
+2. Verify page renders without errors
+3. Check main navigation visible
+4. Verify no console errors
+5. Capture screenshot evidence
+
+**Definition of Done Checklist:**
+- [ ] Scenario passes with screenshot
+- [ ] No console errors
+- [ ] Main navigation visible
+- [ ] Page loads within 5 seconds
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/appLoad.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436")
+2. mcp_playwright_browser_snapshot - verify structure
+3. mcp_playwright_browser_console_messages({onlyErrors: true}) - should be []
+4. mcp_playwright_browser_take_screenshot("test-results/TV-001-app-load.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-001] MCP Playwright Scenario 1 - App Load
+
+Implementation:
+- App load test with MCP Playwright
+- Console error check
+- Navigation visibility verified
+
+Testing:
+- E2E: appLoad.e2e.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TV-001-app-load.png
+- Console errors: 0"
+```
+
+---
+
+### Task: TV-002 - MCP Playwright Scenario 2 (Lesson Smoke)
+
+**Branch:** `test/TV-002-lesson-smoke`
+
+**Prerequisites:** LA-006, LA-008, LA-009 implemented
+
+**Files to Change:**
+- `tests/e2e/lessonSmoke.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to lesson grid
+2. Verify English titles visible
+3. Click first lesson
+4. Verify first screen is exercise (not word list)
+5. Complete word-order, cloze, picture exercises
+6. Capture screenshots at each step
+7. Extract and log image URLs
+
+**Definition of Done Checklist:**
+- [ ] All 4 screenshots captured
+- [ ] Image URLs logged
+- [ ] Telemetry verified
+- [ ] First screen is exercise
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lessonSmoke.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_take_screenshot("test-results/TV-002-grid.png")
+3. mcp_playwright_browser_click on first lesson
+4. mcp_playwright_browser_take_screenshot("test-results/TV-002-exercise1.png")
+5. Complete exercise
+6. mcp_playwright_browser_take_screenshot("test-results/TV-002-exercise2.png")
+7. mcp_playwright_browser_evaluate(() => {
+     const imgs = document.querySelectorAll('img');
+     return Array.from(imgs).map(i => i.src);
+   })
+8. mcp_playwright_browser_take_screenshot("test-results/TV-002-exercise3.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-002] MCP Playwright Scenario 2 - Lesson Smoke (Sources: 1, 4)
+
+Implementation:
+- Full lesson smoke test
+- 4 screenshots captured
+- Image URLs logged
+- Telemetry verified
+
+Testing:
+- E2E: lessonSmoke.e2e.test.js - ✅
+
+Evidence:
+- Screenshots: TV-002-grid.png, TV-002-exercise1-3.png"
+```
+
+---
+
+### Task: TV-003 - MCP Playwright Scenario 3 (Image Typing)
+
+**Branch:** `test/TV-003-image-typing`
+
+**Prerequisites:** LA-010 implemented
+
+**Files to Change:**
+- `tests/e2e/imageTyping.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to image-type lesson
+2. Verify image present before input
+3. Extract image URL
+4. Verify URL is subject-matched (not gradient/abstract)
+5. Verify no word-list screen preceded
+
+**Definition of Done Checklist:**
+- [ ] Image URL is subject-matched
+- [ ] No word-list screen
+- [ ] Screenshot captured
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/imageTyping.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to image-type lesson
+2. mcp_playwright_browser_evaluate(() => {
+     return document.querySelector('[class*="word-list"]') === null;
+   }) - must be true
+3. mcp_playwright_browser_evaluate(() => {
+     const img = document.querySelector('.exercise-image');
+     return img?.src;
+   }) - verify subject-matched URL
+4. mcp_playwright_browser_take_screenshot("test-results/TV-003-image.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-003] MCP Playwright Scenario 3 - Image Typing (Sources: 4, 7, 8)
+
+Implementation:
+- Image typing scenario test
+- Image URL verified as subject-matched
+- No word-list screen confirmed
+
+Testing:
+- E2E: imageTyping.e2e.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TV-003-image.png"
+```
+
+---
+
+### Task: TV-004 - MCP Playwright Scenario 4 (Numbers)
+
+**Branch:** `test/TV-004-numbers`
+
+**Prerequisites:** LA-018 implemented
+
+**Files to Change:**
+- `tests/e2e/numberComprehension.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to number lesson
+2. Verify finger image visible (for 1-10)
+3. Verify audio plays
+4. Test numeric input
+
+**Definition of Done Checklist:**
+- [ ] Finger image visible
+- [ ] Audio plays
+- [ ] Numeric input works
+- [ ] Screenshot captured
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/numberComprehension.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to number lesson
+2. mcp_playwright_browser_click play audio
+3. mcp_playwright_browser_evaluate(() => {
+     const audio = document.querySelector('audio');
+     return audio?.currentTime > 0;
+   }) - verify played
+4. mcp_playwright_browser_snapshot - verify finger image
+5. mcp_playwright_browser_type("5")
+6. mcp_playwright_browser_take_screenshot("test-results/TV-004-number.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-004] MCP Playwright Scenario 4 - Numbers (Sources: 40, 59, 60)
+
+Implementation:
+- Number comprehension test
+- Finger image verified
+- Audio playback verified
+
+Testing:
+- E2E: numberComprehension.e2e.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TV-004-number.png"
+```
+
+---
+
+### Task: TV-005 - MCP Playwright Scenario 5 (Dictation)
+
+**Branch:** `test/TV-005-dictation`
+
+**Prerequisites:** LA-011 implemented
+
+**Files to Change:**
+- `tests/e2e/dictation.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to dictation lesson
+2. Verify audio plays
+3. Test speed slider interaction
+4. Verify slider affects playback rate
+5. Check WER score displays
+
+**Definition of Done Checklist:**
+- [ ] Speed slider affects playback
+- [ ] WER score shown
+- [ ] Screenshot captured
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/dictation.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to dictation lesson
+2. mcp_playwright_browser_click play
+3. mcp_playwright_browser_click speed slider, drag to 0.75
+4. mcp_playwright_browser_evaluate(() => {
+     const audio = document.querySelector('audio');
+     return audio?.playbackRate;
+   }) - verify < 1.0
+5. mcp_playwright_browser_type transcript
+6. mcp_playwright_browser_click submit
+7. mcp_playwright_browser_snapshot - verify WER score
+8. mcp_playwright_browser_take_screenshot("test-results/TV-005-dictation.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-005] MCP Playwright Scenario 5 - Dictation (Sources: 38, 39)
+
+Implementation:
+- Dictation test with speed control
+- Slider affects playback rate
+- WER score displayed
+
+Testing:
+- E2E: dictation.e2e.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TV-005-dictation.png"
+```
+
+---
+
+### Task: TV-006 - MCP Playwright Scenario 6 (Adaptive)
+
+**Branch:** `test/TV-006-adaptive`
+
+**Prerequisites:** AI-002 implemented
+
+**Files to Change:**
+- `tests/e2e/adaptive.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Seed profile with specific weaknesses
+2. Navigate to lesson
+3. Verify exercise selection differs from default
+4. Compare with new user
+
+**Definition of Done Checklist:**
+- [ ] Seeded profile loads correctly
+- [ ] Exercise mix differs from default
+- [ ] Screenshot of both profiles
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/adaptive.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Clear storage, navigate to lesson
+2. mcp_playwright_browser_evaluate(() => window.exerciseTypes) - capture default
+3. mcp_playwright_browser_take_screenshot("test-results/TV-006-new.png")
+4. Seed profile with weak /ão/ phoneme + 60 interactions
+5. Navigate to lesson
+6. mcp_playwright_browser_evaluate(() => window.exerciseTypes) - should differ
+7. mcp_playwright_browser_take_screenshot("test-results/TV-006-seeded.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-006] MCP Playwright Scenario 6 - Adaptive (Sources: 37)
+
+Implementation:
+- Adaptive path verification
+- Seeded vs new user comparison
+- Exercise mix differs based on profile
+
+Testing:
+- E2E: adaptive.e2e.test.js - ✅
+
+Evidence:
+- Screenshots: TV-006-new.png, TV-006-seeded.png"
+```
+
+---
+
+### Task: TV-007 - MCP Playwright Scenario 7 (Titles)
+
+**Branch:** `test/TV-007-titles`
+
+**Prerequisites:** LA-002, LA-003 implemented
+
+**Files to Change:**
+- `tests/e2e/titles.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to lesson grid
+2. Extract all titles
+3. Verify all are English
+4. Verify sublines exist
+
+**Definition of Done Checklist:**
+- [ ] All English titles visible
+- [ ] All sublines visible
+- [ ] Screenshot captured
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/titles.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_evaluate(() => {
+     const cards = document.querySelectorAll('.lesson-card');
+     return Array.from(cards).map(c => ({
+       title: c.querySelector('.title')?.textContent,
+       subline: c.querySelector('.subline')?.textContent
+     }));
+   })
+3. Verify all titles are English, all sublines exist
+4. mcp_playwright_browser_take_screenshot("test-results/TV-007-titles.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-007] MCP Playwright Scenario 7 - Titles
+
+Implementation:
+- Title verification test
+- All English titles confirmed
+- All sublines present
+
+Testing:
+- E2E: titles.e2e.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TV-007-titles.png"
+```
+
+---
+
+### Task: TV-008 - MCP Playwright Scenario 8 (Practice-First)
+
+**Branch:** `test/TV-008-practice-first`
+
+**Prerequisites:** LA-001 implemented
+
+**Files to Change:**
+- `tests/e2e/practiceFirst.e2e.test.js` - Create test file
+
+**Implementation Steps:**
+1. Navigate to any lesson
+2. Verify first screen is exercise
+3. Verify no word-list DOM element
+
+**Definition of Done Checklist:**
+- [ ] First screen is exercise
+- [ ] No word-list DOM
+- [ ] Screenshot captured
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/practiceFirst.e2e.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to any lesson
+2. mcp_playwright_browser_evaluate(() => {
+     return document.querySelector('[class*="word-list"]') === null;
+   }) - must be true
+3. mcp_playwright_browser_evaluate(() => {
+     return document.querySelector('input, button[data-exercise], .tile') !== null;
+   }) - must be true
+4. mcp_playwright_browser_take_screenshot("test-results/TV-008-practice.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-008] MCP Playwright Scenario 8 - Practice-First (Sources: 2)
+
+Implementation:
+- Practice-first verification
+- No word-list DOM confirmed
+- First screen is exercise
+
+Testing:
+- E2E: practiceFirst.e2e.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/TV-008-practice.png"
+```
+
+---
+
+### Task: TV-009 - Unit Tests for Exercise Types
+
+**Branch:** `test/TV-009-exercise-unit-tests`
+
+**Prerequisites:** LA-006 through LA-020 implemented
+
+**Files to Change:**
+- `tests/unit/exerciseTypes.test.js` - Create comprehensive tests
+
+**Implementation Steps:**
+1. Create unit test for each of 15 exercise types
+2. Test rendering logic
+3. Test validation logic
+4. Test telemetry emission
+
+**Definition of Done Checklist:**
+- [ ] All 15 types have tests
+- [ ] Render tests pass
+- [ ] Validation tests pass
+- [ ] Telemetry tests pass
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/exerciseTypes.test.js
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-009] Unit tests for all 15 exercise types
+
+Implementation:
+- Unit tests for all 15 exercise types
+- Render, validation, telemetry coverage
+
+Testing:
+- Unit tests: exerciseTypes.test.js - ✅"
+```
+
+---
+
+### Task: TV-010 - Integration Tests for AI Pipeline
+
+**Branch:** `test/TV-010-ai-integration`
+
+**Prerequisites:** AI-001 through AI-007 implemented
+
+**Files to Change:**
+- `tests/integration/aiPipeline.test.js` - Create integration tests
+
+**Implementation Steps:**
+1. Test AIAgent → LearnerProfiler → StuckWordsService flow
+2. Test phase transitions (1→2→3)
+3. Test rescue technique triggering
+4. Test tip generation pipeline
+
+**Definition of Done Checklist:**
+- [ ] Full pipeline flow tested
+- [ ] Phase transitions work
+- [ ] Rescue triggers correctly
+- [ ] Tips generate correctly
+
+**Test Commands:**
+```bash
+npx playwright test tests/integration/aiPipeline.test.js
+```
+
+**Commit:**
+```bash
+git commit -m "[TV-010] Integration tests for AI pipeline
+
+Implementation:
+- AIAgent → LearnerProfiler → StuckWordsService flow
+- Phase transition tests
+- Rescue and tip generation tests
+
+Testing:
+- Integration tests: aiPipeline.test.js - ✅"
+```
+
+---
+
+### Task: LM-001 - Model Registry Implementation
+
+**Branch:** `feature/LM-001-model-registry`
+
+**Prerequisites:** None
+
+**Files to Change:**
+- `src/config/models.config.js` - Create registry
+- `src/services/ai/AIAgent.js` - Use registry
+
+**Implementation Steps:**
+1. Create MODEL_REGISTRY object
+2. Define ollama-qwen, ollama-llama, openai-gpt4, anthropic-claude
+3. Include: provider, modelId, endpoint, contextLimit, costWeight, capabilities
+4. Set DEFAULT_MODEL and FALLBACK_MODEL
+
+**Definition of Done Checklist:**
+- [ ] Registry schema implemented
+- [ ] Multiple models defined
+- [ ] Default and fallback set
+- [ ] Unit test confirms structure
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/modelsConfig.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to app
+2. mcp_playwright_browser_evaluate(() => {
+     return Object.keys(window.MODEL_REGISTRY || {});
+   }) - verify multiple models
+3. mcp_playwright_browser_take_screenshot("test-results/LM-001-registry.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[LM-001] Implement model registry (Sources: 55)
+
+Implementation:
+- MODEL_REGISTRY with 4 models
+- Provider, contextLimit, capabilities defined
+- DEFAULT_MODEL: ollama-qwen
+- FALLBACK_MODEL: ollama-qwen
+
+Testing:
+- Unit tests: modelsConfig.test.js - ✅
+
+Evidence:
+- Screenshot: test-results/LM-001-registry.png"
+```
+
+---
+
+### Task: LM-002 - Model Selection from Config
+
+**Branch:** `feature/LM-002-model-selection`
+
+**Prerequisites:** LM-001 (Registry)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add selection logic
+
+**Implementation Steps:**
+1. Add `selectModel(config)` function
+2. Read model preference from config
+3. Switch model at runtime via config change
+4. No code change needed to switch models
+
+**Definition of Done Checklist:**
+- [ ] Config change switches model
+- [ ] No code change needed
+- [ ] Unit test confirms switching
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiAgent.test.js --grep "model-selection"
+```
+
+**Commit:**
+```bash
+git commit -m "[LM-002] Implement model selection from config (Sources: 55)
+
+Implementation:
+- selectModel() reads from config
+- Runtime model switching
+- No code changes needed
+
+Testing:
+- Unit tests: aiAgent.test.js - ✅"
+```
+
+---
+
+### Task: LM-003 - Fallback to Local on Failure
+
+**Branch:** `feature/LM-003-fallback`
+
+**Prerequisites:** LM-002 (Model selection)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add fallback logic
+
+**Implementation Steps:**
+1. Test remote model connectivity before use
+2. On failure, log warning and fall back to Ollama
+3. Retry remote periodically
+4. Always have local Ollama as safety net
+
+**Definition of Done Checklist:**
+- [ ] Remote failure falls back to Ollama
+- [ ] Fallback logged
+- [ ] Unit test confirms fallback
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiAgent.test.js --grep "fallback"
+```
+
+**Commit:**
+```bash
+git commit -m "[LM-003] Implement fallback to local (Sources: 55)
+
+Implementation:
+- Remote model failure detection
+- Automatic fallback to Ollama
+- Fallback logged for monitoring
+
+Testing:
+- Unit tests: aiAgent.test.js - ✅"
+```
+
+---
+
+### Task: LM-004 - Model Logging Per Turn
+
+**Branch:** `feature/LM-004-model-logging`
+
+**Prerequisites:** LM-002 (Model selection)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add logging
+
+**Implementation Steps:**
+1. Log model ID with every AI response
+2. Include: modelId, provider, promptTokens, responseTokens, durationMs
+3. Use Logger.info('ai_model_usage', {...})
+
+**Definition of Done Checklist:**
+- [ ] Every response logs model ID
+- [ ] Includes token counts and duration
+- [ ] Unit test confirms logging
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiAgent.test.js --grep "logging"
+```
+
+**Commit:**
+```bash
+git commit -m "[LM-004] Implement model logging per turn (Sources: 55)
+
+Implementation:
+- ai_model_usage event on every response
+- modelId, provider, tokens, duration logged
+
+Testing:
+- Unit tests: aiAgent.test.js - ✅"
+```
+
+---
+
+### Task: LM-005 - Context Capping Per Model
+
+**Branch:** `feature/LM-005-context-capping`
+
+**Prerequisites:** LM-001 (Registry with contextLimit)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add truncation
+
+**Implementation Steps:**
+1. Check prompt length against model.contextLimit
+2. If exceeds, truncate with warning
+3. Use `truncateContext(prompt, limit)` helper
+4. Log when truncation occurs
+
+**Definition of Done Checklist:**
+- [ ] Context respects model metadata
+- [ ] Truncation if needed
+- [ ] Warning logged on truncation
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiAgent.test.js --grep "context"
+```
+
+**Commit:**
+```bash
+git commit -m "[LM-005] Implement context capping (Sources: 55)
+
+Implementation:
+- Context length check per model
+- Truncation with warning log
+- Respects contextLimit metadata
+
+Testing:
+- Unit tests: aiAgent.test.js - ✅"
+```
+
+---
+
+### Task: LM-006 - Provider-Agnostic Prompts
+
+**Branch:** `feature/LM-006-agnostic-prompts`
+
+**Prerequisites:** LM-001 (Multiple providers)
+
+**Files to Change:**
+- `src/services/ai/AIAgent.js` - Add sanitization
+- All prompt files
+
+**Implementation Steps:**
+1. Create `sanitizePrompt(prompt, model)` function
+2. Strip provider-specific tokens ([INST], <|im_start|>, etc.)
+3. Apply to all prompts before sending
+4. Test with multiple providers
+
+**Definition of Done Checklist:**
+- [ ] No provider-specific tokens
+- [ ] Strip formatting before send
+- [ ] Works with all registered models
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/aiAgent.test.js --grep "sanitize"
+```
+
+**Commit:**
+```bash
+git commit -m "[LM-006] Implement provider-agnostic prompts (Sources: 55)
+
+Implementation:
+- sanitizePrompt() strips provider tokens
+- [INST], <|im_start|>, etc. removed
+- Works with all providers
+
+Testing:
+- Unit tests: aiAgent.test.js - ✅"
 ```
 
 ---
