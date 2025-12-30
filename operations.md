@@ -1,63 +1,65 @@
 # Operations (Workflow)
 
-This repo follows a strict branch-first workflow and test/documentation gates.
+This repo follows a strict branch-first workflow with MCP Playwright validation gates.
 
 ## 1) Branching (mandatory)
-- Never commit directly to `main`.
-- One task = one branch.
+- Never commit directly to `main`
+- One task = one branch
 - Branch naming: `<type>/<task-id>-<short-description>`
   - Types: `feature/`, `fix/`, `refactor/`, `docs/`, `test/`, `chore/`
 
-Commands:
-- `git checkout main`
-- `git pull origin main`
-- `git checkout -b <type>/<task-id>-<short-description>`
+```bash
+git checkout main
+git pull origin main
+git checkout -b <type>/<task-id>-<short-description>
+```
 
 ## 2) Testing (mandatory)
-Prefer targeted tests while iterating; run full suite before merge.
 
-Targeted examples (Playwright):
-- `npx playwright test tests/e2e/lesson.e2e.test.js`
-- `npx playwright test --grep "NAV-E001"`
+### Targeted tests (while iterating)
+```bash
+npx playwright test tests/e2e/<file>.e2e.test.js
+npx playwright test --grep "TEST-ID"
+npx playwright test tests/unit/<service>.test.js
+```
 
-MCP Playwright (UI/visual/content changes):
-- Use MCP Playwright tools (`mcp_playwright_browser_navigate`, `mcp_playwright_browser_click`, `mcp_playwright_browser_type`, `mcp_playwright_browser_take_screenshot`, `mcp_playwright_browser_evaluate`) on http://localhost:63436.
-- Capture screenshots and note asset URLs for all exercised flows; failures must be fixed and re-run before completion.
-- Mandatory flows when lessons/UX change: practice-first lesson entry, word-order/cloze/picture exercises, image typing (e.g., pastel), numbers with finger image, voice dictation with speed slider, adaptive lesson mix after profile seed.
+### MCP Playwright validation (UI/visual/content changes)
+Use MCP tools on http://localhost:63436:
+- `mcp_playwright_browser_navigate` - go to page
+- `mcp_playwright_browser_snapshot` - capture structure
+- `mcp_playwright_browser_click` - test interactions
+- `mcp_playwright_browser_take_screenshot` - visual evidence
+- `mcp_playwright_browser_evaluate` - extract/verify data
 
-Before merge:
-- `npm test`
+**Mandatory flows to validate:**
+- Practice-first lesson entry (no word-list screens)
+- Exercise types: word-order, cloze, picture, image-typing, numbers
+- Voice features: dictation, speed slider
+- Adaptive lesson mix after profile changes
 
-## 3) Documentation & plan updates (mandatory)
-- Keep these aligned with delivered behavior:
-  - `initial_plan.md` (short, stable overview)
-  - `IMPLEMENTATION_PLAN.md` (single source of truth for feature status/spec)
-  - `README.md` (only when relevant to user-facing behavior)
+### Full suite (before merge)
+```bash
+npm test
+```
+
+## 3) Merge policy (mandatory)
+After ALL tests pass:
+```bash
+git checkout main
+git pull origin main
+git merge <branch-name>
+git push origin main
+git branch -d <branch-name>
+git push origin --delete <branch-name>
+```
 
 ## 4) AI event logging (mandatory)
-All user interactions that affect learning must emit events.
+All learning interactions must emit events via:
+- `src/services/Logger.js` (local logging)
+- `src/services/eventStreaming.js` (AI pipeline)
 
-Minimum pattern:
-- Log locally via `src/services/Logger.js`
-- Stream via `src/services/eventStreaming.js`
-
-## 5) Merge policy (mandatory)
-After tests pass:
-- Merge to `main` immediately
-- Push `main`
-- Delete the task branch locally and on origin
-
-Commands:
-- `git checkout main`
-- `git pull origin main`
-- `git merge <branch-name>`
-- `git push origin main`
-- `git branch -d <branch-name>`
-- `git push origin --delete <branch-name>`
-
-## 6) Source of truth
-If instructions conflict, priority is:
-1) `.github/copilot-instructions.md`
-2) `operations.md`
-3) `IMPLEMENTATION_PLAN.md`
-4) `initial_plan.md`
+## 5) Source of truth priority
+1. `.github/copilot-instructions.md` (rules)
+2. `operations.md` (workflow)
+3. `docs/AI_LESSON_VARIATION_PLAN.md` (implementation)
+4. `initial_plan.md` (vision)
