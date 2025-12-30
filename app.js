@@ -260,15 +260,17 @@ function getLessonByIdForUI(lessonId) {
     return loaderGetLessonById(lessonId) || getAllLessonsFlat().find(l => l.id === lessonId);
 }
 
-// Build a single background-image so the subject photo stays visible; only fall back when missing
+// Build a single background-image (no layering) to keep the subject photo visible
 function buildLessonThumbStyle(imageData = {}) {
-    const preferredLocal = imageData.localUrl && imageData.localUrl.endsWith('default.svg') ? null : imageData.localUrl;
-    const primary = imageData.remoteUrl
-        || imageData.remoteFallbackUrl
-        || preferredLocal
-        || imageData.svgUrl
-        || imageData.url
-        || '';
+    const sources = [
+        imageData.remoteUrl,
+        imageData.remoteFallbackUrl,
+        imageData.url,
+        imageData.localUrl && !imageData.localUrl.endsWith('default.svg') ? imageData.localUrl : null,
+        imageData.svgUrl
+    ].filter(Boolean);
+
+    const primary = sources[0] || '';
     return primary ? `url("${primary}")` : '';
 }
 
@@ -3277,6 +3279,24 @@ function setupEventListeners() {
     if (premiumBtn) premiumBtn.addEventListener('click', showPaywall);
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+    
+    // User button - shows login modal for guests, logout option for logged-in users
+    const userBtn = document.getElementById('userBtn');
+    if (userBtn) {
+        userBtn.addEventListener('click', () => {
+            const user = getUser();
+            if (user.loggedIn && user.username && user.username !== 'Guest') {
+                // Already logged in - ask if they want to logout
+                if (confirm(`Logged in as ${user.username}. Do you want to log out?`)) {
+                    handleLogout();
+                }
+            } else {
+                // Not logged in - show login modal
+                showLoginModal();
+            }
+        });
+    }
+    
     const unlockPaidPlan = document.getElementById('unlockPaidPlan');
     if (unlockPaidPlan) unlockPaidPlan.addEventListener('click', showPaywall);
     const closePaywall = document.querySelector('.close-paywall');
@@ -3436,6 +3456,29 @@ function updateHeaderStats() {
     updateHeartsDisplay();
     updateStreakDisplay();
     updateXPDisplay();
+    updateUserButton();
+}
+
+/**
+ * Update the user button in the header to show current user status
+ */
+function updateUserButton() {
+    const userBtn = document.getElementById('userBtn');
+    if (!userBtn) return;
+    
+    const user = getUser();
+    if (user.loggedIn && user.username && user.username !== 'Guest') {
+        // Logged in user
+        const displayName = user.username.length > 10 ? user.username.slice(0, 10) + '…' : user.username;
+        userBtn.innerHTML = user.isAdmin ? `👑 ${displayName}` : `👤 ${displayName}`;
+        userBtn.title = `Logged in as ${user.username}. Click to logout.`;
+        userBtn.classList.add('logged-in');
+    } else {
+        // Guest
+        userBtn.innerHTML = '👤 Guest';
+        userBtn.title = 'Click to sign in';
+        userBtn.classList.remove('logged-in');
+    }
 }
 
 function setActiveUserContext(user) {
@@ -3455,7 +3498,16 @@ function setActiveUserContext(user) {
 function showLoginModal() {
     const modal = document.getElementById('loginModal');
     if (modal) {
+        // Reset inline positioning and use the CSS class for proper centering
         modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.right = '0';
+        modal.style.bottom = '0';
+        modal.classList.add('active');
+        
         const usernameInput = document.getElementById('usernameInput');
         if (usernameInput) usernameInput.focus();
     }
@@ -3463,7 +3515,10 @@ function showLoginModal() {
 
 function hideLoginModal() {
     const modal = document.getElementById('loginModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
     const error = document.getElementById('loginError');
     if (error) error.style.display = 'none';
     const usernameInput = document.getElementById('usernameInput');

@@ -192,6 +192,39 @@ body {
 .header-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+}
+
+/* User login button in header */
+.btn-user {
+    background: var(--surface-subtle);
+    border: 2px solid transparent;
+    border-radius: 20px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-user:hover {
+    background: var(--accent);
+    color: white;
+    transform: scale(1.05);
+}
+
+.btn-user.logged-in {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    border-color: transparent;
+}
+
+.btn-user.logged-in:hover {
+    opacity: 0.9;
 }
 
 .header-actions .btn-theme,
@@ -358,6 +391,31 @@ body {
 /* ===== LOGIN MODAL ===== */
 .login-modal {
     max-width: 320px;
+}
+
+/* Fix login modal positioning - override the transform-based centering */
+#loginModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+}
+
+#loginModal.active {
+    display: flex !important;
+}
+
+#loginModal .modal-content {
+    transform: none !important;
+    position: relative;
 }
 
 .login-form {
