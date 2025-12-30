@@ -296,12 +296,61 @@
    ADMIN MODAL
    ============================================================================ */
 
+.admin-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 16px;
+    /* Override base .modal hidden state */
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+}
+
 .admin-modal .modal-content {
+    background: var(--card-bg, #fff);
+    border-radius: var(--radius-md, 8px);
     max-width: 600px;
+    width: 100%;
     max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.admin-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md, 1rem);
+    border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.admin-modal .modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.admin-modal .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm, 4px);
+    transition: background 0.2s;
+}
+
+.admin-modal .close-btn:hover {
+    background: var(--hover-bg, #f0f0f0);
 }
 
 .admin-modal .modal-body {
+    padding: var(--spacing-md, 1rem);
     max-height: 60vh;
     overflow-y: auto;
 }
