@@ -1,3 +1,18 @@
 {
-    "liveServer.settings.port": 5501
+    "liveServer.settings.port": 5501,
+    
+    // GitHub Copilot - ENABLE INSTRUCTION FILES
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+    "github.copilot.chat.codeGeneration.instructions": [
+        {
+            "file": ".github/copilot-instructions.md"
+        }
+    ],
+    
+    // Ensure custom prompts are available
+    "chat.promptFiles": true,
+    
+    // Editor hints for the 5 rules
+    "editor.rulers": [500],
+    "editor.wordWrap": "on"
 }

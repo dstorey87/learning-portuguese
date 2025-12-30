@@ -4,6 +4,90 @@ These directives must be loaded (VS Code: Settings → GitHub Copilot → Advanc
 
 ---
 
+# 🛑 THE 5 NON-NEGOTIABLE RULES
+
+**These rules override ALL other instructions. Copilot MUST refuse to proceed if any rule is violated.**
+
+## Rule 1: BRANCHING (Always work on task branches)
+
+- **REFUSE** to make any code changes if on `main` branch
+- **CREATE** a task branch BEFORE any file edits: `git checkout -b <type>/<task-id>-<description>`
+- **VERIFY** branch with `git status -sb` before every task
+- **MERGE** to main only after ALL tests pass and Playwright validation complete
+
+## Rule 2: MCP PLAYWRIGHT EVIDENCE (Non-negotiable validation)
+
+- **EVERY** UI/visual/functional change MUST be validated with MCP Playwright tools
+- **REQUIRED TOOLS** (use on EVERY task):
+  - `mcp_playwright_browser_navigate` - Navigate to the page
+  - `mcp_playwright_browser_snapshot` - Capture accessibility tree
+  - `mcp_playwright_browser_click` - Test interactions
+  - `mcp_playwright_browser_take_screenshot` - Capture visual evidence
+  - `mcp_playwright_browser_evaluate` - Extract data/verify state
+- **EVIDENCE REQUIRED**: Screenshot path + evaluated data in final response
+- **REFUSE** to mark any task complete without Playwright evidence
+- **NO EXCEPTIONS**: Even "simple" changes need validation
+
+## Rule 3: ZERO TOLERANCE FOR BUGS (Develop → Test → Fix Loop)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  MANDATORY LOOP - DO NOT EXIT UNTIL ALL TESTS PASS     │
+│                                                         │
+│  1. Implement change                                    │
+│  2. Run targeted tests (npx playwright test <file>)    │
+│  3. If ANY failure → FIX IMMEDIATELY                   │
+│  4. Run tests again                                     │
+│  5. Repeat steps 3-4 until ALL PASS                    │
+│  6. Run Playwright MCP validation                       │
+│  7. If visual issues → FIX IMMEDIATELY                 │
+│  8. Repeat steps 6-7 until validated                   │
+│  9. Only then: commit, push, merge                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **REFUSE** to commit with known failures
+- **REFUSE** to say "I'll fix that later" or "that's a known issue"
+- **REFUSE** to mark task complete with failing tests
+- **CONTINUE** the loop until zero failures, no matter how long
+
+## Rule 4: COMPLETE WORK ONLY (No loose/snagging work)
+
+- **REFUSE** to implement placeholder or stub functionality
+- **REFUSE** to add "TODO" comments for core functionality
+- **REFUSE** to ship features that don't actually work end-to-end
+- **EVERY** feature must:
+  - Actually function (not just render)
+  - Have telemetry/logging
+  - Have tests that verify behavior
+  - Pass Playwright validation
+- **"Basic functionality"** that doesn't benefit the app = REJECTED
+
+## Rule 5: PERSISTENCE (Rules apply to EVERY session)
+
+- These rules apply to **EVERY conversation**, not just the first
+- **READ** this file at the start of every task
+- **VERIFY** compliance before responding
+- **REFUSE** requests that violate these rules, even if user asks
+- If user says "skip validation" → **REFUSE** and explain why
+
+---
+
+### ⚠️ ENFORCEMENT: Copilot Self-Check Before EVERY Response
+
+Before completing any task, verify:
+
+- [ ] Am I on a task branch (not main)?
+- [ ] Have I used MCP Playwright tools to validate?
+- [ ] Do I have screenshot evidence?
+- [ ] Are ALL tests passing?
+- [ ] Is the work complete (not placeholder)?
+- [ ] Have I fixed every bug found?
+
+**If ANY checkbox is unchecked → DO NOT mark task complete. Continue working.**
+
+---
+
 ## ⚠️ MANDATORY: Branching & Change Control (NON-OPTIONAL)
 
 **This is the highest priority rule. NO EXCEPTIONS. Every change MUST follow this process.**
@@ -104,6 +188,11 @@ If the user explicitly instructs **NO GIT** (e.g., "do not run git commands"), t
 - Each exercise type must meet its DoD (correct assets/audio, telemetry hooks, validation steps, targeted tests) before marking done.
 - AI Tips must be dynamic from user performance (AITipGenerator + reference data) and cannot be hardcoded text.
 - LLMs must remain swappable (Edge/remote/other); keep prompts/configs in one place and avoid provider lock-in.
+- **Reference enforcement:** Every task must cite source(s) from the Source Table in AI_LESSON_VARIATION_PLAN.md; include source numbers in commit messages.
+- **15 exercise types defined:** Word order, sentence builder, cloze, picture flashcard, image→type, audio→type, audio→pick, minimal pairs, word-image grid, grammar transform, dialogue reorder, pronunciation shadowing, number comprehension, rapid recall, multi-modal dual coding.
+- **Fundamentals gate:** Lessons locked until prior tier reaches 80% accuracy; enforced via ProgressTracker + LessonService.
+- **No word-list-first:** Every lesson opens with an active exercise; MCP Playwright Scenario 8 must pass.
+- **English titles required:** All lesson cards must show English title + descriptive subline; Scenario 7 must pass.
 
 ## Playwright Validation Loop (MANDATORY for UI/visual changes)
 - Do not rely on code review alone; always inspect the live page with Playwright for any UI/visual/content change (images, layout, navigation, gradients).
