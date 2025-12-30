@@ -17,6 +17,7 @@ export const prepositionsLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'Learn essential prepositions and their contractions with articles.',
     prerequisites: ['bb-001', 'bb-005'],
     estimatedTime: '12 min',

@@ -6,6 +6,7 @@
  */
 
 import { getLessonImage as resolveLessonImage } from '../../data/LessonLoader.js';
+import { LESSON_TEMPLATES, DIFFICULTY_LEVELS } from '../../config/lessonTemplates.config.js';
 
 /**
  * LessonCard configuration
@@ -15,6 +16,42 @@ export const LESSON_CARD_CONFIG = {
     imageWidth: 400,
     imageHeight: 250
 };
+
+/**
+ * Template display information for badges
+ */
+export const TEMPLATE_DISPLAY = {
+    standard: { name: 'Standard', icon: '📚', color: '#6366f1' },
+    'image-heavy': { name: 'Visual', icon: '🖼️', color: '#8b5cf6' },
+    'audio-focused': { name: 'Audio', icon: '🎧', color: '#ec4899' },
+    numbers: { name: 'Numbers', icon: '🔢', color: '#14b8a6' },
+    grammar: { name: 'Grammar', icon: '📖', color: '#f59e0b' },
+    conversation: { name: 'Dialogue', icon: '💬', color: '#06b6d4' },
+    'rapid-review': { name: 'Review', icon: '⚡', color: '#ef4444' },
+    imageHeavy: { name: 'Visual', icon: '🖼️', color: '#8b5cf6' },
+    audioFocused: { name: 'Audio', icon: '🎧', color: '#ec4899' },
+    rapidReview: { name: 'Review', icon: '⚡', color: '#ef4444' },
+};
+
+/**
+ * Get template display info
+ * @param {string} templateId - Template ID
+ * @returns {Object} Display info with name, icon, color
+ */
+export function getTemplateDisplay(templateId) {
+    return TEMPLATE_DISPLAY[templateId] || { name: 'Standard', icon: '📚', color: '#6366f1' };
+}
+
+/**
+ * Get difficulty color for background tint
+ * @param {string} difficultyLevel - beginner, intermediate, advanced, hard
+ * @returns {Object} Color info
+ */
+export function getDifficultyColor(difficultyLevel = 'beginner') {
+    const level = Object.values(DIFFICULTY_LEVELS).find(l => l.id === difficultyLevel);
+    return level ? { color: level.color, icon: level.icon, name: level.displayName } : 
+        { color: DIFFICULTY_LEVELS.BEGINNER.color, icon: DIFFICULTY_LEVELS.BEGINNER.icon, name: DIFFICULTY_LEVELS.BEGINNER.displayName };
+}
 
 /**
  * Get lesson thumbnail image URL
@@ -112,19 +149,31 @@ export function renderLessonCard(lesson, options = {}) {
     const isCompleted = progress === 100;
     const isPremium = lesson.gated && !userData.isPremium;
     
+    // Get template and difficulty info
+    const templateDisplay = getTemplateDisplay(lesson.templateId);
+    const difficultyColor = getDifficultyColor(lesson.difficultyLevel || 'beginner');
+    const hasTemplate = !!lesson.templateId;
+    
     const card = document.createElement('div');
-    card.className = `lesson-card ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isPremium ? 'locked' : ''}`;
+    card.className = `lesson-card ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isPremium ? 'locked' : ''} ${!hasTemplate ? 'no-template' : ''}`;
     card.dataset.lessonId = lesson.id;
+    card.dataset.templateId = lesson.templateId || '';
+    card.dataset.difficultyLevel = lesson.difficultyLevel || 'beginner';
     
     const wordCount = lesson.words?.length || 0;
     const sentenceCount = lesson.sentences?.length || 0;
+    
+    // Apply difficulty tint to card background
+    const difficultyTint = hasTemplate ? `linear-gradient(135deg, ${difficultyColor.color}15 0%, transparent 50%)` : '';
     
     card.innerHTML = `
         <div class="lesson-thumb" style="background-image: ${imageStyle}">
             ${isCompleted ? '<div class="completion-overlay"><span class="check-icon">✓</span></div>' : ''}
             ${isPremium ? '<div class="premium-overlay"><span class="lock-icon">🔒</span></div>' : ''}
+            ${hasTemplate ? `<div class="template-badge" style="background-color: ${templateDisplay.color}">${templateDisplay.icon} ${templateDisplay.name}</div>` : ''}
+            ${hasTemplate ? `<div class="difficulty-indicator" style="background-color: ${difficultyColor.color}">${difficultyColor.icon}</div>` : ''}
         </div>
-        <div class="lesson-content">
+        <div class="lesson-content" style="${difficultyTint ? `background: ${difficultyTint}` : ''}">
             <div class="lesson-meta">
                 <span class="topic-tag">${lesson.topicTitle || lesson.topicId || 'General'}</span>
                 <span class="level-badge" style="background-color: ${badge.color}">${badge.label}</span>
@@ -204,6 +253,7 @@ export function renderLessonGrid(container, lessons, options = {}) {
  * @param {boolean} filters.includePremium - Include premium lessons
  * @param {boolean} filters.onlyCompleted - Only show completed
  * @param {boolean} filters.onlyIncomplete - Only show incomplete
+ * @param {boolean} filters.requireTemplate - Only show lessons with templateId (default: true)
  * @param {Object} userData - User data for filtering
  * @returns {Array} Filtered lessons
  */
@@ -213,10 +263,14 @@ export function filterLessons(lessons, filters = {}, userData = {}) {
         level = 'all', 
         includePremium = true,
         onlyCompleted = false,
-        onlyIncomplete = false
+        onlyIncomplete = false,
+        requireTemplate = true  // IMPORTANT: Only show lessons with templates by default
     } = filters;
     
     return lessons.filter(lesson => {
+        // Template filter - CRITICAL: Remove lessons without templateId
+        if (requireTemplate && !lesson.templateId) return false;
+        
         // Topic filter
         if (topic !== 'all' && lesson.topicId !== topic) return false;
         
@@ -277,9 +331,12 @@ export function sortLessons(lessons, sortBy = 'title', ascending = true, userDat
 // Default export
 export default {
     LESSON_CARD_CONFIG,
+    TEMPLATE_DISPLAY,
     getLessonImage,
     getLessonProgress,
     getDifficultyBadge,
+    getTemplateDisplay,
+    getDifficultyColor,
     renderLessonCard,
     renderLessonGrid,
     filterLessons,

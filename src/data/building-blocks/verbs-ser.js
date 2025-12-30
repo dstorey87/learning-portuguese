@@ -17,6 +17,7 @@ export const verbSerLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'The essential verb for expressing identity, origin, and permanent characteristics.',
     prerequisites: ['bb-001'], // Requires pronouns first
     estimatedTime: '15 min',

@@ -17,6 +17,7 @@ export const questionsLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'conversation',
     description: 'Learn essential question words to ask anything in Portuguese.',
     prerequisites: ['bb-001'],
     estimatedTime: '10 min',

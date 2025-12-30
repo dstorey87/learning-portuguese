@@ -17,6 +17,7 @@ export const negationLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'standard',
     description: 'Learn to affirm, deny, and express negation in Portuguese.',
     prerequisites: ['bb-001'],
     estimatedTime: '8 min',

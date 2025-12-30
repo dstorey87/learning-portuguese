@@ -11,6 +11,10 @@ import {
     normalizeText
 } from './src/components/lesson/ChallengeRenderer.js';
 import {
+    getTemplateDisplay,
+    getDifficultyColor
+} from './src/components/lesson/LessonCard.js';
+import {
     AUTH_CONSTANTS,
     getHearts,
     hasHearts,
@@ -320,6 +324,9 @@ function renderLessons() {
     // Filter out gated lessons for non-premium users
     lessons = lessons.filter(l => !l.gated || userData.isPremium);
     
+    // Filter out lessons without templateId (template system requirement)
+    lessons = lessons.filter(l => l.templateId);
+    
     grid.innerHTML = '';
     
     // Render standard lessons
@@ -327,6 +334,7 @@ function renderLessons() {
         const card = document.createElement('div');
         card.className = 'lesson-card';
         card.dataset.lessonId = lesson.id;
+        card.dataset.templateId = lesson.templateId || '';
         
         const imageData = getLessonImage(lesson);
         const imageStyle = buildLessonThumbStyle(imageData);
@@ -334,8 +342,15 @@ function renderLessons() {
         const accuracy = userData.lessonAccuracy?.[lesson.id];
         const accuracyText = typeof accuracy === 'number' ? `${accuracy}%` : '—';
         
+        // Get template and difficulty display info
+        const templateDisplay = getTemplateDisplay(lesson.templateId);
+        const difficultyColor = getDifficultyColor(lesson.difficultyLevel || 'beginner');
+        
         card.innerHTML = `
-            <div class="lesson-thumb" style="background-image: ${imageStyle}"></div>
+            <div class="lesson-thumb" style="background-image: ${imageStyle}">
+                <div class="template-badge" style="background-color: ${templateDisplay.color}">${templateDisplay.icon} ${templateDisplay.name}</div>
+                <div class="difficulty-indicator" style="background-color: ${difficultyColor.color}">${difficultyColor.icon}</div>
+            </div>
             <h3>${lesson.title}</h3>
             <p class="lesson-meta">${topic?.title || lesson.topicId} · ${lesson.level || 'beginner'}</p>
             <p class="word-count">${lesson.words?.length || 0} words</p>

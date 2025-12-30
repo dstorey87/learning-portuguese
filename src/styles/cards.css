@@ -80,6 +80,7 @@
     cursor: pointer;
     border: 2px solid transparent;
     transition: all var(--transition-normal);
+    overflow: hidden;
 }
 
 .lesson-card:hover {
@@ -95,6 +96,71 @@
 .lesson-card.locked {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* Lesson without template - warning state */
+.lesson-card.no-template {
+    border-color: var(--warning);
+    opacity: 0.5;
+}
+
+.lesson-card.no-template::after {
+    content: '⚠️ No Template';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--warning);
+    color: #000;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 10;
+}
+
+/* Template badge on thumbnail */
+.lesson-card .template-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Difficulty indicator */
+.lesson-card .difficulty-indicator {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 5;
+}
+
+/* Lesson thumbnail container */
+.lesson-card .lesson-thumb {
+    position: relative;
+    height: 140px;
+    border-radius: var(--radius-lg);
+    background-size: cover;
+    background-position: center;
+    margin: calc(var(--spacing-4) * -1);
+    margin-bottom: var(--spacing-3);
 }
 
 .lesson-card .lesson-icon {
@@ -135,6 +201,36 @@
     height: 100%;
     background: var(--gradient-primary);
     transition: width var(--transition-slow);
+}
+
+/* Lesson badges container */
+.lesson-card .lesson-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: var(--spacing-2);
+}
+
+.lesson-card .lesson-badges span {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.lesson-card .badge-active {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+.lesson-card .badge-completed {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.lesson-card .badge-premium {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+    color: #000;
 }
 
 /* ============================================================================

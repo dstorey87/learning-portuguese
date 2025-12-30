@@ -17,6 +17,7 @@ export const possessivesLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'Learn to express ownership with possessive adjectives and pronouns.',
     prerequisites: ['bb-001', 'bb-005'],
     estimatedTime: '12 min',

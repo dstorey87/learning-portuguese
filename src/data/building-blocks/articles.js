@@ -17,6 +17,7 @@ export const articlesLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'Master the definite and indefinite articles in Portuguese.',
     prerequisites: ['bb-001'],
     estimatedTime: '10 min',

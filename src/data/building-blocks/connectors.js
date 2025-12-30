@@ -17,6 +17,7 @@ export const connectorsLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'standard',
     description: 'Learn essential conjunctions to connect ideas in Portuguese.',
     prerequisites: ['bb-001'],
     estimatedTime: '8 min',

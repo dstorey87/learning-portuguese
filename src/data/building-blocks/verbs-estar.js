@@ -17,6 +17,7 @@ export const verbEstarLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'The essential verb for expressing temporary states, emotions, and locations.',
     prerequisites: ['bb-001', 'bb-002'], // Requires pronouns AND ser first
     estimatedTime: '15 min',

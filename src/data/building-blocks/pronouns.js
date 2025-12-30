@@ -16,6 +16,7 @@ export const pronounsLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'Essential pronouns for constructing any Portuguese sentence.',
     prerequisites: [], // This is the first lesson - no prerequisites
     estimatedTime: '10 min',

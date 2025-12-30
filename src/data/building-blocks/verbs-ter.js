@@ -17,6 +17,7 @@ export const verbTerLesson = {
     topic: 'building-blocks',
     tier: 1,
     level: 'beginner',
+    templateId: 'grammar',
     description: 'Essential verb for possession, age, and common expressions.',
     prerequisites: ['bb-001'],
     estimatedTime: '12 min',
