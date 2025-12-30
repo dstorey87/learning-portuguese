@@ -16,10 +16,11 @@ This is the **single source of truth** for lesson architecture, exercise types, 
 6. [AI Lesson Generation & Adaptation](#ai-lesson-generation--adaptation)
 7. [Telemetry Requirements](#telemetry-requirements)
 8. [MCP Playwright Validation Scenarios](#mcp-playwright-validation-scenarios)
-9. [Execution Tasks](#execution-tasks)
-10. [Definitions of Done (Per Track)](#definitions-of-done-per-track)
-11. [LLM Interchangeability](#llm-interchangeability)
-12. [Enforcement Rules](#enforcement-rules)
+9. [Agentic Workflow (For AI Agents)](#agentic-workflow-for-ai-agents--github-copilot)
+10. [Execution Tasks](#execution-tasks)
+11. [Definitions of Done (Per Track)](#definitions-of-done-per-track)
+12. [LLM Interchangeability](#llm-interchangeability)
+13. [Enforcement Rules](#enforcement-rules)
 
 ---
 
@@ -1389,6 +1390,420 @@ function logModelUsage(model, prompt, response, duration) {
   });
 }
 ```
+
+---
+
+## Agentic Workflow (For AI Agents / GitHub Copilot)
+
+This section provides explicit step-by-step instructions for AI agents to autonomously execute tasks from this plan.
+
+### Task Execution Protocol
+
+**For EVERY task in this document, follow this exact sequence:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  AGENTIC TASK EXECUTION FLOW                                    │
+│                                                                 │
+│  1. CREATE BRANCH                                               │
+│     git checkout main && git pull origin main                   │
+│     git checkout -b feature/<TASK-ID>-<short-description>       │
+│                                                                 │
+│  2. READ SOURCES                                                │
+│     For each source number in task → read the URL               │
+│     Extract key implementation insight                          │
+│                                                                 │
+│  3. IMPLEMENT                                                   │
+│     Edit files listed in "Files to Change"                      │
+│     Follow the Exercise Type DoD checkboxes                     │
+│                                                                 │
+│  4. TEST (targeted)                                             │
+│     npx playwright test tests/e2e/<relevant>.e2e.test.js        │
+│     npx playwright test tests/unit/<relevant>.test.js           │
+│                                                                 │
+│  5. MCP PLAYWRIGHT VALIDATE                                     │
+│     mcp_playwright_browser_navigate → page                      │
+│     mcp_playwright_browser_snapshot → verify structure          │
+│     mcp_playwright_browser_click → test interactions            │
+│     mcp_playwright_browser_take_screenshot → evidence           │
+│     mcp_playwright_browser_evaluate → extract data              │
+│                                                                 │
+│  6. FIX LOOP (if failures)                                      │
+│     Fix issue → rerun tests → revalidate with MCP               │
+│     REPEAT until ALL pass                                       │
+│                                                                 │
+│  7. LINT                                                        │
+│     npm run lint                                                │
+│                                                                 │
+│  8. COMMIT                                                      │
+│     git add <files>                                             │
+│     git commit -m "[TASK-ID] Description (Sources: X, Y, Z)"    │
+│                                                                 │
+│  9. PUSH & MERGE                                                │
+│     git push -u origin feature/<TASK-ID>-<desc>                 │
+│     git checkout main && git pull && git merge <branch>         │
+│     git push origin main                                        │
+│     git branch -d <branch>                                      │
+│                                                                 │
+│  10. REPORT                                                     │
+│      Include: screenshot paths, test results, telemetry proof   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Branch Naming Convention
+
+| Task Type | Branch Format | Example |
+|-----------|---------------|---------|
+| Lesson Architecture | `feature/LA-XXX-<desc>` | `feature/LA-006-word-order-builder` |
+| AI Adaptation | `feature/AI-XXX-<desc>` | `feature/AI-004-rescue-rotation` |
+| Telemetry | `feature/TM-XXX-<desc>` | `feature/TM-002-event-emission` |
+| Testing | `test/TV-XXX-<desc>` | `test/TV-002-lesson-smoke` |
+| LLM | `feature/LM-XXX-<desc>` | `feature/LM-001-model-registry` |
+
+### Commit Message Template
+
+```
+[TASK-ID] Brief description (Sources: X, Y, Z)
+
+Implementation:
+- What was added/changed
+- Key decisions made
+
+Testing:
+- Unit tests: <file> - ✅ passed
+- E2E tests: <file> - ✅ passed
+- MCP Playwright: Scenario X - ✅ validated
+
+Evidence:
+- Screenshot: test-results/<task-id>.png
+- Telemetry: <events verified>
+```
+
+### MCP Playwright Evidence Requirements
+
+**Every task MUST include these in the final report:**
+
+```markdown
+## MCP Playwright Validation
+
+**URL:** http://localhost:63436/<path>
+**Tools Used:**
+1. `mcp_playwright_browser_navigate` → [result]
+2. `mcp_playwright_browser_snapshot` → [elements found]
+3. `mcp_playwright_browser_click` → [interaction result]
+4. `mcp_playwright_browser_take_screenshot` → test-results/<task-id>.png
+5. `mcp_playwright_browser_evaluate` → [data extracted]
+
+**Pass/Fail:** ✅ PASS | ❌ FAIL (with reason)
+```
+
+---
+
+## Detailed Task Specifications (Agentic-Ready)
+
+Below are fully specified tasks with everything an AI agent needs to execute autonomously.
+
+### Task: LA-006 - Implement Word Order Builder
+
+**Branch:** `feature/LA-006-word-order-builder`
+
+**Prerequisites:** None (can start immediately)
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add word-order exercise type
+- `src/data/lessons/*.js` - Add word-order challenges to lesson data
+
+**Implementation Steps:**
+1. Add `renderWordOrderExercise()` function to ChallengeRenderer.js
+2. Implement drag-and-drop or click-to-place tile interaction
+3. Add distractor word injection (minimum 2 foils per sentence)
+4. Implement hint display after 1 failed attempt
+5. Add telemetry: `attempt_time`, `correctness`, `confusion_pairs`, `hint_used`, `distractor_selected`
+6. Create sample word-order exercises in lesson data files
+
+**Definition of Done Checklist:**
+- [ ] Renders word tiles in randomized order
+- [ ] Includes ≥2 distractor words visually distinct
+- [ ] Validates syntax and agreement on submit
+- [ ] Shows hint after 1 fail (not immediately)
+- [ ] Emits all telemetry events on submit
+- [ ] Unit test covers ordering logic + distractor rejection
+- [ ] Playwright screenshot confirms rendering
+- [ ] No word-list screen precedes this exercise
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/challengeRenderer.test.js --grep "word-order"
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "word-order"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_click on lesson with word-order exercise
+3. mcp_playwright_browser_snapshot - verify tiles visible
+4. mcp_playwright_browser_click on tiles in wrong order
+5. Verify hint appears after failure
+6. mcp_playwright_browser_click on tiles in correct order
+7. mcp_playwright_browser_take_screenshot("test-results/LA-006-word-order.png")
+8. mcp_playwright_browser_evaluate(() => window.telemetryEvents) - confirm events
+```
+
+**Commit:**
+```bash
+git add src/components/lesson/ChallengeRenderer.js src/data/lessons/
+git commit -m "[LA-006] Implement word-order builder exercise (Sources: 1, 2, 24, 52)
+
+Implementation:
+- Added renderWordOrderExercise() with drag-and-drop tiles
+- Implemented distractor injection (min 2 foils)
+- Added hint after 1 failed attempt
+- Telemetry: attempt_time, correctness, confusion_pairs, hint_used
+
+Testing:
+- Unit tests: challengeRenderer.test.js - ✅
+- E2E tests: lesson.e2e.test.js - ✅
+- MCP Playwright: Scenario 2 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-006-word-order.png"
+```
+
+---
+
+### Task: LA-010 - Implement Image→Type Exercise (pastel→pastry)
+
+**Branch:** `feature/LA-010-image-type-exercise`
+
+**Prerequisites:** LA-021 (Asset preload system) recommended but not blocking
+
+**Files to Change:**
+- `src/components/lesson/ChallengeRenderer.js` - Add image-type exercise
+- `assets/` folder - Add subject-matched images
+- `src/data/lessons/*.js` - Add image-type challenges
+
+**Implementation Steps:**
+1. Add `renderImageTypeExercise()` function
+2. Display image BEFORE input field (critical - practice-first)
+3. Implement accent-tolerant text input (ã, ç, etc.)
+4. Add immediate feedback on submit
+5. Add telemetry: `keystroke_count`, `response_time`, `accent_correct`
+6. Ensure NO word-list screen precedes this exercise
+
+**Definition of Done Checklist:**
+- [ ] Image displays BEFORE input field (not after)
+- [ ] No word list shown first - this IS the first view
+- [ ] Accepts accented characters (ã, ç, etc.)
+- [ ] Feedback on submit is immediate
+- [ ] Telemetry captures keystrokes and timing
+- [ ] Playwright screenshot shows image + input field together
+- [ ] Image URL matches subject (verified via evaluate)
+
+**Test Commands:**
+```bash
+npx playwright test tests/e2e/lesson.e2e.test.js --grep "image-type"
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate("http://localhost:63436/learn")
+2. mcp_playwright_browser_click on image-type lesson
+3. mcp_playwright_browser_snapshot - verify image present BEFORE input
+4. mcp_playwright_browser_evaluate(() => {
+     const img = document.querySelector('.exercise-image');
+     return img ? img.src : null;
+   }) - verify image URL is subject-matched
+5. mcp_playwright_browser_type("pastel") in input field
+6. mcp_playwright_browser_click submit button
+7. mcp_playwright_browser_take_screenshot("test-results/LA-010-image-type.png")
+8. mcp_playwright_browser_evaluate(() => window.telemetryEvents)
+```
+
+**Commit:**
+```bash
+git commit -m "[LA-010] Implement image→type exercise (Sources: 4, 7, 8)
+
+Implementation:
+- Added renderImageTypeExercise() with image-first layout
+- Accent-tolerant input (normalizes ã→a for comparison, notes if missing)
+- Immediate feedback with correct/incorrect styling
+- Telemetry: keystroke_count, response_time, accent_correct
+
+Testing:
+- E2E: lesson.e2e.test.js - ✅
+- MCP Playwright: Scenario 3 - ✅
+
+Evidence:
+- Screenshot: test-results/LA-010-image-type.png
+- Image URL verified as subject-matched"
+```
+
+---
+
+### Task: AI-004 - Rescue Technique Rotation
+
+**Branch:** `feature/AI-004-rescue-technique-rotation`
+
+**Prerequisites:** TM-002 (Event emission) should be complete
+
+**Files to Change:**
+- `src/services/learning/StuckWordsService.js` - Implement rotation logic
+- `src/data/ai-reference/mnemonic-patterns.js` - Reference for techniques
+
+**Implementation Steps:**
+1. Track failure count per word per user
+2. On 3rd fail of same word, trigger rescue technique
+3. Rotate through techniques: keyword_mnemonic → minimal_pair → memory_palace → input_flood → image_association
+4. Log rescue event to telemetry
+5. Each subsequent fail cycles to next technique
+
+**Rescue Technique Rotation:**
+| Fail Count | Technique | Implementation |
+|------------|-----------|----------------|
+| 3 | Keyword Mnemonic | English word sounds like Portuguese |
+| 4 | Minimal Pair | Compare with similar-sounding word |
+| 5 | Memory Palace | Associate with physical location |
+| 6 | Input Flood | Multiple sentences with target word |
+| 7 | Image Association | Strong visual connection |
+| 8+ | Cycle back to 3 | Repeat rotation |
+
+**Definition of Done Checklist:**
+- [ ] Failure count tracked per word per user
+- [ ] Rescue triggers on 3rd fail (not before)
+- [ ] Different technique on each subsequent fail
+- [ ] Technique logged to telemetry: `stuck_word_rescue` event
+- [ ] Unit test confirms rotation sequence
+- [ ] Techniques actually display to user (not just logged)
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/stuckWordsService.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. Seed user with 2 failures on word "obrigado"
+2. mcp_playwright_browser_navigate to lesson with "obrigado"
+3. mcp_playwright_browser_click wrong answer (3rd fail)
+4. mcp_playwright_browser_snapshot - verify rescue technique displayed
+5. mcp_playwright_browser_evaluate(() => {
+     return window.lastRescueTechnique;
+   }) - confirm "keyword_mnemonic"
+6. Repeat for 4th fail - should be "minimal_pair"
+7. mcp_playwright_browser_take_screenshot("test-results/AI-004-rescue.png")
+```
+
+**Commit:**
+```bash
+git commit -m "[AI-004] Implement rescue technique rotation (Sources: 7, 32, 42, 43, 44, 47)
+
+Implementation:
+- StuckWordsService tracks per-word failure count
+- Rescue triggers at fail count >= 3
+- Rotation: keyword_mnemonic → minimal_pair → memory_palace → input_flood → image_association
+- Cycles back after 5 techniques
+
+Testing:
+- Unit tests: stuckWordsService.test.js - ✅
+- MCP Playwright: rescue technique verified - ✅
+
+Evidence:
+- Screenshot: test-results/AI-004-rescue.png
+- Telemetry: stuck_word_rescue events firing"
+```
+
+---
+
+### Task: TM-002 - Implement All Required Events
+
+**Branch:** `feature/TM-002-telemetry-events`
+
+**Prerequisites:** None
+
+**Files to Change:**
+- `src/services/Logger.js` - Ensure logging infrastructure
+- `src/services/eventStreaming.js` - Event emission
+- `src/components/lesson/ChallengeRenderer.js` - Emit events on interactions
+
+**Required Events:**
+| Event | Required Fields | When Emitted |
+|-------|-----------------|--------------|
+| `answer_attempt` | wordId, lessonId, correctness, responseTime, hintUsed, attemptNumber, exerciseType | On any answer submit |
+| `pronunciation_score` | wordId, overallScore, phonemeBreakdown[], timestamp | After pronunciation check |
+| `lesson_complete` | lessonId, duration, accuracy, exerciseTypesUsed[], rescueLessonsTriggered | On lesson finish |
+| `word_skipped` | wordId, reason (timeout/manual), exerciseType | When user skips |
+| `ai_tip_shown` | tipId, category, triggerSignal, userId | When tip displays |
+| `stuck_word_rescue` | wordId, technique, attemptNumber, wasSuccessful | When rescue triggers |
+| `exercise_interaction` | exerciseType, interactionType (click/type/drag), timestamp | On any interaction |
+
+**Definition of Done Checklist:**
+- [ ] All 7 event types emitted at correct times
+- [ ] All required fields present in payloads
+- [ ] Events use `${userId}_` prefix for storage
+- [ ] Unit tests validate event schemas
+- [ ] Events visible in browser console via Logger
+- [ ] Events stream to AI pipeline via EventStreaming
+
+**Test Commands:**
+```bash
+npx playwright test tests/unit/logger.test.js
+npx playwright test tests/unit/eventStreaming.test.js
+```
+
+**MCP Playwright Validation:**
+```
+1. mcp_playwright_browser_navigate to any lesson
+2. Complete an exercise
+3. mcp_playwright_browser_evaluate(() => {
+     return JSON.parse(localStorage.getItem('telemetry_events') || '[]');
+   })
+4. Verify answer_attempt event present with all fields
+5. Skip a word
+6. mcp_playwright_browser_evaluate - verify word_skipped event
+7. Complete lesson
+8. mcp_playwright_browser_evaluate - verify lesson_complete event
+9. mcp_playwright_browser_take_screenshot("test-results/TM-002-events.png")
+```
+
+---
+
+## Task Dependency Graph
+
+```
+                    ┌─────────────┐
+                    │   TM-001    │ (User-prefixed storage)
+                    │   TM-002    │ (Event emission)
+                    └──────┬──────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+         ▼                 ▼                 ▼
+    ┌─────────┐      ┌─────────┐      ┌─────────┐
+    │ LA-001  │      │ AI-001  │      │ LM-001  │
+    │ LA-002  │      │ AI-002  │      │ LM-002  │
+    │   ...   │      │   ...   │      │   ...   │
+    │ LA-021  │      │ AI-007  │      │ LM-006  │
+    └────┬────┘      └────┬────┘      └────┬────┘
+         │                │                │
+         └────────────────┼────────────────┘
+                          │
+                          ▼
+                    ┌─────────────┐
+                    │   TV-001    │
+                    │   TV-002    │ (MCP Playwright Scenarios)
+                    │     ...     │
+                    │   TV-010    │
+                    └─────────────┘
+```
+
+**Recommended Execution Order:**
+1. **TM-001, TM-002** - Telemetry foundation (parallel)
+2. **LA-001 through LA-005** - Core lesson architecture
+3. **LA-006 through LA-020** - Exercise types (can parallelize)
+4. **AI-001 through AI-007** - AI adaptation (sequential)
+5. **LM-001 through LM-006** - LLM interchangeability
+6. **TV-001 through TV-010** - Validation scenarios (after features)
+7. **LA-021** - Asset preload (anytime, independent)
 
 ---
 
