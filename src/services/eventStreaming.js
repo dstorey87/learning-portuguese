@@ -35,11 +35,167 @@ export const EVENT_TYPES = {
     SESSION_END: 'session_end'
 };
 
+// TM-003: JSON Schemas for event validation
+export const EVENT_SCHEMAS = {
+    [EVENT_TYPES.ANSWER_ATTEMPT]: {
+        required: ['wordId', 'lessonId', 'exerciseType'],
+        optional: ['correctness', 'responseTime', 'hintUsed', 'attemptNumber'],
+        types: {
+            wordId: 'string',
+            lessonId: 'string',
+            exerciseType: 'string',
+            correctness: 'boolean',
+            responseTime: 'number',
+            hintUsed: 'boolean',
+            attemptNumber: 'number'
+        }
+    },
+    [EVENT_TYPES.PRONUNCIATION_SCORE]: {
+        required: ['wordId'],
+        optional: ['overallScore', 'phonemeBreakdown', 'timestamp'],
+        types: {
+            wordId: 'string',
+            overallScore: 'number',
+            phonemeBreakdown: 'array',
+            timestamp: 'number'
+        }
+    },
+    [EVENT_TYPES.LESSON_COMPLETE]: {
+        required: ['lessonId'],
+        optional: ['duration', 'accuracy', 'exerciseTypesUsed', 'rescueLessonsTriggered'],
+        types: {
+            lessonId: 'string',
+            duration: 'number',
+            accuracy: 'number',
+            exerciseTypesUsed: 'array',
+            rescueLessonsTriggered: 'number'
+        }
+    },
+    [EVENT_TYPES.WORD_SKIPPED]: {
+        required: ['wordId', 'reason'],
+        optional: ['exerciseType'],
+        types: {
+            wordId: 'string',
+            reason: 'string',
+            exerciseType: 'string'
+        },
+        enums: {
+            reason: ['timeout', 'manual']
+        }
+    },
+    [EVENT_TYPES.AI_TIP_SHOWN]: {
+        required: ['tipId', 'category'],
+        optional: ['triggerSignal', 'userId'],
+        types: {
+            tipId: 'string',
+            category: 'string',
+            triggerSignal: 'string',
+            userId: 'string'
+        },
+        enums: {
+            category: ['pronunciation', 'grammar', 'memory', 'encouragement', 'vocabulary', 'general']
+        }
+    },
+    [EVENT_TYPES.STUCK_WORD_RESCUE]: {
+        required: ['wordId', 'technique'],
+        optional: ['attemptNumber', 'wasSuccessful'],
+        types: {
+            wordId: 'string',
+            technique: 'string',
+            attemptNumber: 'number',
+            wasSuccessful: 'boolean'
+        }
+    },
+    [EVENT_TYPES.EXERCISE_INTERACTION]: {
+        required: ['exerciseType', 'interactionType'],
+        optional: ['timestamp'],
+        types: {
+            exerciseType: 'string',
+            interactionType: 'string',
+            timestamp: 'number'
+        },
+        enums: {
+            interactionType: ['click', 'type', 'drag']
+        }
+    }
+};
+
+/**
+ * Validate event payload against schema
+ * @param {string} eventType - Event type
+ * @param {Object} data - Event data
+ * @param {boolean} strict - If true, throws on missing required fields
+ * @returns {Object} Validation result {valid, errors}
+ */
+export function validateEventPayload(eventType, data, strict = false) {
+    const schema = EVENT_SCHEMAS[eventType];
+    const errors = [];
+    
+    // Skip validation for legacy/unknown event types
+    if (!schema) {
+        return { valid: true, errors: [] };
+    }
+    
+    // Check required fields
+    for (const field of schema.required) {
+        if (data[field] === undefined || data[field] === null || data[field] === '') {
+            errors.push(`Missing required field: ${field}`);
+        }
+    }
+    
+    // Check types for provided fields
+    for (const [field, expectedType] of Object.entries(schema.types)) {
+        if (data[field] !== undefined && data[field] !== null) {
+            const actualType = Array.isArray(data[field]) ? 'array' : typeof data[field];
+            if (actualType !== expectedType) {
+                errors.push(`Invalid type for ${field}: expected ${expectedType}, got ${actualType}`);
+            }
+        }
+    }
+    
+    // Check enum constraints
+    if (schema.enums) {
+        for (const [field, allowedValues] of Object.entries(schema.enums)) {
+            if (data[field] !== undefined && !allowedValues.includes(data[field])) {
+                errors.push(`Invalid value for ${field}: must be one of [${allowedValues.join(', ')}]`);
+            }
+        }
+    }
+    
+    const valid = errors.length === 0;
+    
+    if (!valid && strict) {
+        throw new Error(`Event validation failed for ${eventType}: ${errors.join('; ')}`);
+    }
+    
+    return { valid, errors };
+}
+
 class EventStreamingService {
-    constructor() {
+    constructor(options = {}) {
         this.eventQueue = [];
         this.debounceTimer = null;
         this.listeners = [];
+        // TM-003: Enable strict validation (throws on invalid payloads)
+        this.strictValidation = options.strictValidation ?? false;
+    }
+
+    /**
+     * Enable or disable strict validation
+     * @param {boolean} strict - If true, invalid payloads throw errors
+     */
+    setStrictValidation(strict) {
+        this.strictValidation = strict;
+    }
+
+    /**
+     * Validate event data and optionally throw on errors
+     * @param {string} eventType - Event type
+     * @param {Object} data - Event data
+     * @returns {Object} Validation result
+     */
+    validateEvent(eventType, data) {
+        return validateEventPayload(eventType, data, this.strictValidation);
     }
 
     /**
@@ -173,6 +329,7 @@ class EventStreamingService {
 
     // ========================================================================
     // TM-002: REQUIRED TELEMETRY EVENTS (7 types)
+    // TM-003: With payload validation
     // ========================================================================
 
     /**
@@ -188,10 +345,7 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitAnswerAttempt({ wordId, lessonId, correctness, responseTime, hintUsed, attemptNumber, exerciseType }) {
-        if (!wordId || !lessonId || !exerciseType) {
-            console.warn('[EventStream] answer_attempt missing required fields', { wordId, lessonId, exerciseType });
-        }
-        return this.track(EVENT_TYPES.ANSWER_ATTEMPT, {
+        const data = {
             wordId,
             lessonId,
             correctness: Boolean(correctness),
@@ -199,7 +353,9 @@ class EventStreamingService {
             hintUsed: Boolean(hintUsed),
             attemptNumber: Number(attemptNumber) || 1,
             exerciseType
-        });
+        };
+        this.validateEvent(EVENT_TYPES.ANSWER_ATTEMPT, data);
+        return this.track(EVENT_TYPES.ANSWER_ATTEMPT, data);
     }
 
     /**
@@ -211,15 +367,14 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitPronunciationScore({ wordId, overallScore, phonemeBreakdown = [] }) {
-        if (!wordId) {
-            console.warn('[EventStream] pronunciation_score missing wordId');
-        }
-        return this.track(EVENT_TYPES.PRONUNCIATION_SCORE, {
+        const data = {
             wordId,
             overallScore: Number(overallScore) || 0,
             phonemeBreakdown: Array.isArray(phonemeBreakdown) ? phonemeBreakdown : [],
             timestamp: Date.now()
-        });
+        };
+        this.validateEvent(EVENT_TYPES.PRONUNCIATION_SCORE, data);
+        return this.track(EVENT_TYPES.PRONUNCIATION_SCORE, data);
     }
 
     /**
@@ -233,16 +388,15 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitLessonComplete({ lessonId, duration, accuracy, exerciseTypesUsed = [], rescueLessonsTriggered = 0 }) {
-        if (!lessonId) {
-            console.warn('[EventStream] lesson_complete missing lessonId');
-        }
-        return this.track(EVENT_TYPES.LESSON_COMPLETE, {
+        const data = {
             lessonId,
             duration: Number(duration) || 0,
             accuracy: Number(accuracy) || 0,
             exerciseTypesUsed: Array.isArray(exerciseTypesUsed) ? exerciseTypesUsed : [],
             rescueLessonsTriggered: Number(rescueLessonsTriggered) || 0
-        });
+        };
+        this.validateEvent(EVENT_TYPES.LESSON_COMPLETE, data);
+        return this.track(EVENT_TYPES.LESSON_COMPLETE, data);
     }
 
     /**
@@ -254,14 +408,13 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitWordSkipped({ wordId, reason, exerciseType }) {
-        if (!wordId || !reason) {
-            console.warn('[EventStream] word_skipped missing required fields', { wordId, reason });
-        }
-        return this.track(EVENT_TYPES.WORD_SKIPPED, {
+        const data = {
             wordId,
             reason: ['timeout', 'manual'].includes(reason) ? reason : 'manual',
             exerciseType: exerciseType || 'unknown'
-        });
+        };
+        this.validateEvent(EVENT_TYPES.WORD_SKIPPED, data);
+        return this.track(EVENT_TYPES.WORD_SKIPPED, data);
     }
 
     /**
@@ -273,15 +426,14 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitAITipShown({ tipId, category, triggerSignal }) {
-        if (!tipId || !category) {
-            console.warn('[EventStream] ai_tip_shown missing required fields', { tipId, category });
-        }
-        return this.track(EVENT_TYPES.AI_TIP_SHOWN, {
+        const data = {
             tipId,
             category,
             triggerSignal: triggerSignal || 'unspecified',
             userId: userStorage.getCurrentUserId()
-        });
+        };
+        this.validateEvent(EVENT_TYPES.AI_TIP_SHOWN, data);
+        return this.track(EVENT_TYPES.AI_TIP_SHOWN, data);
     }
 
     /**
@@ -294,15 +446,14 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitStuckWordRescue({ wordId, technique, attemptNumber, wasSuccessful }) {
-        if (!wordId || !technique) {
-            console.warn('[EventStream] stuck_word_rescue missing required fields', { wordId, technique });
-        }
-        return this.track(EVENT_TYPES.STUCK_WORD_RESCUE, {
+        const data = {
             wordId,
             technique,
             attemptNumber: Number(attemptNumber) || 3,
             wasSuccessful: Boolean(wasSuccessful)
-        });
+        };
+        this.validateEvent(EVENT_TYPES.STUCK_WORD_RESCUE, data);
+        return this.track(EVENT_TYPES.STUCK_WORD_RESCUE, data);
     }
 
     /**
@@ -313,23 +464,25 @@ class EventStreamingService {
      * @returns {Object} The created event
      */
     emitExerciseInteraction({ exerciseType, interactionType }) {
-        if (!exerciseType || !interactionType) {
-            console.warn('[EventStream] exercise_interaction missing required fields', { exerciseType, interactionType });
-        }
-        return this.track(EVENT_TYPES.EXERCISE_INTERACTION, {
+        const data = {
             exerciseType,
             interactionType: ['click', 'type', 'drag'].includes(interactionType) ? interactionType : 'click',
             timestamp: Date.now()
-        });
+        };
+        this.validateEvent(EVENT_TYPES.EXERCISE_INTERACTION, data);
+        return this.track(EVENT_TYPES.EXERCISE_INTERACTION, data);
     }
 
     /**
      * Generic emit method for custom events (also supports 'learning_event' for AI pipeline)
+     * TM-003: Validates against schema if defined
      * @param {string} eventType - Event type
      * @param {Object} data - Event data
      * @returns {Object} The created event
      */
     emit(eventType, data = {}) {
+        // Validate if schema exists for this event type
+        this.validateEvent(eventType, data);
         return this.track(eventType, data);
     }
 
