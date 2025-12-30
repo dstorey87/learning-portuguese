@@ -29,6 +29,7 @@ import {
     isAdmin
 } from './src/services/AuthService.js';
 import { userStorage } from './src/services/userStorage.js';
+import * as ProgressTracker from './src/services/ProgressTracker.js';
 import { getLearnedWords, SRS_INTERVALS } from './src/services/ProgressTracker.js';
 import Toast from './src/components/common/Toast.js';
 import { 
@@ -128,11 +129,22 @@ function bootstrapAuthUser() {
     }
     const userId = sanitizeUserId(activeUser.username || 'guest');
     localStorage.setItem('currentUserId', userId);
+    
+    // CRITICAL: Set user context for ALL user-isolated services
     try {
         userStorage.setCurrentUser(userId);
     } catch (err) {
         console.warn('Failed to set userStorage context', err);
     }
+    
+    // Initialize ProgressTracker with this user's data
+    try {
+        ProgressTracker.setCurrentUser(userId);
+    } catch (err) {
+        console.warn('Failed to set ProgressTracker user context', err);
+    }
+    
+    console.log(`[AUTH] Bootstrap user: ${userId} - all services now user-isolated`);
     return userId;
 }
 
@@ -3484,15 +3496,27 @@ function updateUserButton() {
 function setActiveUserContext(user) {
     currentUserId = sanitizeUserId(user?.username || 'guest');
     localStorage.setItem('currentUserId', currentUserId);
+    
+    // CRITICAL: Set user context for ALL user-isolated services
     try {
         userStorage.setCurrentUser(currentUserId);
     } catch (err) {
         console.warn('Failed to bind userStorage context', err);
     }
+    
+    // Set ProgressTracker user context (loads their specific data)
+    try {
+        ProgressTracker.setCurrentUser(currentUserId);
+    } catch (err) {
+        console.warn('Failed to set ProgressTracker user context', err);
+    }
+    
     userData = loadUserData();
     saveUserData(userData);
     updateHeaderStats();
     renderLessons();
+    
+    console.log(`[AUTH] User context set: ${currentUserId} - all data is now user-specific`);
 }
 
 function showLoginModal() {

@@ -78,41 +78,95 @@ let progressState = {
 };
 
 // ============================================================================
-// STORAGE HELPERS
+// STORAGE HELPERS - USER-ISOLATED (CRITICAL!)
 // ============================================================================
 
 const STORAGE_KEY = 'portulingo_progress';
+let currentUserId = null;
 
 /**
- * Load progress from localStorage
- * @param {string} userId - Optional user ID prefix
+ * Set the current user ID - MUST be called on login/app init
+ * All progress data is isolated per user
+ */
+export function setCurrentUser(userId) {
+    if (!userId) {
+        console.warn('ProgressTracker: No userId provided, using "guest"');
+        userId = 'guest';
+    }
+    currentUserId = userId;
+    // Load this user's progress when they're set
+    loadProgress();
+}
+
+/**
+ * Get current user ID (never returns null - defaults to 'guest')
+ */
+export function getCurrentUserId() {
+    if (!currentUserId) {
+        // Try to get from localStorage (set by AuthService)
+        currentUserId = localStorage.getItem('currentUserId') || 'guest';
+    }
+    return currentUserId;
+}
+
+/**
+ * Get user-specific storage key
+ * ALWAYS prefixed with userId to ensure data isolation
+ */
+function getUserStorageKey() {
+    const userId = getCurrentUserId();
+    return `${userId}_${STORAGE_KEY}`;
+}
+
+/**
+ * Load progress from localStorage for CURRENT user only
  * @returns {Object} Progress data
  */
-export function loadProgress(userId = null) {
+export function loadProgress() {
     try {
-        const key = userId ? `${userId}_${STORAGE_KEY}` : STORAGE_KEY;
+        const key = getUserStorageKey();
         const saved = localStorage.getItem(key);
         if (saved) {
-            progressState = { ...progressState, ...JSON.parse(saved) };
+            progressState = { ...createDefaultProgressState(), ...JSON.parse(saved) };
+        } else {
+            // No saved progress for this user - start fresh
+            progressState = createDefaultProgressState();
         }
+        console.log(`ProgressTracker: Loaded progress for user "${getCurrentUserId()}" (${progressState.learnedWords?.length || 0} words)`);
     } catch (e) {
         console.error('Failed to load progress:', e);
+        progressState = createDefaultProgressState();
     }
     return getProgressSnapshot();
 }
 
 /**
- * Save progress to localStorage
- * @param {string} userId - Optional user ID prefix
+ * Save progress to localStorage for CURRENT user only
  */
-export function saveProgress(userId = null) {
+export function saveProgress() {
     try {
-        const key = userId ? `${userId}_${STORAGE_KEY}` : STORAGE_KEY;
+        const key = getUserStorageKey();
         progressState.lastSyncTime = Date.now();
         localStorage.setItem(key, JSON.stringify(progressState));
     } catch (e) {
         console.error('Failed to save progress:', e);
     }
+}
+
+/**
+ * Create default progress state
+ */
+function createDefaultProgressState() {
+    return {
+        learnedWords: [],
+        completedLessons: [],
+        skillStats: {},
+        milestones: [],
+        studySessions: [],
+        pronunciationHistory: {},
+        phonemeWeaknesses: {},
+        lastSyncTime: null
+    };
 }
 
 /**
@@ -970,21 +1024,24 @@ export function onProgressEvent(eventName, callback) {
 // ============================================================================
 
 /**
- * Reset all progress (admin only)
- * @param {string} userId - User ID
+ * Reset all progress for CURRENT user (admin only)
  */
-export function resetProgress(userId = null) {
-    progressState = {
-        learnedWords: [],
-        completedLessons: [],
-        skillStats: {},
-        milestones: [],
-        studySessions: [],
-        pronunciationHistory: {},
-        phonemeWeaknesses: {},
-        lastSyncTime: null
-    };
-    saveProgress(userId);
+export function resetProgress() {
+    const userId = getCurrentUserId();
+    console.log(`ProgressTracker: Resetting all progress for user "${userId}"`);
+    progressState = createDefaultProgressState();
+    saveProgress();
+}
+
+/**
+ * Reset progress for a SPECIFIC user (admin only)
+ * @param {string} userId - User ID to reset
+ */
+export function resetProgressForUser(userId) {
+    if (!userId) return;
+    const key = `${userId}_${STORAGE_KEY}`;
+    localStorage.removeItem(key);
+    console.log(`ProgressTracker: Cleared all progress for user "${userId}"`);
 }
 
 // ============================================================================
@@ -997,6 +1054,10 @@ export default {
     SRS_INTERVALS,
     SKILL_CATEGORIES,
     PROGRESS_EVENTS,
+    
+    // User Management (CRITICAL for isolation)
+    setCurrentUser,
+    getCurrentUserId,
     
     // Storage
     loadProgress,
@@ -1062,5 +1123,6 @@ export default {
     onProgressEvent,
     
     // Admin
-    resetProgress
+    resetProgress,
+    resetProgressForUser
 };
