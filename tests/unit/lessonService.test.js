@@ -216,23 +216,58 @@ test.describe('LessonService: Challenge Building', () => {
         expect(hasCorrect).toBe(true);
     });
     
-    test('buildLessonChallenges creates all challenge phases', async ({ page }) => {
+    test('buildLessonChallenges (BEGINNER) creates selection-based challenges only', async ({ page }) => {
         await page.goto(BASE_URL);
         
         const result = await page.evaluate(async (lesson) => {
-            const { buildLessonChallenges, CHALLENGE_TYPES, CHALLENGE_PHASES } = 
+            const { buildLessonChallenges, CHALLENGE_TYPES } = 
                 await import('/src/services/LessonService.js');
+            // Default is beginner mode - no typing/pronunciation
             const challenges = buildLessonChallenges(lesson);
             
             return {
                 total: challenges.length,
-                hasLearnWord: challenges.some(c => c.type === CHALLENGE_TYPES.LEARN_WORD),
-                hasPronunciation: challenges.some(c => c.type === CHALLENGE_TYPES.PRONUNCIATION),
-                hasMCQ: challenges.some(c => c.type === CHALLENGE_TYPES.MCQ),
-                hasTypeAnswer: challenges.some(c => c.type === CHALLENGE_TYPES.TYPE_ANSWER),
-                hasListenType: challenges.some(c => c.type === CHALLENGE_TYPES.LISTEN_TYPE),
-                hasSentence: challenges.some(c => c.type === CHALLENGE_TYPES.SENTENCE),
-                phases: [...new Set(challenges.map(c => c.phase))]
+                hasLearnWord: challenges.some(c => c.type === 'learn-word'),
+                hasMCQ: challenges.some(c => c.type === 'mcq'),
+                // These should NOT appear at beginner level
+                hasPronunciation: challenges.some(c => c.type === 'pronunciation'),
+                hasTypeAnswer: challenges.some(c => c.type === 'type-answer'),
+                hasListenType: challenges.some(c => c.type === 'listen-type'),
+                types: [...new Set(challenges.map(c => c.type))]
+            };
+        }, mockLesson);
+        
+        // BEGINNER mode should have MCQ and Learn Word
+        expect(result.total).toBeGreaterThan(0);
+        expect(result.hasLearnWord).toBe(true);
+        expect(result.hasMCQ).toBe(true);
+        // But NOT pronunciation or typing (those are INTERMEDIATE/HARD)
+        expect(result.hasPronunciation).toBe(false);
+        expect(result.hasTypeAnswer).toBe(false);
+        expect(result.hasListenType).toBe(false);
+    });
+    
+    test('buildLessonChallenges (HARD) creates all challenge phases', async ({ page }) => {
+        await page.goto(BASE_URL);
+        
+        const result = await page.evaluate(async (lesson) => {
+            const { buildLessonChallenges, CHALLENGE_TYPES } = 
+                await import('/src/services/LessonService.js');
+            // Hard mode with full progress = all challenge types
+            const challenges = buildLessonChallenges(lesson, {
+                difficultyLevel: 'hard',
+                lessonProgress: { accuracy: 100, completions: 10 }
+            });
+            
+            return {
+                total: challenges.length,
+                hasLearnWord: challenges.some(c => c.type === 'learn-word'),
+                hasPronunciation: challenges.some(c => c.type === 'pronunciation'),
+                hasMCQ: challenges.some(c => c.type === 'mcq'),
+                hasTypeAnswer: challenges.some(c => c.type === 'type-answer'),
+                hasListenType: challenges.some(c => c.type === 'listen-type'),
+                hasSentence: challenges.some(c => c.type === 'sentence'),
+                types: [...new Set(challenges.map(c => c.type))]
             };
         }, mockLesson);
         
@@ -243,8 +278,6 @@ test.describe('LessonService: Challenge Building', () => {
         expect(result.hasTypeAnswer).toBe(true);
         expect(result.hasListenType).toBe(true);
         expect(result.hasSentence).toBe(true);
-        expect(result.phases).toContain('learn');
-        expect(result.phases).toContain('practice');
     });
     
     test('buildLessonChallenges handles lesson with no sentences', async ({ page }) => {

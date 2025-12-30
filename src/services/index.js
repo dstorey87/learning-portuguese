@@ -125,6 +125,16 @@ export {
     LESSON_CONFIG,
     CHALLENGE_TYPES,
     CHALLENGE_PHASES,
+    // Template System (ARCH-002)
+    DIFFICULTY_LEVELS,
+    DIFFICULTY_ORDER,
+    CHALLENGE_TYPE_REGISTRY,
+    getUnlockedLevel,
+    isLevelUnlocked,
+    getDifficultyUIInfo,
+    buildFromTemplate,
+    getTemplatePreview,
+    // Utilities
     getWordKey,
     resolveWordForm,
     buildQuizOptions,
@@ -148,6 +158,13 @@ export {
     calculateLessonXP,
     default as LessonService
 } from './LessonService.js';
+
+// Template Builder Service (ARCH-002)
+export {
+    buildFromTemplate as buildChallengesFromTemplate,
+    getTemplatePreview as getLessonTemplatePreview,
+    default as TemplateBuilder
+} from './TemplateBuilder.js';
 
 // Progress Tracker Service
 export {

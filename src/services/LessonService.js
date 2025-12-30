@@ -3,13 +3,28 @@
  * 
  * Manages lesson logic, challenges, and progress tracking:
  * - Lesson state management
- * - Challenge building and sequencing
+ * - Challenge building and sequencing (via Template Engine)
  * - Progress tracking and accuracy
  * - Word resolution and gender handling
  * - Hint generation for mistakes
  * 
+ * TEMPLATE-BASED ARCHITECTURE (ARCH-002):
+ * - Challenges are built from templates defined in lessonTemplates.config.js
+ * - Difficulty levels (BEGINNER→INTERMEDIATE→ADVANCED→HARD) control exercise availability
+ * - Single source of truth: change template → all lessons change
+ * 
  * @module services/LessonService
  */
+
+import { buildFromTemplate, getTemplatePreview } from './TemplateBuilder.js';
+import {
+    DIFFICULTY_LEVELS,
+    DIFFICULTY_ORDER,
+    CHALLENGE_TYPE_REGISTRY,
+    getUnlockedLevel,
+    isLevelUnlocked,
+    getDifficultyUIInfo,
+} from '../config/lessonTemplates.config.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -26,8 +41,21 @@ export const LESSON_CONFIG = {
     defaultQuizOptions: 4
 };
 
+// Re-export template system for convenience
+export { 
+    DIFFICULTY_LEVELS, 
+    DIFFICULTY_ORDER,
+    CHALLENGE_TYPE_REGISTRY,
+    getUnlockedLevel,
+    isLevelUnlocked,
+    getDifficultyUIInfo,
+    buildFromTemplate,
+    getTemplatePreview,
+};
+
 /**
- * Challenge types
+ * Challenge types (legacy - now defined in CHALLENGE_TYPE_REGISTRY)
+ * Kept for backward compatibility
  */
 export const CHALLENGE_TYPES = {
     LEARN_WORD: 'learn-word',
@@ -36,6 +64,20 @@ export const CHALLENGE_TYPES = {
     TYPE_ANSWER: 'type-answer',
     LISTEN_TYPE: 'listen-type',
     SENTENCE: 'sentence',
+    // New template-based types
+    IMAGE_SELECT: 'image-select',
+    LISTEN_SELECT: 'listen-select',
+    WORD_SELECT: 'word-select',
+    WORD_ORDER: 'word-order',
+    SENTENCE_BUILDER: 'sentence-builder',
+    CLOZE: 'cloze',
+    CLOZE_TYPE: 'cloze-type',
+    IMAGE_TYPE: 'image-type',
+    MINIMAL_PAIRS: 'minimal-pairs',
+    NUMBER_COMPREHENSION: 'number-comprehension',
+    RAPID_RECALL: 'rapid-recall',
+    GRAMMAR_TRANSFORM: 'grammar-transform',
+    DIALOGUE_REORDER: 'dialogue-reorder',
     // Rescue-specific learning style drills
     RESCUE_KEYWORD: 'rescue-keyword-mnemonic',
     RESCUE_MULTI_SENSORY: 'rescue-multi-sensory',
@@ -170,122 +212,50 @@ export function buildQuizOptions(targetWord, allWords) {
 /**
  * Build challenges for a lesson
  * 
- * PRACTICE-FIRST FLOW (LA-001):
- * - Lessons start with active exercises (MCQ/pronunciation), NOT passive word lists
- * - LEARN_WORD screens are now interspersed as "learning breaks" after practice
- * - Each word is introduced AFTER a challenging exercise attempt
- * - This follows Duolingo's proven approach: practice → reveal → reinforce
+ * TEMPLATE-BASED ARCHITECTURE (ARCH-002):
+ * - Uses buildFromTemplate() to generate challenges from config
+ * - Filters exercises by user's difficulty level
+ * - Respects lesson content availability (images, sentences, etc.)
+ * 
+ * DIFFICULTY PROGRESSION:
+ * - BEGINNER: Selection-based (MCQ, IMAGE_SELECT, LISTEN_SELECT)
+ * - INTERMEDIATE: + Reverse selection, pronunciation (WORD_SELECT, PRONUNCIATION)
+ * - ADVANCED: + Construction with hints (WORD_ORDER, CLOZE, SENTENCE_BUILDER)
+ * - HARD: Full typing without assistance (TYPE_ANSWER, LISTEN_TYPE)
  * 
  * @param {Object} lesson - Lesson object
+ * @param {Object} options - Build options
+ * @param {string} options.difficultyLevel - User's difficulty level (default: 'beginner')
+ * @param {Object} options.lessonProgress - User's progress on this lesson
+ * @param {string} options.templateId - Override template (default: lesson.templateId or 'standard')
  * @returns {Array} Challenge sequence
  */
-export function buildLessonChallenges(lesson) {
-    // If lesson provides pre-built challenges (e.g., AI rescue lessons), honor them
-    if (lesson.challenges && lesson.challenges.length > 0) {
-        return lesson.challenges.map((challenge, idx) => {
-            const resolvedWord = typeof challenge.wordIndex === 'number'
-                ? lesson.words?.[challenge.wordIndex]
-                : challenge.word;
-            return {
-                ...challenge,
-                word: resolvedWord || challenge.word,
-                index: challenge.index ?? idx
-            };
-        });
-    }
+export function buildLessonChallenges(lesson, options = {}) {
+    const {
+        difficultyLevel = 'beginner',
+        lessonProgress = {},
+        templateId = lesson.templateId || 'standard',
+    } = options;
+    
+    // Use the template builder
+    return buildFromTemplate(lesson, {
+        templateId,
+        difficultyLevel,
+        lessonProgress,
+    });
+}
 
-    const challenges = [];
-    const words = lesson.words || [];
-    const sentences = lesson.sentences || [];
-    
-    // ==========================================================================
-    // PRACTICE-FIRST FLOW (LA-001 Implementation)
-    // ==========================================================================
-    // Strategy: Present each word with ACTIVE exercise first, then learning screen
-    // Pattern: MCQ (guess from options) → LEARN_WORD (reveal/reinforce) → more practice
-    // ==========================================================================
-    
-    // Interleave practice and learning for each word
-    // This creates a cycle: attempt → learn → practice more
-    const shuffledForFirstPass = shuffleArray([...words]);
-    
-    // Phase 1: Initial exposure via MCQ (active guessing from options)
-    // User sees PT word + English options - this is practice-first!
-    shuffledForFirstPass.forEach((word, idx) => {
-        challenges.push({
-            type: CHALLENGE_TYPES.MCQ,
-            word,
-            phase: CHALLENGE_PHASES.PRACTICE,
-            options: buildQuizOptions(word, words),
-            isFirstExposure: true  // Flag for tracking/analytics
-        });
+/**
+ * Legacy buildLessonChallenges for backward compatibility
+ * Called when no options are provided
+ * Defaults to BEGINNER level (practice-first flow without typing)
+ */
+function buildLessonChallengesLegacy(lesson) {
+    return buildFromTemplate(lesson, {
+        templateId: 'standard',
+        difficultyLevel: 'beginner',
+        lessonProgress: {},
     });
-    
-    // Phase 2: Learning breaks (after initial practice attempts)
-    // Now user sees detailed word info AFTER trying to guess
-    words.forEach((word, idx) => {
-        challenges.push({
-            type: CHALLENGE_TYPES.LEARN_WORD,
-            word,
-            phase: CHALLENGE_PHASES.LEARN,
-            index: idx,
-            isPracticeFirst: true  // Flag indicating this follows practice
-        });
-    });
-    
-    // Phase 3: Pronunciation practice (active speaking)
-    const pronWords = shuffleArray([...words]).slice(0, LESSON_CONFIG.maxPronunciationWords);
-    pronWords.forEach(word => {
-        challenges.push({
-            type: CHALLENGE_TYPES.PRONUNCIATION,
-            word,
-            phase: CHALLENGE_PHASES.PRONOUNCE,
-            maxAttempts: LESSON_CONFIG.maxPronunciationAttempts
-        });
-    });
-    
-    // Phase 4: Reinforcement MCQs (second pass - should be easier now)
-    const secondPassWords = shuffleArray([...words]);
-    secondPassWords.forEach(word => {
-        challenges.push({
-            type: CHALLENGE_TYPES.MCQ,
-            word,
-            phase: CHALLENGE_PHASES.PRACTICE,
-            options: buildQuizOptions(word, words),
-            isReinforcement: true  // Flag for tracking
-        });
-    });
-    
-    // Phase 5: Type the Portuguese (harder - requires recall)
-    const fillWords = shuffleArray([...words]).slice(0, LESSON_CONFIG.maxFillWords);
-    fillWords.forEach(word => {
-        challenges.push({
-            type: CHALLENGE_TYPES.TYPE_ANSWER,
-            word,
-            phase: CHALLENGE_PHASES.PRACTICE
-        });
-    });
-    
-    // Phase 6: Listen and type (audio comprehension)
-    const listenWords = shuffleArray([...words]).slice(0, LESSON_CONFIG.maxListenWords);
-    listenWords.forEach(word => {
-        challenges.push({
-            type: CHALLENGE_TYPES.LISTEN_TYPE,
-            word,
-            phase: CHALLENGE_PHASES.PRACTICE
-        });
-    });
-    
-    // Phase 7: Sentences (application)
-    sentences.forEach(sentence => {
-        challenges.push({
-            type: CHALLENGE_TYPES.SENTENCE,
-            sentence,
-            phase: CHALLENGE_PHASES.APPLY
-        });
-    });
-    
-    return challenges;
 }
 
 // ============================================================================
@@ -630,6 +600,16 @@ export default {
     LESSON_CONFIG,
     CHALLENGE_TYPES,
     CHALLENGE_PHASES,
+    
+    // Template System (ARCH-002)
+    DIFFICULTY_LEVELS,
+    DIFFICULTY_ORDER,
+    CHALLENGE_TYPE_REGISTRY,
+    getUnlockedLevel,
+    isLevelUnlocked,
+    getDifficultyUIInfo,
+    buildFromTemplate,
+    getTemplatePreview,
     
     // Utilities
     getWordKey,
