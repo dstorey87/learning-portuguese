@@ -335,7 +335,7 @@ function renderLessons() {
         const accuracyText = typeof accuracy === 'number' ? `${accuracy}%` : '—';
         
         card.innerHTML = `
-            <div class="lesson-thumb" style="background-image: ${imageStyle}"></div>
+            <div class="lesson-thumb" style="background-image: ${imageStyle}" role="img" aria-label="${lesson.title} lesson thumbnail"></div>
             <h3>${lesson.title}</h3>
             <p class="lesson-meta">${topic?.title || lesson.topicId} · ${lesson.level || 'beginner'}</p>
             <p class="word-count">${lesson.words?.length || 0} words</p>
@@ -376,7 +376,7 @@ function renderLessons() {
             const isCompleted = userData.lessonsCompleted && userData.completedLessonIds?.includes(lesson.id);
             
             card.innerHTML = `
-                <div class="lesson-thumb ai-lesson-thumb">
+                <div class="lesson-thumb ai-lesson-thumb" role="img" aria-label="AI generated lesson: ${lesson.title}">
                     <span class="ai-badge">🤖 AI</span>
                 </div>
                 <h3>${lesson.title}</h3>
@@ -385,7 +385,7 @@ function renderLessons() {
                 <p class="lesson-accuracy">Accuracy: ${accuracyText}</p>
                 ${isCompleted ? '<span class="badge-completed">✓ Completed</span>' : ''}
                 ${userData.activeLesson === lesson.id ? '<span class="badge-active">In progress</span>' : ''}
-                <button class="delete-ai-lesson" data-lesson-id="${lesson.id}" title="Delete this lesson">🗑️</button>
+                <button class="delete-ai-lesson" data-lesson-id="${lesson.id}" title="Delete this lesson" aria-label="Delete ${lesson.title} lesson">🗑️</button>
             `;
             
             // Click to start lesson (not on delete button)
