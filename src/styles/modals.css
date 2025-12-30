@@ -64,6 +64,37 @@
     transition: all var(--transition-normal);
 }
 
+/* Responsive modal sizing for desktops */
+@media (min-width: 768px) {
+    .modal {
+        width: 85%;
+        max-width: 480px;
+    }
+    
+    .modal-lg {
+        max-width: 650px;
+    }
+    
+    .modal-xl {
+        max-width: 800px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .modal {
+        width: auto;
+        max-width: 450px;
+    }
+    
+    .modal-lg {
+        max-width: 600px;
+    }
+    
+    .modal-xl {
+        max-width: 750px;
+    }
+}
+
 /* ============================================================================
    MODAL.JS (modal-overlay + modal-container)
    ============================================================================ */
@@ -77,7 +108,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0.96);
-    background: var(--surface, #111827);
+    background: var(--surface, #ffffff);
     border: 1px solid var(--modal-border-color, var(--divider, rgba(255, 255, 255, 0.12)));
     border-radius: var(--modal-radius, 1.5rem);
     padding: var(--modal-padding, 1.5rem);
@@ -90,6 +121,21 @@
     visibility: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
     transition: all var(--transition-normal, 220ms ease);
+}
+
+/* Responsive modal container sizing for desktops */
+@media (min-width: 768px) {
+    .modal-overlay .modal-container {
+        width: 85%;
+        max-width: 520px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .modal-overlay .modal-container {
+        width: auto;
+        max-width: 480px;
+    }
 }
 
 .modal-overlay.visible .modal-container,
@@ -177,8 +223,16 @@
 }
 
 .modal-body {
-    color: var(--text-secondary);
+    color: var(--text);
     line-height: var(--line-height-relaxed);
+}
+
+/* Ensure muted text in modals has sufficient contrast */
+.modal-body .muted,
+.modal-content .muted,
+.modal p.muted {
+    color: var(--text-secondary);
+    opacity: 0.9;
 }
 
 .modal-footer {

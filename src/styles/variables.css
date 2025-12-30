@@ -175,10 +175,10 @@
     --surface-active: #4b5563;
     
     /* ---------- Text Colors ---------- */
-    --text: #e5e7eb;
-    --text-secondary: #d1d5db;
-    --muted: #9ca3af;
-    --text-disabled: #6b7280;
+    --text: #f3f4f6;
+    --text-secondary: #e5e7eb;
+    --muted: #d1d5db;
+    --text-disabled: #9ca3af;
     --text-inverse: #111827;
     
     /* ---------- Brand / Accent Colors ---------- */

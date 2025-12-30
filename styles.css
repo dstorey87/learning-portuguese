@@ -443,12 +443,12 @@ body {
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: white;
     border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 1rem;
+    padding: var(--spacing-3) var(--spacing-5);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-base);
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: all var(--transition-normal);
 }
 
 .btn-login:hover {
@@ -557,24 +557,24 @@ body {
     background: linear-gradient(135deg, var(--premium-1) 0%, var(--premium-2) 100%);
     color: white;
     border: none;
-    padding: 0.38rem 1rem;
-    border-radius: 14px;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-xl);
     cursor: pointer;
-    font-weight: 600;
-    transition: transform 0.2s;
-    font-size: 0.9rem;
+    font-weight: var(--font-weight-semibold);
+    transition: transform var(--transition-normal);
+    font-size: var(--font-size-sm);
     line-height: 1.2;
 }
 
 .btn-login {
     background: var(--surface-subtle);
     color: var(--text);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    padding: 0.5rem 1rem;
-    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-lg);
     cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-normal);
 }
 
 .btn-login:hover {
@@ -628,12 +628,12 @@ body {
     background: white;
     color: #667eea;
     border: none;
-    padding: 0.7rem 1.45rem;
-    font-size: 0.95rem;
-    border-radius: 14px;
+    padding: var(--spacing-3) var(--spacing-5);
+    font-size: var(--font-size-base);
+    border-radius: var(--radius-xl);
     cursor: pointer;
-    font-weight: 700;
-    transition: all 0.3s;
+    font-weight: var(--font-weight-bold);
+    transition: all var(--transition-normal);
     animation: fadeInUp 0.8s ease 0.4s backwards;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
@@ -1077,11 +1077,11 @@ body {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
     border: none;
-    padding: 0.7rem 1.2rem;
-    border-radius: 12px;
-    font-weight: 600;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-normal);
 }
 
 .btn-record:disabled {
@@ -1156,15 +1156,15 @@ body {
 }
 
 .btn-small {
-    padding: 0.45rem 0.85rem;
-    border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: var(--font-size-sm);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-normal);
 }
 
 .btn-small:hover {
@@ -1510,13 +1510,13 @@ body {
 .btn-sort {
     background: var(--surface-subtle);
     color: var(--text);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    padding: 0.45rem 0.85rem;
-    border-radius: 10px;
+    border: 1px solid var(--border-light);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-lg);
     cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-normal);
+    font-size: var(--font-size-sm);
 }
 
 .btn-sort.active {
@@ -1528,21 +1528,24 @@ body {
 .btn-clear {
     background: transparent;
     color: var(--muted);
-    border: 1px dashed rgba(0, 0, 0, 0.15);
-    padding: 0.45rem 0.85rem;
-    border-radius: 10px;
+    border: 1px dashed var(--border);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-lg);
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-normal);
 }
 
 .btn-review {
     background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
     color: white;
     border: none;
-    padding: 0.58rem 1.05rem;
-    border-radius: 12px;
-    font-weight: 600;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
+    transition: all var(--transition-normal);
+}
     box-shadow: 0 3px 10px rgba(24, 90, 157, 0.25);
     font-size: 0.9rem;
     line-height: 1.2;
@@ -1624,10 +1627,11 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    font-weight: 700;
+    padding: var(--spacing-3) var(--spacing-5);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-bold);
     cursor: pointer;
+    transition: all var(--transition-normal);
 }
 
 /* =========== WORD CARDS =========== */
