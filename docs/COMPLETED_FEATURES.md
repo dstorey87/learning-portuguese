@@ -48,7 +48,27 @@
 
 ## Track 1: Lesson Architecture (LA-XXX)
 
-*No completed tasks yet.*
+### [LA-001] - Practice-First Flow
+**Completed:** 2025-12-30 | **Commit:** b97b21d
+**Branch:** feature/LA-001-practice-first-flow
+
+**Implementation Summary:**
+- Removed "Learn This Word" word-list-first screens
+- First view is now an active MCQ exercise (guessing mode)
+- Added first-exposure support: auto-play audio, encouraging hints
+- Reordered challenge building: exercises first, learn-word reference after
+
+**Files Changed:**
+- src/services/LessonService.js - buildLessonChallenges reordered
+- src/components/lesson/ChallengeRenderer.js - buildLessonChallenges + renderMCQ enhanced
+- src/styles/lessons.css - First-exposure styles
+
+**Testing Evidence:**
+- Unit tests: tests/unit/lessonService.test.js - ✅ 43 passing
+- MCP Playwright: Lesson opens with MCQ exercise, not word display
+- Screenshot: .playwright-mcp/LA-001-practice-first-evidence.png
+
+**Sources Consulted:** [1] AI_LESSON_VARIATION_PLAN.md LA-001
 
 ---
 
@@ -60,13 +80,131 @@
 
 ## Track 3: Telemetry (TM-XXX)
 
-*No completed tasks yet.*
+### [TM-001] - User-prefixed Storage Keys
+**Completed:** 2025-12-30 | **Commit:** ba38fea
+**Branch:** feature/TM-001-user-prefixed-storage
+
+**Implementation Summary:**
+- Verified all localStorage keys use `${userId}_` prefix pattern
+- userStorage.js helper already implements correct pattern
+- ProgressTracker, StuckWordsService, LearnerProfiler all correctly isolated
+
+**Testing Evidence:**
+- Unit tests: tests/unit/userStorage.test.js - ✅ 17 tests passing
+- MCP Playwright: Scenario validated storage keys
+
+---
+
+### [TM-002] - Telemetry Event Types
+**Completed:** 2025-12-30 | **Commit:** 28f7a4d
+**Branch:** feature/TM-002-telemetry-events
+
+**Implementation Summary:**
+- Implemented all 7 required event types in eventStreaming.js:
+  1. answer_attempt, 2. pronunciation_score, 3. lesson_complete
+  4. word_skipped, 5. ai_tip_shown, 6. stuck_word_rescue, 7. exercise_interaction
+- Added EVENT_TYPES constants for type safety
+- Added dedicated emit methods with validation warnings
+
+**Testing Evidence:**
+- Unit tests: tests/unit/eventStreaming.test.js - ✅ 34 tests passing
+- MCP Playwright: All 7 event types verified
+
+---
+
+### [TM-003] - Event Payload Validation
+**Completed:** 2025-12-30 | **Commit:** 2fa4df5
+**Branch:** feature/TM-003-payload-validation
+
+**Implementation Summary:**
+- Added EVENT_SCHEMAS with JSON schema for all 7 event types
+- validateEventPayload() function with strict mode option
+- Type checking, required field validation, enum constraints
+
+**Testing Evidence:**
+- Unit tests: tests/unit/eventSchemas.test.js - ✅ 49 tests passing
+- MCP Playwright: Schema validation confirmed
+
+---
+
+### [TM-004] - User Isolation Verification
+**Completed:** 2025-12-30 | **Commit:** 3edb2d2
+**Branch:** feature/TM-004-isolation-verification
+
+**Implementation Summary:**
+- Integration tests verifying user data isolation
+- Multi-user scenarios with separate storage keys
+
+**Testing Evidence:**
+- Integration tests: tests/integration/userIsolation.test.js
+- Screenshot: .playwright-mcp/TM-004-isolation-verification.png
 
 ---
 
 ## Track 4: Testing & Validation (TV-XXX)
 
-*No completed tasks yet.*
+### [TV-001] - App Load E2E Tests
+**Completed:** 2025-12-30 | **Commit:** 1bec36a
+**Branch:** test/TV-001-app-load
+
+**Implementation Summary:**
+- App loads without errors
+- Navigation works
+- Core UI elements visible
+
+**Testing Evidence:**
+- E2E tests: tests/e2e/appLoad.e2e.test.js - ✅ All passing
+
+---
+
+### [TV-002] - Lesson Smoke E2E Tests
+**Completed:** 2025-12-30 | **Commit:** feffed6
+**Branch:** test/TV-002-lesson-smoke
+
+**Implementation Summary:**
+- Lesson grid with English titles
+- Lesson opening and navigation
+- Progress tracking
+- Learning options panels
+
+**Testing Evidence:**
+- E2E tests: tests/e2e/lessonSmoke.e2e.test.js - ✅ 19 passing, 1 skipped (LA-001)
+- Screenshot: .playwright-mcp/TV-002-lesson-smoke.png
+
+---
+
+### [TV-003] - Voice Smoke E2E Tests
+**Completed:** 2025-12-30 | **Commit:** 01272ba
+**Branch:** test/TV-003-voice-smoke
+
+**Implementation Summary:**
+- Voice button visibility
+- Male/Female voice selection
+- TTS service integration (graceful skip if offline)
+- Pronunciation panel
+
+**Testing Evidence:**
+- E2E tests: tests/e2e/voiceSmoke.e2e.test.js - ✅ 13 passing, 4 skipped (TTS offline)
+- Screenshot: .playwright-mcp/TV-003-voice-smoke.png
+
+---
+
+### [TV-004] - Exercise Types E2E Tests
+**Completed:** 2025-12-30 | **Commit:** 345096d
+**Branch:** test/TV-004-exercise-types
+
+**Implementation Summary:**
+- Current learning flow tests
+- Exercise UI components
+- Hard mode toggle
+- Learning options sections
+- Progress tracking
+- Hearts/Lives system
+- Placeholder tests for LA-002 exercise types
+
+**Testing Evidence:**
+- E2E tests: tests/e2e/exerciseTypes.e2e.test.js - ✅ 24 passing, 6 skipped (LA-002)
+- Screenshot: .playwright-mcp/TV-004-exercise-types.png
 
 ---
 
@@ -80,12 +218,12 @@
 
 | Track | Total | Completed | Remaining |
 |-------|-------|-----------|-----------|
-| LA (Lesson Architecture) | 21 | 0 | 21 |
+| LA (Lesson Architecture) | 21 | **1** | **20** |
 | AI (AI Adaptation) | 7 | 0 | 7 |
-| TM (Telemetry) | 4 | 0 | 4 |
-| TV (Testing & Validation) | 10 | 0 | 10 |
+| TM (Telemetry) | 4 | **4** | **0** |
+| TV (Testing & Validation) | 10 | **4** | **6** |
 | LM (LLM Interchangeability) | 6 | 0 | 6 |
-| **TOTAL** | **48** | **0** | **48** |
+| **TOTAL** | **48** | **9** | **39** |
 
 ---
 
