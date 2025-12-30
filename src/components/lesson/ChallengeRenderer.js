@@ -33,8 +33,7 @@ import {
     getCompletedLessons, 
     getLearnedWords 
 } from '../../services/ProgressTracker.js';
-import { getLessonImage } from './LessonCard.js';
-import { getAllLessons } from '../../data/LessonLoader.js';
+import { getAllLessons, getLessonImage as getLessonImageData } from '../../data/LessonLoader.js';
 
 // Create logger for this module
 const logger = createLogger({ context: 'ChallengeRenderer' });
@@ -164,22 +163,44 @@ export function getWordKey(word) {
 }
 
 /**
- * Resolve the best image for a challenge, prioritizing word/challenge images
- * and falling back to lesson-level imagery.
+ * Resolve the best image for a challenge, preferring deterministic/local assets
+ * before hitting remote Unsplash URLs.
  */
 function resolveChallengeImage(challenge, lesson) {
     const toBackground = (value) => {
         if (!value) return null;
-        return value.startsWith('url(') ? value : `url('${value}')`;
+        return String(value).startsWith('url(') ? value : `url('${value}')`;
     };
 
     const challengeImage = toBackground(challenge.image || challenge.media?.image);
-    const wordRemote = toBackground(buildWordRemoteImage(challenge.word, lesson));
-    const wordImage = toBackground(challenge.word?.image || challenge.word?.media?.image);
+    const explicitWordImage = toBackground(challenge.word?.image || challenge.word?.media?.image);
     const wordSvg = buildWordSvg(challenge.word, lesson);
-    const lessonImage = lesson ? getLessonImage(lesson) : getLessonImage({ topicId: 'default' });
-    // Prefer remote word art → explicit word image → SVG → lesson image
-    return challengeImage || wordRemote || wordImage || wordSvg || lessonImage;
+    const wordRemote = toBackground(buildWordRemoteImage(challenge.word, lesson));
+
+    // Pull structured lesson image data (local/svg/remotes)
+    const lessonImageData = lesson
+        ? getLessonImageData(lesson)
+        : getLessonImageData({ id: 'default', topicId: 'default', title: 'Lesson' });
+
+    const lessonLocal = toBackground(
+        lessonImageData?.localUrl
+        || lessonImageData?.url // lesson.image url may already be local
+    );
+    const lessonSvg = toBackground(lessonImageData?.svgUrl);
+    const lessonRemote = toBackground(lessonImageData?.remoteUrl);
+    const lessonRemoteFallback = toBackground(lessonImageData?.remoteFallbackUrl);
+
+    // Priority: explicit/challenge → word local → deterministic (svg/local) → remote pools
+    return (
+        challengeImage
+        || explicitWordImage
+        || wordSvg
+        || lessonLocal
+        || lessonSvg
+        || wordRemote
+        || lessonRemote
+        || lessonRemoteFallback
+    );
 }
 
 // Generate a deterministic inline SVG for each word so every challenge has a unique, relevant visual
@@ -210,18 +231,79 @@ function buildWordSvg(word, lesson) {
     return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
 }
 
-// Build a deterministic, vocab-aware remote image for the current word
-const WORD_IMAGE_POOL = [
-    'photo-1503676382389-4809596d5290',
+// Keyword overrides for abstract grammar words
+const WORD_IMAGE_OVERRIDES = {
+    'i': 'single person portrait,face closeup,individual',
+    'you-informal': 'friends laughing,casual chat,smiling people',
+    'you-formal-neutral': 'business handshake,professional meeting,confident speaker',
+    'he': 'man portrait,male face,smart casual',
+    'she': 'woman portrait,female face,confident',
+    'we': 'group of friends,together,teamwork',
+    'they-masculine-mixed': 'mixed group of friends,team,walking together',
+    'they-feminine': 'group of women,friends together,team of women',
+    'ser': 'id card,identity,passport photo',
+    'estar': 'city street,location marker,feeling mood',
+    'ter': 'holding objects,hands,belongings,ownership',
+    'articles': 'typography,letters,stack of books',
+    'and': 'puzzle pieces connection,bridge link',
+    'or': 'choice,decision forks,compare options',
+    'but': 'contrast crossroads,decision',
+    'because': 'thinking,reasoning,writing notes',
+    'with': 'together companionship,pair holding hands',
+    'for': 'gift giving,purposeful action',
+    'from': 'origin journey,suitcase,departure',
+    'in': 'location pin,inside room',
+    'on': 'surface placement,desk workspace',
+    'at': 'map marker,location pin',
+    'what': 'question mark neon,curiosity',
+    'who': 'portrait mystery person',
+    'where': 'map and compass,street signs',
+    'when': 'clock,calendar,time check',
+    'why': 'thinking person,question mark wall',
+    'how': 'process planning,notes diagram',
+    'yes': 'thumbs up,positive check mark',
+    'no': 'stop sign,red x',
+    'never': 'forbidden sign,barred symbol',
+    'always': 'infinity symbol,constant loop',
+    'nothing': 'empty room,minimal scene',
+    'my': 'keys in hand,personal items',
+    'your': 'sharing gesture,offering hand',
+    'his': 'male owner,man holding object',
+    'her': 'female owner,woman holding object',
+    'our': 'group sharing,collaboration',
+    'their': 'group ownership,team belongings'
+};
+
+// Curated photo IDs to guarantee a real image even if Source is blocked
+const WORD_CURATED_POOL = [
+    'photo-1503676260728-1c00da094a0b',
     'photo-1500530855697-b586d89ba3ee',
     'photo-1484795819573-86ae049cb815',
     'photo-1501004318641-b39e6451bec6',
-    'photo-1501004318641-44fdc4482f5b',
-    'photo-1485846234645-a62644f84728',
     'photo-1504384308090-c894fdcc538d',
     'photo-1473181488821-2d23949a045a',
-    'photo-1520607162513-77705c0f0d4a'
+    'photo-1520607162513-77705c0f0d4a',
+    'photo-1519085360753-af0119f7cbe7',
+    'photo-1509228627152-72ae9ae6848d',
+    'photo-1487412720507-e7ab37603c6f'
 ];
+
+const normalizeWordKey = (text) => (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const buildWordCurated = (seedIndex = 0) => {
+    const index = Math.abs(seedIndex) % WORD_CURATED_POOL.length;
+    const id = WORD_CURATED_POOL[index];
+    return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&h=500&q=75`;
+};
+
+const tagImageWithKeywords = (url, keywords) => {
+    if (!url || !keywords) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}keywords=${encodeURIComponent(keywords)}`;
+};
 
 // Semantic keyword mapping for abstract/grammar words that don't have direct visual representations
 const WORD_KEYWORD_MAP = {
@@ -277,24 +359,36 @@ const WORD_KEYWORD_MAP = {
 function buildWordRemoteImage(word, lesson) {
     if (!word) return null;
     
-    // Get English translation
+    // Get English translation and Portuguese spelling for keyword context
     const english = (word.en || word.english || '').toLowerCase().trim();
-    if (!english) return null;
-    
+    const portuguese = (word.pt || '').toLowerCase().trim();
+    const baseKey = normalizeWordKey(english || portuguese);
+    if (!baseKey) return null;
+
+    const overrideKeywords = WORD_IMAGE_OVERRIDES[baseKey];
+
     // Check for mapped keywords for abstract/grammar words
-    let keywords = WORD_KEYWORD_MAP[english];
+    let keywords = overrideKeywords || WORD_KEYWORD_MAP[english] || WORD_KEYWORD_MAP[portuguese];
     
-    if (!keywords) {
+    if (!keywords && english) {
         // For concrete nouns/adjectives, use the English word directly
-        // Clean it up for URL usage
         keywords = english.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, ',');
     }
-    
-    // Add unique signature based on Portuguese word to get variety
-    const sig = Math.abs((word.pt || word.id || english).split('').reduce((h, ch) => ((h << 5) - h + ch.charCodeAt(0)) | 0, 0));
-    
-    // Use Unsplash Source API for semantic image search
-    return `https://source.unsplash.com/400x250/?${encodeURIComponent(keywords)}&sig=${sig}`;
+
+    if (!keywords && portuguese) {
+        keywords = portuguese.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, ',');
+    }
+
+    // If we still have no meaningful keywords, fall back to a deterministic curated photo
+    const seed = `${baseKey}-${lesson?.id || word.pt || word.id || english}`;
+    const curated = buildWordCurated(seed.length);
+
+    if (!keywords || keywords.trim() === '') {
+        return curated;
+    }
+
+    const scopedKeywords = lesson?.title ? `${keywords},${lesson.title}` : keywords;
+    return tagImageWithKeywords(curated, scopedKeywords);
 }
 
 /**

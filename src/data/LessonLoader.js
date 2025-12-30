@@ -72,7 +72,15 @@ const TOPIC_IMAGE_POOLS = {
         'photo-1524504388940-b1c1722653e1',
         'photo-1519085360753-af0119f7cbe7'
     ],
+    'basic-greetings': [
+        'photo-1524504388940-b1c1722653e1',
+        'photo-1519085360753-af0119f7cbe7'
+    ],
     'essentials': [
+        'photo-1504384308090-c894fdcc538d',
+        'photo-1520607162513-77705c0f0d4a'
+    ],
+    'everyday-essentials': [
         'photo-1504384308090-c894fdcc538d',
         'photo-1520607162513-77705c0f0d4a'
     ],
@@ -88,7 +96,15 @@ const TOPIC_IMAGE_POOLS = {
         'photo-1509042239860-f550ce710b93',
         'photo-1459257868276-5e65389e2722'
     ],
+    'cafe-food': [
+        'photo-1509042239860-f550ce710b93',
+        'photo-1459257868276-5e65389e2722'
+    ],
     'language-fundamentals': [
+        'photo-1488590528505-98d2b5aba04b',
+        'photo-1473181488821-2d23949a045a'
+    ],
+    'fundamentals': [
         'photo-1488590528505-98d2b5aba04b',
         'photo-1473181488821-2d23949a045a'
     ],
@@ -420,9 +436,10 @@ const TIER_DEFAULT_IMAGES = {
 const FALLBACK_IMAGE = '/assets/lesson-thumbs/default.svg';
 
 function hashString(value = '') {
+    const text = String(value ?? '');
     let hash = 0;
-    for (let i = 0; i < value.length; i += 1) {
-        hash = (hash << 5) - hash + value.charCodeAt(i);
+    for (let i = 0; i < text.length; i += 1) {
+        hash = (hash << 5) - hash + text.charCodeAt(i);
         hash |= 0;
     }
     return Math.abs(hash);
@@ -448,12 +465,16 @@ const LESSON_KEYWORD_MAP = {
     'bb-004': 'holding object,hands,belongings,ownership',
     'articles': 'books,typography,letters,reading',
     'bb-005': 'books,typography,letters,reading',
-    'connectors': 'connectors,conjunctions,and or but,binding words',
-    'bb-007': 'connectors,conjunctions,and or but,binding words',
-    'prepositions': 'maps,arrows,direction,signpost',
-    'question-words': 'question mark,curious person,thinking,chat',
-    'negation': 'decision,yes or no,stop sign,cross mark',
-    'possessives': 'holding belongings,personal items,locker',
+    'connectors': 'puzzle pieces,bridge,chain links,linking words',
+    'bb-006': 'puzzle pieces,bridge,chain links,linking words',
+    'prepositions': 'arrows,compass,map pins,direction signs',
+    'bb-007': 'arrows,compass,map pins,direction signs',
+    'question-words': 'question mark neon,curious thinker,faq sign,ask',
+    'bb-008': 'question mark neon,curious thinker,faq sign,ask',
+    'negation': 'stop sign,red x,decision crossroads,no entry',
+    'bb-009': 'stop sign,red x,decision crossroads,no entry',
+    'possessives': 'holding belongings,keys in hand,family keepsakes,ownership',
+    'bb-010': 'holding belongings,keys in hand,family keepsakes,ownership',
     // Greetings and essentials
     'greetings': 'greeting,handshake,hello,waving',
     'essential-greetings': 'greeting,hello,waving',
@@ -514,8 +535,8 @@ function getLessonKeywords(lesson) {
     const englishKeywords = extractEnglishKeywords(lesson);
 
     const mappedKeywords = LESSON_KEYWORD_MAP[titleKey]
-        || LESSON_KEYWORD_MAP[idKey]
-        || LESSON_KEYWORD_MAP[topicKey];
+        || LESSON_KEYWORD_MAP[idKey];
+    const topicKeywords = LESSON_KEYWORD_MAP[topicKey];
 
     // Check for partial matches in title
     let partialKeywords = null;
@@ -533,18 +554,30 @@ function getLessonKeywords(lesson) {
     if (mappedKeywords) return mappedKeywords;
     if (partialKeywords) return partialKeywords;
     if (englishKeywords.trim()) return englishKeywords;
+    if (topicKeywords) return topicKeywords;
 
-    // Default to Portugal/Portuguese theme
-    return 'portugal,lisbon,portuguese,learning';
+    // If we have no meaningful anchor, avoid a generic query so we don't show unrelated photos
+    return '';
 }
 
-function buildSmartImageUrl(lesson) {
-    const keywords = getLessonKeywords(lesson);
-    // Use Unsplash Source API which actually searches by keywords
-    // Add a unique sig based on lesson id to get different images for similar keywords
-    const sig = hashString(lesson.id || lesson.title || 'lesson');
-    return `https://source.unsplash.com/400x250/?${encodeURIComponent(keywords)}&sig=${sig}`;
-}
+// Deterministic curated fallback so we never rely on Source/Heroku endpoints
+const KEYWORD_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1484795819573-86ae049cb815?auto=format&fit=crop&w=800&h=500&q=75';
+
+// Lesson-specific curated image overrides (normalized by lesson id/title)
+// Use static Unsplash image IDs to avoid blocked Source queries and ensure photos load.
+const LESSON_IMAGE_OVERRIDES = {
+    // Building Blocks
+    'bb-001': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=800&h=500&q=75', // pronouns - group portrait
+    'bb-002': 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=800&h=500&q=75', // ser - identity/portrait
+    'bb-003': 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&h=500&q=75', // estar - city/location
+    'bb-004': 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=500&q=75', // ter - holding objects
+    'bb-005': 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&h=500&q=75', // articles - books/typography
+    'bb-006': 'https://images.unsplash.com/photo-1503676382389-4809596d5290?auto=format&fit=crop&w=800&h=500&q=75', // connectors - puzzle bridge
+    'bb-007': 'https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=800&h=500&q=75', // prepositions - compass/map
+    'bb-008': 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=800&h=500&q=75', // question words - neon question
+    'bb-009': 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?auto=format&fit=crop&w=800&h=500&q=75', // negation - stop/decision
+    'bb-010': 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800&h=500&q=75', // possessives - belongings/family
+};
 
 // Pick a deterministic, curated Unsplash photo ID per topic to avoid blank/blocked responses
 function buildTopicPoolImage(lesson) {
@@ -662,14 +695,21 @@ function getLocalLessonImage(lesson) {
  * @returns {Object} Image object with url and alt
  */
 export function getLessonImage(lesson) {
+    const overrideKey = normalizeKey(lesson.id || lesson.title);
+    const overrideUrl = LESSON_IMAGE_OVERRIDES[overrideKey];
     const localUrl = getLocalLessonImage(lesson);
+    const keywordString = getLessonKeywords(lesson);
+    const tagWithKeywords = (url) => {
+        if (!url || !keywordString) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}keywords=${encodeURIComponent(keywordString)}`;
+    };
     const svgUrl = buildSvgPlaceholder(lesson);
     const pooledUrl = buildTopicPoolImage(lesson);
-    const smartUrl = buildSmartImageUrl(lesson);
-    // Keep the keyword-based URL first so tests (and analytics) still see vocab-driven queries,
-    // but layer a curated pool photo behind it to avoid plain gradients if the search URL fails.
-    const remoteUrl = smartUrl || pooledUrl;
-    const remoteFallbackUrl = smartUrl && pooledUrl ? pooledUrl : null;
+    const baseRemote = overrideUrl || pooledUrl || (keywordString ? KEYWORD_FALLBACK_IMAGE : null);
+    // Prefer deterministic curated photos; attach keywords only as metadata
+    const remoteUrl = tagWithKeywords(baseRemote);
+    const remoteFallbackUrl = overrideUrl && pooledUrl ? tagWithKeywords(pooledUrl) : null;
 
     // 1. Lesson-specific image (keep if provided), still expose svg/local for layering
     if (lesson.image?.url) {

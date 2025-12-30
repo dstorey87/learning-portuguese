@@ -1654,6 +1654,7 @@ The lesson system had two incompatible data formats (legacy data.js vs rich buil
 - `getAllLessons()`: Priority: lesson.tier > topic.tier > map > default
 - `getLessonImage()`: 4-level fallback chain (lesson → topic → tier default → category default)
 - New: TIER_DEFAULT_IMAGES, CATEGORY_FALLBACK_IMAGES maps
+ - Lesson and word imagery now prefer curated, static Unsplash photos (per-lesson overrides and word-level curated pool) before keyword/topic pools to guarantee visible subject-matched photos even when Source queries fail.
 
 **app.js:**
 - Lesson list/topic filters prefer `LessonLoader` (building blocks included)
