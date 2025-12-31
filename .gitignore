@@ -8,3 +8,5 @@ npm-debug.log*
 *.onnx
 *.onnx.json
 models/
+
+.playwright-mcp/
