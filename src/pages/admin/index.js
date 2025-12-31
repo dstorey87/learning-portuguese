@@ -16,3 +16,9 @@ export {
     renderAdminDashboard,
     initAdminDashboard
 } from './AdminDashboard.js';
+
+export {
+    renderImageCuratorConsole,
+    initImageCuratorConsole,
+    cleanupImageCuratorConsole
+} from './ImageCuratorConsole.js';

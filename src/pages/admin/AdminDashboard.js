@@ -25,6 +25,7 @@ import {
     getWordsWithUnverifiedImages,
     IMAGE_CATEGORIES 
 } from '../../config/imageConfig.js';
+import { renderImageCuratorConsole, initImageCuratorConsole, cleanupImageCuratorConsole } from './ImageCuratorConsole.js';
 
 // ============================================================================
 // CONSTANTS
@@ -1176,6 +1177,11 @@ export function renderAdminDashboard() {
 
             ${renderImageManagement()}
 
+            <!-- AI Image Curator Console -->
+            <div id="imageCuratorContainer">
+                ${renderImageCuratorConsole()}
+            </div>
+
             ${renderLessonEditor()}
 
             <div class="admin-grid">
@@ -1890,6 +1896,8 @@ export function initAdminDashboard() {
     // Start auto-refresh if admin
     if (isAdmin()) {
         startAutoRefresh();
+        // Initialize image curator console
+        initImageCuratorConsole();
     }
 
     // Expose to window for onclick handlers
