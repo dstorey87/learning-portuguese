@@ -21,7 +21,8 @@ import {
     isLevelUnlocked,
 } from '../config/lessonTemplates.config.js';
 
-import { info as logInfo } from './Logger.js';
+import { info as logInfo, warn as logWarn } from './Logger.js';
+import { shouldSkipChallenge, getWordImageData } from '../config/imageConfig.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -695,10 +696,58 @@ export function buildFromTemplate(lesson, options = {}) {
     // Apply interleaving if requested or if this is a repeat attempt
     const shouldInterleave = options.interleave || lessonProgress.completions > 0;
     if (shouldInterleave && challenges.length > 0) {
-        return interleaveChallenges(challenges, words);
+        const interleaved = interleaveChallenges(challenges, words);
+        return filterChallengesWithMissingImages(interleaved, lesson);
     }
     
-    return challenges;
+    return filterChallengesWithMissingImages(challenges, lesson);
+}
+
+/**
+ * Filter out challenges that should be skipped due to missing images
+ * and log them for admin review.
+ * 
+ * @param {Array} challenges - Array of challenge objects
+ * @param {Object} lesson - Lesson object for context
+ * @returns {Array} - Filtered challenges (skipped ones removed)
+ */
+function filterChallengesWithMissingImages(challenges, lesson) {
+    const filtered = [];
+    const skipped = [];
+    
+    for (const challenge of challenges) {
+        const skipResult = shouldSkipChallenge(challenge);
+        
+        if (skipResult.shouldSkip && skipResult.reason === 'missing_image') {
+            skipped.push({
+                challengeType: challenge.type,
+                reason: skipResult.reason,
+                wordPt: skipResult.details?.wordPt,
+                wordEn: skipResult.details?.wordEn,
+            });
+        } else {
+            filtered.push(challenge);
+        }
+    }
+    
+    // Log summary if any challenges were skipped
+    if (skipped.length > 0) {
+        logWarn('challenges_skipped_missing_images', {
+            lessonId: lesson?.id,
+            lessonTitle: lesson?.title,
+            totalChallenges: challenges.length,
+            skippedCount: skipped.length,
+            remainingCount: filtered.length,
+            skippedWords: skipped.map(s => s.wordPt).slice(0, 10), // Limit for readability
+        });
+    }
+    
+    // Re-index challenges after filtering to maintain sequential indices
+    return filtered.map((challenge, idx) => ({
+        ...challenge,
+        index: idx,
+        originalIndex: challenge.index
+    }));
 }
 
 /**

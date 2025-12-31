@@ -34,7 +34,14 @@ import {
     getLearnedWords 
 } from '../../services/ProgressTracker.js';
 import { getAllLessons, getLessonImage as getLessonImageData } from '../../data/LessonLoader.js';
-import { getWordImageUrl, isValidImageUrl } from '../../config/wordImages.config.js';
+import { 
+    isValidImageUrl, 
+    getWordImageData, 
+    getImageNotFoundPlaceholder,
+    isPlaceholderImage,
+    shouldSkipChallenge,
+    challengeRequiresImage 
+} from '../../config/imageConfig.js';
 
 // Create logger for this module
 const logger = createLogger({ context: 'ChallengeRenderer' });
@@ -164,8 +171,13 @@ export function getWordKey(word) {
 }
 
 /**
- * Resolve the best image for a challenge, preferring deterministic/local assets
- * before hitting remote Unsplash URLs.
+ * Resolve the best image for a challenge
+ * CURATED IMAGES ONLY - No dynamic keyword lookup
+ * Returns placeholder if no explicit image_url provided
+ * 
+ * @param {Object} challenge - Challenge object
+ * @param {Object} lesson - Lesson context
+ * @returns {Object} - { background: string, isPlaceholder: boolean, needsCuration: boolean }
  */
 function resolveChallengeImage(challenge, lesson) {
     // Convert value to CSS background url
@@ -179,79 +191,55 @@ function resolveChallengeImage(challenge, lesson) {
     // Get the word data for image lookup
     const word = challenge.word || challenge;
     
-    // PRIORITY 1: Check for explicit image_url field (direct URL from CSV)
-    // This is the industry-standard approach used by Anki, Quizlet, Memrise
-    // Check both snake_case and camelCase for compatibility
-    const explicitImageUrl = word?.image_url || word?.imageUrl || challenge?.image_url || challenge?.imageUrl;
-    if (explicitImageUrl && isValidImageUrl(explicitImageUrl)) {
-        return toBackground(explicitImageUrl);
-    }
+    // Use the new curated-only image system
+    const imageData = getWordImageData(word);
     
-    const imageKey = word?.image || challenge.image;
-    const englishWord = word?.en || word?.english || challenge.english || '';
-    
-    // PRIORITY 2: Use curated word image mapping 
-    const wordMappedImage = getWordImageUrl(imageKey, englishWord);
-    if (wordMappedImage && wordMappedImage !== getWordImageUrl('default')) {
-        return toBackground(wordMappedImage);
-    }
+    // Return structured data about the image
+    return {
+        background: toBackground(imageData.url),
+        url: imageData.url,
+        isPlaceholder: imageData.isPlaceholder,
+        needsCuration: imageData.needsCuration,
+        verified: imageData.verified,
+        alt: imageData.alt
+    };
+}
 
-    // PRIORITY 3: Check for explicit full URLs in challenge/word data (legacy)
-    const explicitImage = challenge.image || challenge.media?.image || word?.image;
-    if (explicitImage && isValidImageUrl(explicitImage)) {
-        return toBackground(explicitImage);
-    }
-
-    // Fall back to lesson-level images
-    const lessonImageData = lesson
-        ? getLessonImageData(lesson)
-        : getLessonImageData({ id: 'default', topicId: 'default', title: 'Lesson' });
-
-    const lessonLocal = toBackground(lessonImageData?.localUrl || lessonImageData?.url);
-    if (lessonLocal) return lessonLocal;
-
-    // Final fallback: use mapped image even if default, or generate SVG
-    if (wordMappedImage) {
-        return toBackground(wordMappedImage);
-    }
-    
-    return buildWordSvg(word, lesson);
+/**
+ * Legacy wrapper - returns just the CSS background string
+ * For backward compatibility with existing code
+ */
+function resolveChallengeImageBackground(challenge, lesson) {
+    const result = resolveChallengeImage(challenge, lesson);
+    return result.background;
 }
 
 /**
  * Get a plain image URL for a word (not wrapped in url())
  * Used for <img src="..."> elements
- * @param {Object} word - Word object with image, image_url, en, pt properties
- * @param {Object} lesson - Lesson object for context
- * @returns {string|null} - Image URL or null
+ * CURATED IMAGES ONLY - No dynamic keyword lookup
+ * 
+ * @param {Object} word - Word object with image_url field
+ * @param {Object} lesson - Lesson object for context (unused in new system)
+ * @returns {string} - Image URL (placeholder if not found)
  */
 function getWordImage(word, lesson) {
-    if (!word) return null;
-    
-    // PRIORITY 1: Check for explicit image_url field (direct URL from CSV)
-    // This is the industry-standard approach used by Anki, Quizlet, Memrise
-    // Check both snake_case and camelCase for compatibility
-    const explicitUrl = word.image_url || word.imageUrl;
-    if (explicitUrl && isValidImageUrl(explicitUrl)) {
-        return explicitUrl;
-    }
-    
-    // Get the image key from word data
-    const imageKey = word.image || '';
-    const englishWord = word.en || word.english || '';
-    
-    // PRIORITY 2: Use the curated image mapping
-    const imageUrl = getWordImageUrl(imageKey, englishWord);
-    
-    // Return null if only got the default fallback and no meaningful key
-    if (!imageKey && !englishWord) {
-        return null;
-    }
-    
-    return imageUrl;
+    const imageData = getWordImageData(word);
+    return imageData.url;
+}
+
+/**
+ * Check if a word has a valid curated image (not placeholder)
+ * @param {Object} word - Word object to check
+ * @returns {boolean} - True if word has a valid curated image
+ */
+function wordHasValidImage(word) {
+    const imageData = getWordImageData(word);
+    return !imageData.isPlaceholder;
 }
 
 // Generate a deterministic inline SVG for each word so every challenge has a unique, relevant visual
+// NOTE: This is kept as a legacy fallback but should rarely be used now
 function buildWordSvg(word, lesson) {
     if (!word) return null;
     const base = `${word.pt || word.en || 'word'}-${lesson?.title || ''}`.toLowerCase();
@@ -279,165 +267,19 @@ function buildWordSvg(word, lesson) {
     return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
 }
 
-// Keyword overrides for abstract grammar words
-const WORD_IMAGE_OVERRIDES = {
-    'i': 'single person portrait,face closeup,individual',
-    'you-informal': 'friends laughing,casual chat,smiling people',
-    'you-formal-neutral': 'business handshake,professional meeting,confident speaker',
-    'he': 'man portrait,male face,smart casual',
-    'she': 'woman portrait,female face,confident',
-    'we': 'group of friends,together,teamwork',
-    'they-masculine-mixed': 'mixed group of friends,team,walking together',
-    'they-feminine': 'group of women,friends together,team of women',
-    'ser': 'id card,identity,passport photo',
-    'estar': 'city street,location marker,feeling mood',
-    'ter': 'holding objects,hands,belongings,ownership',
-    'articles': 'typography,letters,stack of books',
-    'and': 'puzzle pieces connection,bridge link',
-    'or': 'choice,decision forks,compare options',
-    'but': 'contrast crossroads,decision',
-    'because': 'thinking,reasoning,writing notes',
-    'with': 'together companionship,pair holding hands',
-    'for': 'gift giving,purposeful action',
-    'from': 'origin journey,suitcase,departure',
-    'in': 'location pin,inside room',
-    'on': 'surface placement,desk workspace',
-    'at': 'map marker,location pin',
-    'what': 'question mark neon,curiosity',
-    'who': 'portrait mystery person',
-    'where': 'map and compass,street signs',
-    'when': 'clock,calendar,time check',
-    'why': 'thinking person,question mark wall',
-    'how': 'process planning,notes diagram',
-    'yes': 'thumbs up,positive check mark',
-    'no': 'stop sign,red x',
-    'never': 'forbidden sign,barred symbol',
-    'always': 'infinity symbol,constant loop',
-    'nothing': 'empty room,minimal scene',
-    'my': 'keys in hand,personal items',
-    'your': 'sharing gesture,offering hand',
-    'his': 'male owner,man holding object',
-    'her': 'female owner,woman holding object',
-    'our': 'group sharing,collaboration',
-    'their': 'group ownership,team belongings'
-};
-
-// Curated photo IDs to guarantee a real image even if Source is blocked
-const WORD_CURATED_POOL = [
-    'photo-1503676260728-1c00da094a0b',
-    'photo-1500530855697-b586d89ba3ee',
-    'photo-1484795819573-86ae049cb815',
-    'photo-1501004318641-b39e6451bec6',
-    'photo-1504384308090-c894fdcc538d',
-    'photo-1473181488821-2d23949a045a',
-    'photo-1520607162513-77705c0f0d4a',
-    'photo-1519085360753-af0119f7cbe7',
-    'photo-1509228627152-72ae9ae6848d',
-    'photo-1487412720507-e7ab37603c6f'
-];
-
-const normalizeWordKey = (text) => (text || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-const buildWordCurated = (seedIndex = 0) => {
-    const index = Math.abs(seedIndex) % WORD_CURATED_POOL.length;
-    const id = WORD_CURATED_POOL[index];
-    return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&h=500&q=75`;
-};
-
-const tagImageWithKeywords = (url, keywords) => {
-    if (!url || !keywords) return url;
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}keywords=${encodeURIComponent(keywords)}`;
-};
-
-// Semantic keyword mapping for abstract/grammar words that don't have direct visual representations
-const WORD_KEYWORD_MAP = {
-    // Pronouns - use visual concepts instead of the word itself
-    'i': 'person,self,portrait,me',
-    'you': 'people,pointing,conversation',
-    'he': 'man,male,portrait',
-    'she': 'woman,female,portrait',
-    'we': 'group,team,together,friends',
-    'they': 'people,crowd,group',
-    // Verbs
-    'to be': 'existence,identity,being',
-    'to have': 'possession,holding,hands',
-    'to go': 'walking,journey,movement',
-    'to want': 'desire,wishing,hoping',
-    'to speak': 'talking,conversation,speech',
-    // Articles/grammar words - use abstract visuals
-    'the': 'object,thing,pointing',
-    'a': 'single,one,item',
-    'and': 'connection,together,joining',
-    'or': 'choice,options,decision',
-    'but': 'contrast,however,difference',
-    'because': 'reason,thinking,logic',
-    'if': 'question,maybe,possibility',
-    'with': 'together,companionship,pair',
-    'for': 'purpose,gift,giving',
-    'from': 'origin,source,direction',
-    'in': 'inside,interior,location',
-    'on': 'surface,above,placement',
-    'at': 'location,place,spot',
-    // Question words
-    'what': 'question,curious,wondering',
-    'who': 'person,identity,mystery',
-    'where': 'location,map,place',
-    'when': 'time,clock,calendar',
-    'why': 'question,reason,thinking',
-    'how': 'method,process,learning',
-    // Negation
-    'yes': 'affirmative,thumbs-up,positive',
-    'no': 'negative,stop,rejection',
-    'never': 'prohibition,never,forbidden',
-    'always': 'infinity,forever,constant',
-    'nothing': 'empty,void,absence',
-    // Possessives
-    'my': 'mine,ownership,personal',
-    'your': 'yours,giving,sharing',
-    'his': 'male,possession,his',
-    'her': 'female,possession,hers',
-    'our': 'group,shared,community',
-    'their': 'others,group,collective'
-};
-
-function buildWordRemoteImage(word, lesson) {
-    if (!word) return null;
-    
-    // Get English translation and Portuguese spelling for keyword context
-    const english = (word.en || word.english || '').toLowerCase().trim();
-    const portuguese = (word.pt || '').toLowerCase().trim();
-    const baseKey = normalizeWordKey(english || portuguese);
-    if (!baseKey) return null;
-
-    const overrideKeywords = WORD_IMAGE_OVERRIDES[baseKey];
-
-    // Check for mapped keywords for abstract/grammar words
-    let keywords = overrideKeywords || WORD_KEYWORD_MAP[english] || WORD_KEYWORD_MAP[portuguese];
-    
-    if (!keywords && english) {
-        // For concrete nouns/adjectives, use the English word directly
-        keywords = english.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, ',');
-    }
-
-    if (!keywords && portuguese) {
-        keywords = portuguese.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, ',');
-    }
-
-    // If we still have no meaningful keywords, fall back to a deterministic curated photo
-    const seed = `${baseKey}-${lesson?.id || word.pt || word.id || english}`;
-    const curated = buildWordCurated(seed.length);
-
-    if (!keywords || keywords.trim() === '') {
-        return curated;
-    }
-
-    const scopedKeywords = lesson?.title ? `${keywords},${lesson.title}` : keywords;
-    return tagImageWithKeywords(curated, scopedKeywords);
-}
+// ============================================================================
+// DYNAMIC IMAGE LOOKUP REMOVED - All images must be explicit via CSV image_url
+// The following code blocks were removed as part of IMG-001 image system overhaul:
+// - WORD_IMAGE_OVERRIDES (keyword mappings for abstract words)
+// - WORD_CURATED_POOL (fallback photo IDs)
+// - WORD_KEYWORD_MAP (semantic keyword mappings)
+// - buildWordRemoteImage() (dynamic image generation)
+// - buildWordCurated() (curated pool selection)
+// - tagImageWithKeywords() (URL keyword appending)
+// 
+// Images must now be provided via image_url field in CSV files.
+// Missing images will show placeholder and may be skipped from challenges.
+// ============================================================================
 
 /**
  * Resolve word form based on speaker gender
@@ -599,19 +441,107 @@ function attachIllustrations(challenges, lesson) {
         const hasImage = challenge.image || challenge.media?.image;
         if (!hasImage) {
             const resolved = resolveChallengeImage(challenge, lesson);
-            if (resolved) {
+            if (resolved && resolved.background) {
                 const media = challenge.media || {};
-                challenge.media = { ...media, image: resolved };
-                challenge.image = challenge.image || resolved;
+                challenge.media = { 
+                    ...media, 
+                    image: resolved.background,
+                    isPlaceholder: resolved.isPlaceholder,
+                    needsCuration: resolved.needsCuration
+                };
+                challenge.image = challenge.image || resolved.background;
+                challenge.imageIsPlaceholder = resolved.isPlaceholder;
             }
         }
         return challenge;
     });
 }
 
+/**
+ * Filter out challenges that should be skipped due to missing images
+ * and log them for admin review.
+ * 
+ * @param {Array} challenges - Array of challenge objects
+ * @param {Object} lesson - Lesson object for context
+ * @returns {Object} - { filtered: Array, skipped: Array }
+ */
+function filterChallengesWithMissingImages(challenges, lesson) {
+    const filtered = [];
+    const skipped = [];
+    
+    for (const challenge of challenges) {
+        const skipResult = shouldSkipChallenge(challenge);
+        
+        if (skipResult.shouldSkip) {
+            skipped.push({
+                challenge,
+                reason: skipResult.reason,
+                details: skipResult.details || {},
+                lessonId: lesson?.id,
+                lessonTitle: lesson?.title
+            });
+            
+            // Log each skipped challenge for admin awareness
+            logger.info('Challenge skipped due to missing image', {
+                reason: skipResult.reason,
+                wordPt: skipResult.details?.wordPt,
+                wordEn: skipResult.details?.wordEn,
+                challengeType: skipResult.details?.challengeType || challenge.type,
+                lessonId: lesson?.id,
+                lessonTitle: lesson?.title
+            });
+        } else {
+            filtered.push(challenge);
+        }
+    }
+    
+    // Log summary if any challenges were skipped
+    if (skipped.length > 0) {
+        logger.warn('Challenges skipped due to missing images', {
+            lessonId: lesson?.id,
+            lessonTitle: lesson?.title,
+            totalChallenges: challenges.length,
+            skippedCount: skipped.length,
+            remainingCount: filtered.length,
+            skippedWords: skipped
+                .filter(s => s.details?.wordPt)
+                .map(s => s.details.wordPt)
+                .slice(0, 10) // Limit to first 10 for log readability
+        });
+        
+        // Emit event for admin dashboard / telemetry
+        try {
+            eventStream.emit('system_event', {
+                eventType: 'challenges_skipped_missing_images',
+                lessonId: lesson?.id,
+                lessonTitle: lesson?.title,
+                skippedCount: skipped.length,
+                totalChallenges: challenges.length,
+                timestamp: Date.now()
+            });
+        } catch (e) {
+            logger.warn('Failed to emit challenges skipped event', e);
+        }
+    }
+    
+    return { filtered, skipped };
+}
+
 function finalizeChallenges(challenges, lesson, personalization, learnedWords) {
     const adaptive = applyAdaptiveReinforcement(challenges, lesson, personalization, learnedWords);
-    return attachIllustrations(adaptive, lesson);
+    const withImages = attachIllustrations(adaptive, lesson);
+    
+    // Filter out challenges with missing required images
+    const { filtered, skipped } = filterChallengesWithMissingImages(withImages, lesson);
+    
+    // Re-index challenges after filtering to maintain sequential indices
+    const reindexed = filtered.map((challenge, idx) => ({
+        ...challenge,
+        index: idx,
+        originalIndex: challenge.index // Preserve original index for reference
+    }));
+    
+    return reindexed;
 }
 
 // ============================================================================
@@ -1297,7 +1227,9 @@ export class ChallengeRenderer {
         const learnWordCount = learnWordChallenges.length;
         // Calculate which learn-word this is (1-indexed)
         const learnWordIndex = learnWordChallenges.findIndex(c => c.index === challenge.index) + 1;
-        const lessonImage = resolveChallengeImage(challenge, state.lesson);
+        const lessonImageData = resolveChallengeImage(challenge, state.lesson);
+        const lessonImage = lessonImageData.background;
+        const imageIsPlaceholder = lessonImageData.isPlaceholder;
         const lessonProgressPct = Math.min(100, Math.round(((state.currentIndex + 1) / state.challenges.length) * 100));
         const completedLessonIds = new Set(getCompletedLessons().map(entry => entry.lessonId || entry.id));
         const completedLessons = completedLessonIds.size;
