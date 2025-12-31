@@ -702,7 +702,24 @@
                 <div class="feature">✓ Offline Access</div>
                 <div class="feature">✓ Certificate of Completion</div>
             </div>
-            <button class="btn-subscribe">Subscribe Now - $9.99/month</button>
+            <div class="plan-grid">
+                <button class="btn-plan" data-plan="weekly" data-price-id="">
+                    <div class="plan-name">Weekly</div>
+                    <div class="plan-price">$5 / week</div>
+                    <div class="plan-note">Cancel anytime</div>
+                </button>
+                <button class="btn-plan" data-plan="monthly" data-price-id="">
+                    <div class="plan-name">Monthly</div>
+                    <div class="plan-price">$20 / month</div>
+                    <div class="plan-note">Best for steady learners</div>
+                </button>
+                <button class="btn-plan" data-plan="annual" data-price-id="">
+                    <div class="plan-name">Annual</div>
+                    <div class="plan-price">$200 / year</div>
+                    <div class="plan-note">2 months free vs monthly</div>
+                </button>
+            </div>
+            <div class="plan-disclaimer">Secure checkout by Stripe. Prices in USD.</div>
         </div>
     </div>
 
@@ -712,6 +729,22 @@
             <span>PortuLingo - Learn European Portuguese</span>
         </div>
     </footer>
+
+    <script>
+        // Runtime config for tunnels and Stripe price IDs.
+        window.PORTULINGO_APP_URL = window.PORTULINGO_APP_URL || 'https://for-exams-reflects-settings.trycloudflare.com';
+        window.PORTULINGO_API_URL = window.PORTULINGO_API_URL || 'https://exterior-deposit-genres-designation.trycloudflare.com';
+        window.PORTULINGO_PRICE_WEEKLY = window.PORTULINGO_PRICE_WEEKLY || '';
+        window.PORTULINGO_PRICE_MONTHLY = window.PORTULINGO_PRICE_MONTHLY || '';
+        window.PORTULINGO_PRICE_ANNUAL = window.PORTULINGO_PRICE_ANNUAL || '';
+        try {
+            if (window.PORTULINGO_API_URL) {
+                localStorage.setItem('portulingo_api_base', window.PORTULINGO_API_URL);
+            }
+        } catch (err) {
+            console.warn('Failed to persist API base', err);
+        }
+    </script>
 
     <!-- Core Modules -->
     <script type="module" src="./auth.js"></script>
