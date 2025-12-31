@@ -167,9 +167,17 @@ export function getWordKey(word) {
  * before hitting remote Unsplash URLs.
  */
 function resolveChallengeImage(challenge, lesson) {
+    // Convert value to CSS background url, but only if it looks like a real path/URL
+    // Skip simple names like 'wave', 'sunrise' that aren't file paths
     const toBackground = (value) => {
         if (!value) return null;
-        return String(value).startsWith('url(') ? value : `url('${value}')`;
+        const str = String(value).trim();
+        // Already a CSS url() value
+        if (str.startsWith('url(')) return str;
+        // Skip if it's just a simple word (no path separators, dots for extension, or protocol)
+        const looksLikePath = str.includes('/') || str.includes('.') || str.startsWith('http') || str.startsWith('data:');
+        if (!looksLikePath) return null;
+        return `url('${str}')`;
     };
 
     const challengeImage = toBackground(challenge.image || challenge.media?.image);
