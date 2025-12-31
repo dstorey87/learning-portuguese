@@ -1,0 +1,11 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+009_01,estar,to be (temporary),sh-TAR,Use for temporary states - location feelings health,thermometer,Estar bem é importante.,Being well is important.
+009_02,eu estou,I am,AY-oo sh-TOH,Temporary states - how you feel where you are,person_feeling,Eu estou bem.,I am well (right now).
+009_03,tu estás,you are (informal),too sh-TAHSH,Asking about temporary state informally,friends_talking,Tu estás cansado?,Are you tired?
+009_04,você está,you are (formal),voh-SAY sh-TAH,Asking about temporary state formally,formal_greeting,Você está bem?,Are you well?
+009_05,ele está,he is,EL-uh sh-TAH,His temporary location or state,man_location,Ele está em casa.,He is at home.
+009_06,ela está,she is,EL-ah sh-TAH,Her temporary location or state,woman_location,Ela está doente.,She is sick.
+009_07,nós estamos,we are,nohsh sh-TAH-moosh,Our temporary state or location,group_location,Nós estamos em Lisboa.,We are in Lisbon.
+009_08,eles estão,they are,EL-ush sh-TOWNG,Their temporary state - nasal 'ão',group_feeling,Eles estão contentes.,They are happy.
+009_09,onde está,where is,OHN-duh sh-TAH,Asking for location - very useful,question_location,Onde está o café?,Where is the café?
+009_10,como está,how are you,KOH-moo sh-TAH,Common greeting asking about wellbeing,greeting,Como está? Tudo bem?,How are you? All well?

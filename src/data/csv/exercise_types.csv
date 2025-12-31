@@ -1,0 +1,21 @@
+id,name,description
+1,picture_flashcard,Select image matching the word
+2,audio_mcq,Listen and pick correct meaning
+3,tap_pairs,Match word pairs together
+4,word_image_match,Match words to images grid
+5,cloze,Fill in the missing word
+6,word_order,Arrange words into sentence
+7,sentence_builder,Build sentence from word bank
+8,translation_type,Type the translation
+9,listen_type,Listen and type what you hear
+10,speak_record,Record yourself saying the word
+11,minimal_pair,Pick between similar sounds
+12,grammar_transform,Change word form
+13,dialogue_reorder,Put conversation in order
+14,story_complete,Complete the story gaps
+15,number_listen,Listen to number and type it
+16,rapid_recall,Timed vocabulary drill
+17,pronunciation_shadowing,Repeat after native audio
+18,conversation_roleplay,Practice dialogue responses
+19,read_aloud,Read text and record
+20,context_guess,Guess word from context

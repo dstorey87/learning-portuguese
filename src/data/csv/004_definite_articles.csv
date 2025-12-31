@@ -1,0 +1,11 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+004_01,o,the (masc sing),oo,Most common article - used with masculine singular nouns,article,O café é bom.,The coffee is good.
+004_02,a,the (fem sing),ah,Used with feminine singular nouns ending in 'a',article,A casa é grande.,The house is big.
+004_03,os,the (masc plural),oosh,Plural masculine - add 's' sound to 'o',articles,Os livros são novos.,The books are new.
+004_04,as,the (fem plural),ahsh,Plural feminine - add 's' sound to 'a',articles,As casas são bonitas.,The houses are pretty.
+004_05,o homem,the man,oo OH-maym,Example of masculine noun with article,man,O homem é alto.,The man is tall.
+004_06,a mulher,the woman,ah mool-YAIR,Example of feminine noun with article,woman,A mulher é simpática.,The woman is nice.
+004_07,o menino,the boy,oo muh-NEE-noo,Masculine diminutive for young male,boy,O menino brinca.,The boy plays.
+004_08,a menina,the girl,ah muh-NEE-nah,Feminine diminutive for young female,girl,A menina estuda.,The girl studies.
+004_09,o livro,the book,oo LEE-vroo,Masculine noun - most words ending in 'o' are masculine,book,O livro é interessante.,The book is interesting.
+004_10,a mesa,the table,ah MAY-zah,Feminine noun - most words ending in 'a' are feminine,table,A mesa é redonda.,The table is round.

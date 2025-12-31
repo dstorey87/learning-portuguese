@@ -1,0 +1,205 @@
+{
+    "pronunciationRules": {
+        "vowels": {
+            "a": {
+                "description": "Open 'a' sound like 'father'",
+                "example": "falar (to speak)",
+                "tip": "Keep mouth wide open"
+            },
+            "á": {
+                "description": "Stressed open 'a', slightly longer",
+                "example": "água (water)",
+                "tip": "Hold the sound slightly longer"
+            },
+            "ã": {
+                "description": "Nasal 'a' - through the nose",
+                "example": "maçã (apple)",
+                "tip": "Pinch your nose - if sound changes, you're doing it right"
+            },
+            "e": {
+                "description": "Can be 'eh' or 'ee' depending on position",
+                "example": "dedo (finger)",
+                "tip": "At end of word, often silent or very soft 'uh'"
+            },
+            "é": {
+                "description": "Open 'e' like 'bet'",
+                "example": "café (coffee)",
+                "tip": "Like saying 'eh' at the doctor"
+            },
+            "ê": {
+                "description": "Closed 'e' like 'they' but shorter",
+                "example": "você (you)",
+                "tip": "Lips slightly forward"
+            },
+            "i": {
+                "description": "Always 'ee' like 'see'",
+                "example": "vida (life)",
+                "tip": "Consistent - always sounds like English 'ee'"
+            },
+            "o": {
+                "description": "Can be 'oh' or 'oo' depending on position",
+                "example": "como (how/like)",
+                "tip": "At end of word, sounds like 'oo'"
+            },
+            "ó": {
+                "description": "Open 'o' like 'off'",
+                "example": "avó (grandmother)",
+                "tip": "Mouth more open than closed ô"
+            },
+            "ô": {
+                "description": "Closed 'o' like 'go'",
+                "example": "avô (grandfather)",
+                "tip": "Lips rounded forward"
+            },
+            "u": {
+                "description": "Always 'oo' like 'moon'",
+                "example": "luz (light)",
+                "tip": "Round your lips fully"
+            }
+        },
+        "consonants": {
+            "c_before_e_i": {
+                "description": "'c' before e/i sounds like 's'",
+                "example": "cedo (early)",
+                "tip": "Think 'city' not 'cat'"
+            },
+            "ç": {
+                "description": "Always 's' sound",
+                "example": "cabeça (head)",
+                "tip": "The cedilla (tail) = 's' sound"
+            },
+            "ch": {
+                "description": "'sh' sound like 'ship'",
+                "example": "chave (key)",
+                "tip": "Not 'ch' like 'church'"
+            },
+            "g_before_e_i": {
+                "description": "'g' before e/i sounds like 'zh'",
+                "example": "gente (people)",
+                "tip": "Like 's' in 'measure'"
+            },
+            "gu_before_e_i": {
+                "description": "'gu' makes hard 'g' before e/i",
+                "example": "guerra (war)",
+                "tip": "The 'u' makes 'g' hard again"
+            },
+            "h": {
+                "description": "Always silent",
+                "example": "hora (hour)",
+                "tip": "Never pronounced - just ignore it"
+            },
+            "j": {
+                "description": "'zh' sound like measure",
+                "example": "hoje (today)",
+                "tip": "Never like English 'j' in 'jump'"
+            },
+            "lh": {
+                "description": "'ly' sound like 'million'",
+                "example": "filho (son)",
+                "tip": "Like the 'lli' in 'brilliant'"
+            },
+            "nh": {
+                "description": "'ny' sound like 'canyon'",
+                "example": "amanhã (tomorrow)",
+                "tip": "Like Spanish 'ñ'"
+            },
+            "qu": {
+                "description": "'k' sound, 'u' usually silent",
+                "example": "que (what/that)",
+                "tip": "'u' is silent unless it has umlaut: qü"
+            },
+            "r_initial": {
+                "description": "'h' sound at start of word",
+                "example": "rio (river)",
+                "tip": "Like an English 'h' - not rolled"
+            },
+            "rr": {
+                "description": "Strong 'h' sound",
+                "example": "carro (car)",
+                "tip": "Like clearing your throat gently"
+            },
+            "r_middle": {
+                "description": "Soft tapped 'r' between vowels",
+                "example": "para (for)",
+                "tip": "Quick tap of tongue on roof"
+            },
+            "s_initial": {
+                "description": "'s' at start = 's' sound",
+                "example": "sol (sun)",
+                "tip": "Normal 's' sound"
+            },
+            "s_between_vowels": {
+                "description": "'s' between vowels = 'z'",
+                "example": "casa (house)",
+                "tip": "Like 'z' in 'amazing'"
+            },
+            "s_final": {
+                "description": "Final 's' often 'sh' in Portugal",
+                "example": "três (three)",
+                "tip": "European Portuguese adds 'sh' sound"
+            },
+            "x": {
+                "description": "Can be 'sh', 'z', 'ks', or 's'",
+                "example": "xícara (cup)",
+                "tip": "Most common is 'sh' sound"
+            },
+            "z_final": {
+                "description": "Final 'z' sounds like 'sh'",
+                "example": "faz (does/makes)",
+                "tip": "In Portugal, final 'z' = 'sh'"
+            }
+        },
+        "nasals": {
+            "description": "Portuguese has strong nasal sounds",
+            "tip": "Air comes through nose AND mouth",
+            "markers": ["ã", "ão", "ãe", "õe", "m at end", "n before consonant"]
+        }
+    },
+    "commonMistakes": {
+        "ser_vs_estar": {
+            "mistake": "Using ser when estar is needed (or vice versa)",
+            "rule": "Ser = permanent (identity, origin). Estar = temporary (location, mood)",
+            "example": "Eu SOU inglês (I am English - permanent) vs Eu ESTOU em Lisboa (I am in Lisbon - temporary)"
+        },
+        "gender_agreement": {
+            "mistake": "Using wrong gender for adjectives",
+            "rule": "Adjectives must match noun gender: -o for masculine, -a for feminine",
+            "example": "O carro vermelhO vs A casa vermelhA"
+        },
+        "false_friends": {
+            "actually": {
+                "pt": "atualmente",
+                "means": "currently/nowadays (NOT actually)",
+                "actual_pt": "na verdade, realmente"
+            },
+            "attend": {
+                "pt": "atender",
+                "means": "to answer/serve (NOT attend)",
+                "actual_pt": "assistir, comparecer"
+            },
+            "fabric": {
+                "pt": "fábrica",
+                "means": "factory (NOT fabric)",
+                "actual_pt": "tecido"
+            }
+        }
+    },
+    "encouragement": [
+        "Great job! Keep going! 🎉",
+        "You're making excellent progress! 💪",
+        "Almost there! One more try! 🌟",
+        "Don't give up - this is how we learn! 📚",
+        "You've got this! 🚀",
+        "Every mistake is a step forward! ✨",
+        "Practice makes permanent! 🎯",
+        "Your Portuguese is improving! 🇵🇹"
+    ],
+    "learningTips": {
+        "spaced_repetition": "Review words at increasing intervals - today, tomorrow, in 3 days, in a week",
+        "context_learning": "Learn words in phrases, not isolation. 'Bom dia' not just 'bom'",
+        "active_recall": "Test yourself before looking at the answer - it strengthens memory",
+        "audio_first": "Listen to the word before reading it - train your ear",
+        "shadowing": "Repeat immediately after native speaker - match rhythm and tone",
+        "mnemonics": "Create silly mental images - the weirder, the more memorable"
+    }
+}

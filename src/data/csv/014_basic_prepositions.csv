@@ -1,0 +1,14 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+014_01,de,of/from,duh,Most common preposition - contracts with articles,from,Sou de Portugal.,I am from Portugal.
+014_02,do,of the (masc),doo,Contraction of de + o,contraction,O café do hotel.,The hotel's coffee.
+014_03,da,of the (fem),dah,Contraction of de + a,contraction,A porta da casa.,The door of the house.
+014_04,em,in/on/at,aym,Location preposition - contracts with articles,location,Estou em Lisboa.,I am in Lisbon.
+014_05,no,in the (masc),noo,Contraction of em + o,contraction,No hotel.,In the hotel.
+014_06,na,in the (fem),nah,Contraction of em + a,contraction,Na escola.,In the school.
+014_07,para,to/for,PAH-rah,Direction or purpose,arrow,Vou para casa.,I'm going home.
+014_08,por,by/through/for,poor,Various meanings - agent path exchange,through,Obrigado por tudo.,Thank you for everything.
+014_09,com,with,kohm,Accompaniment or instrument,together,Café com leite.,Coffee with milk.
+014_10,sem,without,saym,Opposite of com,without,Café sem açúcar.,Coffee without sugar.
+014_11,a,to/at,ah,Direction or specific time,to,Vou a Lisboa.,I'm going to Lisbon.
+014_12,ao,to the (masc),ow,Contraction of a + o,contraction,Ao lado de.,Next to (at the side of).
+014_13,à,to the (fem),ah,Contraction of a + a - note accent,contraction,À direita.,To the right.

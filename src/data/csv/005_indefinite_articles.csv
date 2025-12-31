@@ -1,0 +1,11 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+005_01,um,a/one (masc),oom,Nasal 'u' - used for masculine singular nouns,one,Um café por favor.,A coffee please.
+005_02,uma,a/one (fem),OO-mah,Used for feminine singular nouns,one,Uma água por favor.,A water please.
+005_03,uns,some (masc),oonsh,Plural indefinite for masculine nouns,some,Uns livros novos.,Some new books.
+005_04,umas,some (fem),OO-mahsh,Plural indefinite for feminine nouns,some,Umas casas antigas.,Some old houses.
+005_05,um homem,a man,oom OH-maym,Indefinite article with masculine noun,man,É um homem alto.,He's a tall man.
+005_06,uma mulher,a woman,OO-mah mool-YAIR,Indefinite article with feminine noun,woman,É uma mulher simpática.,She's a nice woman.
+005_07,um copo,a glass,oom KOH-poo,Useful for ordering drinks,glass,Um copo de água.,A glass of water.
+005_08,uma chávena,a cup,OO-mah SHAH-veh-nah,European PT word (Brazil uses 'xícara'),cup,Uma chávena de café.,A cup of coffee.
+005_09,um prato,a plate,oom PRAH-too,Used when ordering food,plate,Um prato de bacalhau.,A plate of codfish.
+005_10,uma garrafa,a bottle,OO-mah gah-HAH-fah,Useful for ordering drinks,bottle,Uma garrafa de vinho.,A bottle of wine.

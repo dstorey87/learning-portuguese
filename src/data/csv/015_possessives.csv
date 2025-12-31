@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+015_01,meu,my (masc),MAY-oo,Used with masculine nouns,mine,O meu carro.,My car.
+015_02,minha,my (fem),MEEN-yah,Used with feminine nouns - 'nh' like Spanish ñ,mine,A minha casa.,My house.
+015_03,teu,your (masc informal),tay-oo,Informal - with tu,yours_informal,O teu livro.,Your book.
+015_04,tua,your (fem informal),TOO-ah,Informal feminine,yours_informal,A tua mãe.,Your mother.
+015_05,seu,your (masc formal),SAY-oo,Formal or his/her - context determines meaning,yours_formal,O seu nome.,Your name (formal).
+015_06,sua,your (fem formal),SOO-ah,Formal feminine or his/her,yours_formal,A sua casa.,Your house (formal).
+015_07,nosso,our (masc),NOH-soo,First person plural masculine,ours,O nosso país.,Our country.
+015_08,nossa,our (fem),NOH-sah,First person plural feminine,ours,A nossa família.,Our family.
+015_09,dele,his,DEL-uh,Clarifies when 'seu' is ambiguous,his,O carro dele.,His car.
+015_10,dela,her,DEL-ah,Clarifies when 'sua' is ambiguous,hers,A casa dela.,Her house.
+015_11,deles,their (masc),DEL-ush,Masculine plural,theirs,O carro deles.,Their car.
+015_12,delas,their (fem),DEL-ahsh,Feminine plural - all female group,theirs,A casa delas.,Their house.

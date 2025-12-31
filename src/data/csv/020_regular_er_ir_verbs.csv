@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+020_01,comer,to eat,koo-MAIR,-ER verb - second most common type,eating,Vamos comer.,Let's eat.
+020_02,eu como,I eat,AY-oo KOH-moo,-ER verbs: remove -er add -o for eu,person_eating,Eu como peixe.,I eat fish.
+020_03,tu comes,you eat,too KOH-mesh,-ER verbs: -es for tu,eating_together,Tu comes carne?,Do you eat meat?
+020_04,ele come,he eats,EL-uh KOH-muh,-ER verbs: -e for ele/ela/você,man_eating,Ele come bem.,He eats well.
+020_05,nós comemos,we eat,nohsh koo-MAY-moosh,-ER verbs: -emos for nós,family_eating,Nós comemos às oito.,We eat at eight.
+020_06,eles comem,they eat,EL-ush KOH-maym,-ER verbs: -em for eles/elas,group_eating,Eles comem muito.,They eat a lot.
+020_07,beber,to drink,beh-BAIR,Common -ER verb,drinking,Beber água.,To drink water.
+020_08,eu bebo,I drink,AY-oo BAY-boo,Regular -ER conjugation,person_drinking,Eu bebo café.,I drink coffee.
+020_09,partir,to leave/depart,par-TEER,-IR verb - third type,departure,O avião parte às dez.,The plane leaves at ten.
+020_10,eu parto,I leave,AY-oo PAR-too,-IR verbs: -o for eu,person_leaving,Eu parto amanhã.,I leave tomorrow.
+020_11,abrir,to open,ah-BREER,Common -IR verb,door_opening,A loja abre às nove.,The shop opens at nine.
+020_12,viver,to live,vee-VAIR,Existence not residence (use morar for location),life,Viver é bom.,Living is good.

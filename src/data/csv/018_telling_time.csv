@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+018_01,que horas são,what time is it,kuh OR-ahsh sowng,Most common way to ask time,clock_question,Que horas são?,What time is it?
+018_02,é uma hora,it's one o'clock,eh OO-mah OR-ah,Only time that uses singular 'é',clock_1,É uma hora.,It's one o'clock.
+018_03,são duas horas,it's two o'clock,sowng DOO-ahsh OR-ahsh,All other hours use plural 'são',clock_2,São duas horas.,It's two o'clock.
+018_04,meio-dia,noon/midday,MAY-oo DEE-ah,Literally 'half-day',clock_12,É meio-dia.,It's noon.
+018_05,meia-noite,midnight,MAY-ah NOYT,Literally 'half-night',clock_0,É meia-noite.,It's midnight.
+018_06,e meia,and half (30 min),ee MAY-ah,Add to any hour for :30,clock_half,São três e meia.,It's 3:30.
+018_07,e um quarto,and a quarter (15),ee oom KWAR-too,For :15 past the hour,clock_quarter,São cinco e um quarto.,It's 5:15.
+018_08,menos um quarto,quarter to,MEH-noosh oom KWAR-too,For :45 (quarter before),clock_45,São seis menos um quarto.,It's quarter to six (5:45).
+018_09,da manhã,in the morning,dah mah-NYAH,AM equivalent,morning,São oito da manhã.,It's 8 in the morning.
+018_10,da tarde,in the afternoon,dah TARD,PM (until evening),afternoon,São três da tarde.,It's 3 in the afternoon.
+018_11,da noite,in the evening/night,dah NOYT,Evening/night hours,night,São nove da noite.,It's 9 at night.
+018_12,a que horas,at what time,ah kuh OR-ahsh,Asking for specific time,schedule,A que horas abre?,At what time does it open?

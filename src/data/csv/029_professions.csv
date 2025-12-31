@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+029_01,o trabalho,the work/job,oo trah-BAH-lyoo,'lh' sounds like 'ly',work,O meu trabalho é interessante.,My work is interesting.
+029_02,o médico,the doctor (m),oo MEH-dee-koo,Male doctor,doctor_m,O médico está ocupado.,The doctor is busy.
+029_03,a médica,the doctor (f),ah MEH-dee-kah,Female doctor,doctor_f,A médica é simpática.,The doctor is nice.
+029_04,o professor,the teacher (m),oo proo-feh-SOR,Male teacher/professor,teacher_m,O professor ensina bem.,The teacher teaches well.
+029_05,a professora,the teacher (f),ah proo-feh-SOH-rah,Female teacher/professor,teacher_f,A professora é portuguesa.,The teacher is Portuguese.
+029_06,o advogado,the lawyer (m),oo ahd-voo-GAH-doo,Male lawyer,lawyer_m,O advogado trabalha muito.,The lawyer works a lot.
+029_07,a advogada,the lawyer (f),ah ahd-voo-GAH-dah,Female lawyer,lawyer_f,A advogada é competente.,The lawyer is competent.
+029_08,o estudante,the student (m/f),oo eh-stoo-DAHN-tuh,Same for male and female,student,Sou estudante.,I am a student.
+029_09,o empregado,the employee (m),oo em-preh-GAH-doo,Male employee/waiter,employee,O empregado é simpático.,The employee is friendly.
+029_10,a empregada,the employee (f),ah em-preh-GAH-dah,Female employee/waitress,employee_f,A empregada trabalha aqui.,The employee works here.
+029_11,o engenheiro,the engineer (m),oo en-zheh-NYAY-roo,Male engineer,engineer,Ele é engenheiro.,He is an engineer.
+029_12,a engenheira,the engineer (f),ah en-zheh-NYAY-rah,Female engineer,engineer_f,Ela é engenheira.,She is an engineer.

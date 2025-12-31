@@ -1,0 +1,12 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+011_01,o que,what,oo kuh,Use for asking 'what' about things,question,O que é isto?,What is this?
+011_02,quem,who,kaym,Asking about people,person_question,Quem é ele?,Who is he?
+011_03,onde,where,OHN-duh,Asking about location,map_pin,Onde é a estação?,Where is the station?
+011_04,quando,when,KWAHN-doo,Asking about time,clock_question,Quando chega o comboio?,When does the train arrive?
+011_05,como,how,KOH-moo,Asking about manner or method,question_how,Como se diz em português?,How do you say in Portuguese?
+011_06,porquê,why (in questions),poor-KAY,Use at end of questions or alone,thinking,Porquê?,Why?
+011_07,porque,because,poor-KUH,Use when giving reasons - no accent,answer,Porque estou cansado.,Because I'm tired.
+011_08,qual,which/what,kwahl,Asking for specific choice,choice,Qual é o seu nome?,What is your name?
+011_09,quanto,how much (masc),KWAHN-too,For uncountable or price,money,Quanto custa?,How much does it cost?
+011_10,quantos,how many (masc),KWAHN-toosh,For countable masculine nouns,counting,Quantos anos tens?,How many years do you have (How old)?
+011_11,quantas,how many (fem),KWAHN-tahsh,For countable feminine nouns,counting,Quantas pessoas?,How many people?

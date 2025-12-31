@@ -1,0 +1,14 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+012_01,bom,good (masc),bohm,Most common positive adjective,thumbs_up,O café é bom.,The coffee is good.
+012_02,boa,good (fem),BOH-ah,Feminine form - used with feminine nouns,thumbs_up,A comida é boa.,The food is good.
+012_03,mau,bad (masc),mow,Like English 'mow' the lawn,thumbs_down,O tempo está mau.,The weather is bad.
+012_04,má,bad (fem),mah,Short sound - feminine form,thumbs_down,Uma má ideia.,A bad idea.
+012_05,grande,big/large,GRAHN-duh,Same for masculine and feminine,size_large,Uma casa grande.,A big house.
+012_06,pequeno,small (masc),peh-KAY-noo,Masculine - ends in 'o',size_small,Um carro pequeno.,A small car.
+012_07,pequena,small (fem),peh-KAY-nah,Feminine - ends in 'a',size_small,Uma casa pequena.,A small house.
+012_08,novo,new (masc),NOH-voo,Also means 'young' for people,new_tag,Um livro novo.,A new book.
+012_09,nova,new (fem),NOH-vah,Feminine form,new_tag,Uma casa nova.,A new house.
+012_10,velho,old (masc),VEL-yoo,For things and people - 'lh' like Spanish ll,old,Um carro velho.,An old car.
+012_11,velha,old (fem),VEL-yah,Feminine form,old,Uma casa velha.,An old house.
+012_12,bonito,beautiful (masc),boo-NEE-too,For things and people,beautiful,Um dia bonito.,A beautiful day.
+012_13,bonita,beautiful (fem),boo-NEE-tah,Very common compliment,beautiful,Ela é bonita.,She is beautiful.

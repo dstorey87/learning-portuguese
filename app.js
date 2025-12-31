@@ -3,7 +3,8 @@ import {
     getAllTopics,
     getAllLessons,
     getLessonById as loaderGetLessonById,
-    getLessonImage
+    getLessonImage,
+    initLessonLoader
 } from './src/data/LessonLoader.js';
 import {
     ChallengeRenderer,
@@ -3826,19 +3827,23 @@ function initApp() {
     updateDashboard();
 }
 
-// Ensure routing/navigation and core UI wiring is initialized.
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        try {
-            initApp();
-        } catch (err) {
-            console.error('App initialization failed:', err);
-        }
-    });
-} else {
+// Initialize lesson loader and then the app
+async function bootstrap() {
     try {
+        // Load all CSV lesson data first
+        await initLessonLoader();
+        console.log('[App] Lesson loader initialized');
+        
+        // Now initialize the app
         initApp();
     } catch (err) {
         console.error('App initialization failed:', err);
     }
+}
+
+// Ensure routing/navigation and core UI wiring is initialized.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+    bootstrap();
 }

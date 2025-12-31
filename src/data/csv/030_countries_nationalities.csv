@@ -1,0 +1,14 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+030_01,o país,the country,oo pah-EESH,Accent on 'í' - masculine noun,country,Portugal é um país bonito.,Portugal is a beautiful country.
+030_02,Portugal,Portugal,poor-too-GAHL,Stress on last syllable,portugal_flag,Moro em Portugal.,I live in Portugal.
+030_03,português,Portuguese (m),poor-too-GAYSH,Language or nationality (male),portuguese,Falo português.,I speak Portuguese.
+030_04,portuguesa,Portuguese (f),poor-too-GAY-zah,Nationality (female),portuguese_f,Ela é portuguesa.,She is Portuguese.
+030_05,a Inglaterra,England,ah een-glah-TEH-rah,Note the article 'a',england,A Inglaterra é um país.,England is a country.
+030_06,inglês,English (m),een-GLAYSH,Language or nationality (male),english,Falo inglês.,I speak English.
+030_07,inglesa,English (f),een-GLAY-zah,Nationality (female),english_f,Ela é inglesa.,She is English.
+030_08,a Espanha,Spain,ah eh-SPAH-nyah,'nh' like Spanish ñ,spain,A Espanha é vizinha.,Spain is a neighbor.
+030_09,espanhol,Spanish (m),eh-spah-NYOL,Language or nationality (male),spanish,Falo espanhol.,I speak Spanish.
+030_10,a França,France,ah FRAHN-sah,'ç' sounds like 's',france,A França é bonita.,France is beautiful.
+030_11,francês,French (m),frahn-SAYSH,Language or nationality (male),french,Falo francês.,I speak French.
+030_12,a Alemanha,Germany,ah ah-leh-MAH-nyah,'nh' like Spanish ñ,germany,A Alemanha é grande.,Germany is big.
+030_13,alemão,German (m),ah-leh-MOWNG,Nasal 'ão' ending,german,Falo alemão.,I speak German.

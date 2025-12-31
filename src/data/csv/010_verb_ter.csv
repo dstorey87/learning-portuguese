@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+010_01,ter,to have,tair,Essential verb - possession age obligations,have,Ter é importante.,To have is important.
+010_02,eu tenho,I have,AY-oo TEN-yoo,Irregular - note the 'nh' sound like Spanish ñ,person_holding,Eu tenho um carro.,I have a car.
+010_03,tu tens,you have (informal),too taynsh,Informal second person,friends,Tu tens irmãos?,Do you have siblings?
+010_04,você tem,you have (formal),voh-SAY taym,Formal - same form as ele/ela,formal,Você tem filhos?,Do you have children?
+010_05,ele tem,he has,EL-uh taym,Third person singular,man_having,Ele tem trinta anos.,He is thirty years old.
+010_06,ela tem,she has,EL-ah taym,Same conjugation as ele,woman_having,Ela tem uma casa.,She has a house.
+010_07,nós temos,we have,nohsh TAY-moosh,First person plural,group_having,Nós temos tempo.,We have time.
+010_08,eles têm,they have,EL-ush taym,Note the circumflex accent - same sound as tem,group,Eles têm fome.,They are hungry (have hunger).
+010_09,tenho fome,I'm hungry,TEN-yoo FOH-muh,Literally 'I have hunger' - Portuguese uses ter,hungry,Tenho fome. Vamos comer?,I'm hungry. Shall we eat?
+010_10,tenho sede,I'm thirsty,TEN-yoo SEH-duh,Literally 'I have thirst',thirsty,Tenho sede. Uma água por favor.,I'm thirsty. A water please.
+010_11,tenho sono,I'm sleepy,TEN-yoo SOH-noo,Literally 'I have sleep',sleepy,Tenho sono. Vou dormir.,I'm sleepy. I'm going to sleep.
+010_12,tenho ... anos,I am ... years old,TEN-yoo ... AH-noosh,Age uses ter not ser - 'I have X years',birthday,Tenho vinte anos.,I am twenty years old.

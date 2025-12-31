@@ -1,0 +1,11 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+013_01,não,no/not,nowng,Nasal sound - place before verb to negate,x_mark,Não falo português.,I don't speak Portuguese.
+013_02,nunca,never,NOON-kah,Stronger than não - often used with não,never,Nunca estive em Lisboa.,I've never been to Lisbon.
+013_03,nada,nothing,NAH-dah,Can be used alone or with não,zero,Não quero nada.,I don't want anything.
+013_04,ninguém,nobody,neen-GAYM,Nasal sound at start - often with não,empty_person,Não há ninguém aqui.,There's nobody here.
+013_05,nenhum,none/no (masc),nen-YOOM,Followed by masculine noun,none,Nenhum problema.,No problem.
+013_06,nenhuma,none/no (fem),nen-YOO-mah,Followed by feminine noun,none,Nenhuma ideia.,No idea.
+013_07,nem,neither/nor,naym,Used in neither...nor constructions,neither,Nem eu nem tu.,Neither me nor you.
+013_08,já não,no longer,zhah nowng,Shows change from before,change,Já não vivo aqui.,I no longer live here.
+013_09,ainda não,not yet,ah-EEN-dah nowng,Implies something will happen,waiting,Ainda não chegou.,He hasn't arrived yet.
+013_10,não é,isn't it,nowng eh,Tag question - seeking confirmation,question,É bom não é?,It's good isn't it?

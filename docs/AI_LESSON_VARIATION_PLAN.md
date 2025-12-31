@@ -1,6 +1,6 @@
 # AI Lesson Variation Master Plan
 
-> **Version:** 1.0 | **Status:** Canonical | **Updated:** 2025-12-30
+> **Version:** 2.0 | **Status:** Canonical | **Updated:** 2025-12-30
 
 This is the **single source of truth** for lesson architecture, exercise types, sequencing, AI adaptation, telemetry, and testing. All implementation must reference this document. No new exercise type or flow may be added without first documenting it here.
 
@@ -11,16 +11,119 @@ This is the **single source of truth** for lesson architecture, exercise types, 
 1. [User Requirements](#user-requirements)
 2. [Global Criteria](#global-criteria)
 3. [Source Table (Prioritized)](#source-table-prioritized)
-4. [Lesson Order & Rationale](#lesson-order--rationale)
-5. [Exercise Type Catalog](#exercise-type-catalog)
-6. [AI Lesson Generation & Adaptation](#ai-lesson-generation--adaptation)
-7. [Telemetry Requirements](#telemetry-requirements)
-8. [MCP Playwright Validation Scenarios](#mcp-playwright-validation-scenarios)
-9. [Agentic Workflow (For AI Agents)](#agentic-workflow-for-ai-agents--github-copilot)
-10. [Execution Tasks](#execution-tasks)
-11. [Definitions of Done (Per Track)](#definitions-of-done-per-track)
-12. [LLM Interchangeability](#llm-interchangeability)
-13. [Enforcement Rules](#enforcement-rules)
+4. [CSV-Based Lesson Architecture](#csv-based-lesson-architecture) ← **NEW**
+5. [Difficulty Progression System](#difficulty-progression-system) ← **NEW**
+6. [Lesson Order & Rationale](#lesson-order--rationale)
+7. [Exercise Type Catalog](#exercise-type-catalog)
+8. [AI Lesson Generation & Adaptation](#ai-lesson-generation--adaptation)
+9. [Telemetry Requirements](#telemetry-requirements)
+10. [MCP Playwright Validation Scenarios](#mcp-playwright-validation-scenarios)
+11. [Agentic Workflow (For AI Agents)](#agentic-workflow-for-ai-agents--github-copilot)
+12. [Execution Tasks](#execution-tasks)
+13. [Definitions of Done (Per Track)](#definitions-of-done-per-track)
+14. [LLM Interchangeability](#llm-interchangeability)
+15. [Enforcement Rules](#enforcement-rules)
+
+---
+
+## CSV-Based Lesson Architecture
+
+### Overview
+
+Lessons are now defined via **CSV files** for easy content creation. The AI can generate new lessons simply by creating a CSV - **no code changes required**.
+
+### File Structure
+
+```
+src/
+├── config/
+│   ├── difficulty_progressions.js  # Exercise types per difficulty level
+│   └── lesson_type.js              # Exercise type IDs
+├── data/
+│   ├── csv/
+│   │   ├── greetings.csv           # Content: words, tips, phrases
+│   │   ├── pronouns.csv
+│   │   └── [topic].csv
+│   ├── lesson_metadata.json        # Lesson cards: title, description, tags
+│   └── learning_helpers.json       # Pronunciation rules, tips, encouragement
+└── services/
+    └── CSVLessonLoader.js          # Loads and transforms CSVs
+```
+
+### CSV Schema
+
+| Column | Required | Description | Example |
+|--------|----------|-------------|---------|
+| `word` | ✅ | Portuguese word/phrase | `olá` |
+| `translation` | ✅ | English translation | `hello` |
+| `sounds_like` | ✅ | Pronunciation guide | `oh-LAH` |
+| `tip` | ✅ | Learning tip | `The 'á' sounds like 'ah' in father` |
+| `mnemonic` | ⬜ | Memory aid | `'Oh LA!' - like you're impressed` |
+| `image` | ⬜ | Image path | `images/greetings/ola.png` |
+| `audio_file` | ⬜ | Audio path | `audio/pt/ola.mp3` |
+| `phrase_example` | ✅ | Word in context | `Olá, como está?` |
+| `phrase_translation` | ✅ | Phrase meaning | `Hello, how are you?` |
+| `difficulty` | ✅ | Starting level | `beginner_1` |
+| `category` | ✅ | Topic category | `greetings` |
+| `gender` | ⬜ | m/f for gendered words | `m` |
+| `plural` | ⬜ | Plural form | `olás` |
+
+### AI Lesson Generation
+
+To create a new lesson, AI simply:
+
+1. Creates a CSV file in `src/data/csv/[topic].csv`
+2. Adds metadata entry in `lesson_metadata.json`
+3. The system automatically:
+   - Parses the CSV
+   - Groups words by difficulty
+   - Generates exercises for each level
+   - Applies gating rules
+
+**No code changes needed for new content!**
+
+---
+
+## Difficulty Progression System
+
+### Philosophy (Sources: 2, 17, 21, 23, 27, 30, 53)
+
+- **beginner_1-3**: Recognition → build confidence
+- **intermediate_1-3**: Production → active recall
+- **hard_1-3**: Complex tasks → grammar + fluency
+- **hard_mode_1**: Speed test → prove mastery
+
+### Progression Table
+
+| Level | Name | Exercise Types | Pass Mark | Unlocks |
+|-------|------|----------------|-----------|---------|
+| `beginner_1` | First Steps | `picture_flashcard`, `word_image_match` | 80% | beginner_2 |
+| `beginner_2` | Building Recognition | `audio_mcq`, `multimodal_dual_coding` | 80% | beginner_3 |
+| `beginner_3` | Beginner Complete | All beginner + `cloze` | 80% | intermediate_1 |
+| `intermediate_1` | Active Recall | `image_to_text`, `cloze` (typing) | 80% | intermediate_2 |
+| `intermediate_2` | Listening Production | `audio_dictation`, `minimal_pair`, `number_comprehension` | 80% | intermediate_3 |
+| `intermediate_3` | Intermediate Complete | All intermediate + `sentence_builder`, `word_order` | 80% | hard_1 |
+| `hard_1` | Grammar Focus | `grammar_transform`, `word_order`, `sentence_builder` | 80% | hard_2 |
+| `hard_2` | Pronunciation Mastery | `pronunciation_shadowing`, `dialogue_reorder` | 80% | hard_3 |
+| `hard_3` | Advanced Complete | All types, no hints | 80% | hard_mode_1 |
+| `hard_mode_1` | Fluency Challenge | `rapid_recall` (timed, 60s) | 90% | - |
+
+### Gating Rules
+
+1. **Only `beginner_1` visible initially** - all other levels locked
+2. **Must pass 80%** to unlock next level
+3. **Lesson prerequisites** also enforced (defined in metadata)
+4. **Locked lessons shown but dimmed** - user sees what's coming
+
+### Implementation
+
+```javascript
+// Check if user can access a level
+import { isLevelUnlocked } from './config/difficulty_progressions.js';
+
+const canAccess = isLevelUnlocked('intermediate_1', userProgress);
+// Returns false if beginner_3 not completed at 80%+
+```
 
 ---
 
@@ -35,10 +138,12 @@ This is the **single source of truth** for lesson architecture, exercise types, 
 | Type-from-image/audio | Image→type and Audio→type exercises |
 | Lessons in correct order | Building Blocks → Essential Communication → Daily Topics |
 | English lesson names + descriptions | English title + subline on every card/detail |
-| AI generates and adapts lessons | Static seed (Phase 1) → Adaptive (Phase 2) → Portfolio-based (Phase 3) |
-| Varied lesson types | 15+ exercise types in catalog |
+| AI generates and adapts lessons | **CSV-based: AI creates CSV, system generates lesson** |
+| Varied lesson types | 15 exercise types across 10 difficulty levels |
 | Interchangeable LLM | Model registry with fallback to local Ollama |
-| End-to-end Playwright validation | MCP tools on http://localhost:63436 with screenshots |
+| End-to-end Playwright validation | MCP tools on http://localhost:4321 with screenshots |
+| **Helper info visible** | Tips, sounds-like, mnemonics shown in exercises |
+| **Difficulty gating** | Lock levels until prior level passed at 80% |
 
 ---
 

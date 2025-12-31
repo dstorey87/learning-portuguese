@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+022_01,a cor,the color,ah kor,Feminine noun - plural 'as cores',color_palette,Qual é a sua cor favorita?,What is your favorite color?
+022_02,vermelho,red,vehr-MEL-yoo,'lh' sounds like 'ly' - masculine,red,O carro é vermelho.,The car is red.
+022_03,azul,blue,ah-ZOOL,Same for masculine and feminine,blue,O céu é azul.,The sky is blue.
+022_04,verde,green,VEHR-duh,Same for masculine and feminine,green,A relva é verde.,The grass is green.
+022_05,amarelo,yellow,ah-mah-REL-oo,Masculine - amarela for feminine,yellow,O sol é amarelo.,The sun is yellow.
+022_06,branco,white,BRAHN-koo,Masculine - branca for feminine,white,A neve é branca.,The snow is white.
+022_07,preto,black,PRAY-too,Masculine - preta for feminine,black,O café é preto.,The coffee is black.
+022_08,laranja,orange,lah-RAHN-zhah,Same for masc/fem - also the fruit!,orange,A laranja é laranja.,The orange is orange.
+022_09,rosa,pink,HOH-zah,'r' at start sounds like 'h',pink,A flor é rosa.,The flower is pink.
+022_10,castanho,brown,kahsh-TAH-nyoo,European PT (Brazil uses 'marrom'),brown,O cão é castanho.,The dog is brown.
+022_11,cinzento,gray,seen-ZEN-too,European PT (Brazil uses 'cinza'),gray,O gato é cinzento.,The cat is gray.
+022_12,roxo,purple,HOH-shoo,'x' sounds like 'sh',purple,A uva é roxa.,The grape is purple.

@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+027_01,o tempo,the weather/time,oo TEM-poo,Context determines weather or time,weather,Como está o tempo?,How is the weather?
+027_02,faz sol,it's sunny,fahsh sohl,'faz' + weather condition,sunny,Hoje faz sol.,Today it's sunny.
+027_03,está a chover,it's raining,sh-TAH ah shoo-VAIR,European PT form (Brazil: está chovendo),rain,Está a chover muito.,It's raining a lot.
+027_04,faz frio,it's cold,fahsh FREE-oo,'faz' for temperature feelings,cold,Faz frio no inverno.,It's cold in winter.
+027_05,faz calor,it's hot,fahsh kah-LOR,'faz' for temperature feelings,hot,Faz calor no verão.,It's hot in summer.
+027_06,está nublado,it's cloudy,sh-TAH noo-BLAH-doo,Cloud cover,cloudy,Está nublado hoje.,It's cloudy today.
+027_07,há vento,it's windy,ah VEN-too,'há' (there is) + wind,windy,Há muito vento.,It's very windy.
+027_08,está a nevar,it's snowing,sh-TAH ah neh-VAR,Rare in Portugal except mountains,snowing,Está a nevar na Serra.,It's snowing in the mountains.
+027_09,o sol,the sun,oo sohl,Masculine noun,sun,O sol está forte.,The sun is strong.
+027_10,a chuva,the rain,ah SHOO-vah,'ch' like 'sh',rain,A chuva é boa para as plantas.,Rain is good for plants.
+027_11,a temperatura,the temperature,ah tem-peh-rah-TOO-rah,Common weather topic,temperature,A temperatura está agradável.,The temperature is pleasant.
+027_12,graus,degrees,growsh,Used with numbers for temperature,degrees,Vinte graus.,Twenty degrees.

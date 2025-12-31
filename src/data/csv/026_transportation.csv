@@ -1,0 +1,13 @@
+word_id,portuguese,english,sounds_like,tip,image,example_pt,example_en
+026_01,o carro,the car,oo KAH-hoo,Rolled 'rr' in middle,car,Tenho um carro novo.,I have a new car.
+026_02,o autocarro,the bus,oo ow-too-KAH-hoo,European PT (Brazil uses 'ônibus'),bus,O autocarro para o centro.,The bus to the center.
+026_03,o comboio,the train,oo kohm-BOY-oo,European PT (Brazil uses 'trem'),train,O comboio das dez.,The ten o'clock train.
+026_04,o metro,the subway/metro,oo MEH-troo,Lisbon and Porto have metros,metro,Vou de metro.,I'm going by metro.
+026_05,o avião,the plane,oo ah-vee-OWNG,Nasal 'ão' ending,airplane,O avião para Lisboa.,The plane to Lisbon.
+026_06,o barco,the boat,oo BAR-koo,Ferry important in Lisbon,boat,O barco para Cacilhas.,The boat to Cacilhas.
+026_07,a bicicleta,the bicycle,ah bee-see-KLEH-tah,Cycling is growing in Portugal,bicycle,Vou de bicicleta.,I go by bicycle.
+026_08,a pé,on foot,ah peh,Walking,walking,Vou a pé.,I go on foot.
+026_09,o bilhete,the ticket,oo beel-YET,For transport or events,ticket,Um bilhete por favor.,A ticket please.
+026_10,a paragem,the stop (bus),ah pah-RAH-zhaym,European PT for bus stop,bus_stop,A paragem de autocarro.,The bus stop.
+026_11,ida e volta,round trip,EE-dah ee VOL-tah,For buying return tickets,round_trip,Um bilhete de ida e volta.,A round trip ticket.
+026_12,só ida,one way,soh EE-dah,Single journey ticket,one_way,Só ida para o Porto.,One way to Porto.
