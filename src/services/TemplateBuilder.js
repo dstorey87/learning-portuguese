@@ -506,6 +506,77 @@ function generateDistractors(sentence, allSentences, count = BUILDER_CONFIG.minD
     return distractors;
 }
 
+/**
+ * Interleave challenges to create more varied exercise flow
+ * 
+ * Instead of: MCQ MCQ MCQ MCQ → LEARN LEARN LEARN LEARN
+ * Creates: MCQ → LEARN → MCQ → LEARN (interleaved per word)
+ * 
+ * This prevents monotony and aligns with interleaved practice research (Rohrer, Nakata).
+ * Applied automatically on repeat attempts (lessonProgress.completions > 0).
+ * 
+ * @param {Array} challenges - Original challenges in phase order
+ * @param {Array} words - Lesson words for pairing
+ * @returns {Array} Interleaved challenges
+ */
+function interleaveChallenges(challenges, words) {
+    // Group challenges by word (using pt string as key)
+    const byWord = new Map();
+    const wordless = []; // Challenges not tied to a specific word (e.g., sentences)
+    
+    for (const challenge of challenges) {
+        const wordKey = challenge.word?.pt || challenge.word?.portuguese;
+        if (wordKey) {
+            if (!byWord.has(wordKey)) {
+                byWord.set(wordKey, []);
+            }
+            byWord.get(wordKey).push(challenge);
+        } else {
+            wordless.push(challenge);
+        }
+    }
+    
+    // Shuffle the word order for variety
+    const wordKeys = shuffleArray([...byWord.keys()]);
+    
+    // For each word, shuffle the challenge types (MCQ, learn-word, etc.)
+    for (const key of wordKeys) {
+        const wordChallenges = byWord.get(key);
+        // Keep first MCQ (recognition) before learn-word (consolidation)
+        // But shuffle everything else
+        const mcqFirst = wordChallenges.filter(c => c.type === 'mcq' && c.isFirstExposure);
+        const learnWord = wordChallenges.filter(c => c.type === 'learn-word');
+        const others = wordChallenges.filter(c => 
+            !(c.type === 'mcq' && c.isFirstExposure) && c.type !== 'learn-word'
+        );
+        
+        // Rebuild with shuffled "others"
+        byWord.set(key, [...mcqFirst, ...learnWord, ...shuffleArray(others)]);
+    }
+    
+    // Interleave: take one challenge from each word in round-robin fashion
+    const interleaved = [];
+    let maxChallengesPerWord = 0;
+    for (const wordChallenges of byWord.values()) {
+        maxChallengesPerWord = Math.max(maxChallengesPerWord, wordChallenges.length);
+    }
+    
+    for (let round = 0; round < maxChallengesPerWord; round++) {
+        for (const key of wordKeys) {
+            const wordChallenges = byWord.get(key);
+            if (round < wordChallenges.length) {
+                interleaved.push(wordChallenges[round]);
+            }
+        }
+    }
+    
+    // Add wordless challenges at the end (sentences, etc.)
+    interleaved.push(...shuffleArray(wordless));
+    
+    // Re-index all challenges
+    return interleaved.map((c, idx) => ({ ...c, index: idx }));
+}
+
 // ============================================================================
 // MAIN BUILDER FUNCTION
 // ============================================================================
@@ -620,6 +691,12 @@ export function buildFromTemplate(lesson, options = {}) {
         challengeCount: challenges.length,
         effectiveLevel,
     });
+    
+    // Apply interleaving if requested or if this is a repeat attempt
+    const shouldInterleave = options.interleave || lessonProgress.completions > 0;
+    if (shouldInterleave && challenges.length > 0) {
+        return interleaveChallenges(challenges, words);
+    }
     
     return challenges;
 }

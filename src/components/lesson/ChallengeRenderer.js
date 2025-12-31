@@ -762,8 +762,18 @@ export class ChallengeRenderer {
         const resolved = resolveWordForm(word, this.speakerGender);
         const alt = getAlternateForm(word, this.speakerGender);
         
+        // Get external knowledge database (word-knowledge.js)
         const knowledge = this.getWordKnowledge(resolved);
         const hasKnowledge = knowledge !== null;
+        
+        // Also get helper info directly from the word (CSV data)
+        const csvMnemonic = word.mnemonic || '';
+        const csvGrammar = word.grammarNotes || '';
+        const csvCultural = word.culturalNote || '';
+        const csvTip = word.aiTip || '';
+        const csvExamples = word.examples || [];
+        const csvPronunciation = word.pronunciation || '';
+        
         const hoverHint = escapeHtml(this._getEnglishHoverHint(word, knowledge));
         
         let cardHTML = `
@@ -778,7 +788,7 @@ export class ChallengeRenderer {
                     <button class="btn-listen-main" id="listenBtn">🔊 Listen</button>
                 </div>`;
         
-        // Pronunciation section
+        // Pronunciation section - use CSV pronunciation or knowledge
         cardHTML += `
                 <div class="learn-section pronunciation-section">
                     <div class="section-header">🗣️ Pronunciation</div>`;
@@ -796,6 +806,17 @@ export class ChallengeRenderer {
                         <span class="mistake-icon">⚠️</span>
                         <span class="mistake-label">Common mistake:</span> ${escapeHtml(p.commonMistake)}
                     </div>` : ''}`;
+        } else if (csvPronunciation) {
+            // Use CSV pronunciation data
+            cardHTML += `
+                    <div class="pronunciation-guide">${escapeHtml(csvPronunciation)}</div>`;
+            if (csvTip) {
+                cardHTML += `
+                    <div class="pronunciation-tip">
+                        <span class="tip-icon">💡</span>
+                        <span class="tip-text">${escapeHtml(csvTip)}</span>
+                    </div>`;
+            }
         } else {
             const tip = this.generatePronunciationTip(resolved);
             const challengeType = this.getPronunciationChallengeType(resolved);
@@ -808,29 +829,50 @@ export class ChallengeRenderer {
         }
         cardHTML += `</div>`;
         
-        // Memory & Etymology section
-        if (hasKnowledge && (knowledge.etymology || knowledge.memoryTrick)) {
+        // Memory & Etymology section - prioritize CSV mnemonic, then knowledge
+        const hasMnemonic = csvMnemonic || (hasKnowledge && (knowledge.etymology || knowledge.memoryTrick));
+        if (hasMnemonic) {
             cardHTML += `
                 <div class="learn-section memory-section">
-                    <div class="section-header">🧠 Remember It</div>
-                    ${knowledge.etymology ? `<div class="etymology">
-                        <span class="etymology-label">Origin:</span> ${escapeHtml(knowledge.etymology)}
-                    </div>` : ''}
-                    ${knowledge.memoryTrick ? `<div class="memory-trick">
+                    <div class="section-header">🧠 Remember It</div>`;
+            
+            // Show CSV mnemonic first (as it's specifically created for this word)
+            if (csvMnemonic) {
+                cardHTML += `
+                    <div class="memory-trick">
                         <span class="trick-icon">💭</span>
+                        ${escapeHtml(csvMnemonic)}
+                    </div>`;
+            }
+            
+            // Also show knowledge etymology/memoryTrick if available and different
+            if (hasKnowledge) {
+                if (knowledge.etymology) {
+                    cardHTML += `
+                    <div class="etymology">
+                        <span class="etymology-label">Origin:</span> ${escapeHtml(knowledge.etymology)}
+                    </div>`;
+                }
+                if (knowledge.memoryTrick && knowledge.memoryTrick !== csvMnemonic) {
+                    cardHTML += `
+                    <div class="memory-trick secondary-trick">
+                        <span class="trick-icon">💡</span>
                         ${escapeHtml(knowledge.memoryTrick)}
-                    </div>` : ''}
-                </div>`;
+                    </div>`;
+                }
+            }
+            cardHTML += `</div>`;
         }
         
-        // Examples section
-        if (hasKnowledge && knowledge.examples && knowledge.examples.length > 0) {
+        // Examples section - use CSV examples or knowledge examples
+        const examples = csvExamples.length > 0 ? csvExamples : (knowledge?.examples || []);
+        if (examples.length > 0) {
             cardHTML += `
                 <div class="learn-section examples-section">
                     <div class="section-header">📝 Example Sentences</div>
                     <div class="examples-list">`;
             
-            knowledge.examples.forEach((ex, i) => {
+            examples.forEach((ex, i) => {
                 cardHTML += `
                         <div class="example-item" data-example="${i}">
                             <div class="example-pt">
@@ -847,12 +889,13 @@ export class ChallengeRenderer {
                 </div>`;
         }
         
-        // Grammar notes
-        if (hasKnowledge && knowledge.grammar) {
+        // Grammar notes - use CSV or knowledge
+        const grammarNote = csvGrammar || (knowledge?.grammar);
+        if (grammarNote) {
             cardHTML += `
                 <div class="learn-section grammar-section">
                     <div class="section-header">📖 Grammar Note</div>
-                    <div class="grammar-note">${escapeHtml(knowledge.grammar)}</div>
+                    <div class="grammar-note">${escapeHtml(grammarNote)}</div>
                 </div>`;
         }
         
@@ -870,24 +913,28 @@ export class ChallengeRenderer {
                 </div>`;
         }
         
-        // Cultural note
-        if (hasKnowledge && knowledge.cultural) {
+        // Cultural note - use CSV or knowledge
+        const culturalNote = csvCultural || (knowledge?.cultural);
+        if (culturalNote) {
             cardHTML += `
                 <div class="learn-section cultural-section">
                     <div class="section-header">🇵🇹 Cultural Insight</div>
-                    <div class="cultural-note">${escapeHtml(knowledge.cultural)}</div>
+                    <div class="cultural-note">${escapeHtml(culturalNote)}</div>
                 </div>`;
         }
         
         // Footer with actions
-        const learnWordCount = state.challenges.filter(c => c.type === CHALLENGE_TYPES.LEARN_WORD).length;
+        const learnWordChallenges = state.challenges.filter(c => c.type === CHALLENGE_TYPES.LEARN_WORD);
+        const learnWordCount = learnWordChallenges.length;
+        // Calculate which learn-word this is (1-indexed) - find position in learn-word sequence
+        const learnWordIndex = learnWordChallenges.findIndex(c => c.index === challenge.index) + 1;
         cardHTML += `
                 <div class="learn-card-actions">
                     <button class="btn-save-word" id="saveWordBtn" data-pt="${escapeHtml(resolved)}" data-en="${escapeHtml(word.en)}">💾 Save to Flashcards</button>
                     <button class="btn-practice-say" id="practiceBtn">🎤 Practice Saying It</button>
                 </div>
                 <div class="challenge-footer">
-                    <div class="word-progress-indicator">Word ${challenge.index + 1} of ${learnWordCount}</div>
+                    <div class="word-progress-indicator">Word ${learnWordIndex} of ${learnWordCount}</div>
                     <button class="btn-continue" id="continueBtn">I've Got It! Continue →</button>
                 </div>
             </div>
@@ -1067,7 +1114,10 @@ export class ChallengeRenderer {
         const knowledge = this.getWordKnowledge(resolved);
         const hasKnowledge = knowledge !== null;
         const hoverHint = escapeHtml(this._getEnglishHoverHint(word, knowledge));
-        const learnWordCount = state.challenges.filter(c => c.type === CHALLENGE_TYPES.LEARN_WORD).length;
+        const learnWordChallenges = state.challenges.filter(c => c.type === CHALLENGE_TYPES.LEARN_WORD);
+        const learnWordCount = learnWordChallenges.length;
+        // Calculate which learn-word this is (1-indexed)
+        const learnWordIndex = learnWordChallenges.findIndex(c => c.index === challenge.index) + 1;
         const lessonImage = resolveChallengeImage(challenge, state.lesson);
         const lessonProgressPct = Math.min(100, Math.round(((state.currentIndex + 1) / state.challenges.length) * 100));
         const completedLessonIds = new Set(getCompletedLessons().map(entry => entry.lessonId || entry.id));
@@ -1100,7 +1150,7 @@ export class ChallengeRenderer {
                         <div class="pronunciation-visualizer-container"></div>
                         
                         <div class="challenge-footer">
-                            <div class="word-progress-indicator">Word ${challenge.index + 1} of ${learnWordCount}</div>
+                            <div class="word-progress-indicator">Word ${learnWordIndex} of ${learnWordCount}</div>
                             <button class="btn-continue" id="continueBtn">I've Got It! Continue →</button>
                         </div>
                     </div>
