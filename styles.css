@@ -4621,6 +4621,68 @@ body {
     font-size: 0.95rem;
 }
 
+/* Helper info shown after correct answers */
+.feedback-helpers {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.dark-theme .feedback-helpers {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.feedback-helper {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    padding: 0.4rem 0;
+    color: var(--text);
+}
+
+.feedback-helper + .feedback-helper {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    margin-top: 0.3rem;
+    padding-top: 0.5rem;
+}
+
+.dark-theme .feedback-helper + .feedback-helper {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.feedback-helper.mnemonic {
+    color: #6366f1;
+}
+
+.feedback-helper.grammar {
+    color: #10b981;
+}
+
+.feedback-helper.cultural {
+    color: #f59e0b;
+}
+
+.feedback-helper.tip {
+    color: #3b82f6;
+}
+
+.dark-theme .feedback-helper.mnemonic {
+    color: #818cf8;
+}
+
+.dark-theme .feedback-helper.grammar {
+    color: #34d399;
+}
+
+.dark-theme .feedback-helper.cultural {
+    color: #fbbf24;
+}
+
+.dark-theme .feedback-helper.tip {
+    color: #60a5fa;
+}
+
 /* Sentence challenge */
 .sentence-card-challenge .sentence-display {
     text-align: center;

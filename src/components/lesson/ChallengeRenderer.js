@@ -1859,7 +1859,7 @@ export class ChallengeRenderer {
                     const feedbackText = isFirstExposure 
                         ? `Great guess! "${resolved}" = "${word.en}"` 
                         : word.en;
-                    this._showFeedback(true, feedbackText);
+                    this._showFeedback(true, feedbackText, word);
                     state.correct++;
                     this.onCorrect(word, state);
                 } else {
@@ -1871,7 +1871,7 @@ export class ChallengeRenderer {
                     const feedbackText = isFirstExposure 
                         ? `Good try! "${resolved}" means "${word.en}" - you\'ll learn it next!`
                         : word.en;
-                    this._showFeedback(false, feedbackText);
+                    this._showFeedback(false, feedbackText, word);
                     state.mistakes++;
                     state.wrongAnswers.push({ word: resolved, english: word.en, type: 'mcq', isFirstExposure });
                     // Don't penalize hearts on first exposure - it's for learning!
@@ -1918,6 +1918,7 @@ export class ChallengeRenderer {
                         </button>
                     `).join('')}
                 </div>
+                <div class="challenge-feedback" id="feedback"></div>
                 <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(word.pt)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
                 <div class="challenge-footer">
                     <button class="btn-continue hidden" id="continueBtn">Continue</button>
@@ -1948,13 +1949,13 @@ export class ChallengeRenderer {
                 const isCorrect = btn.dataset.key === answerKey;
                 if (isCorrect) {
                     btn.classList.add('correct');
-                    this._showFeedback(true, word.pt || word.en);
+                    this._showFeedback(true, word.pt || word.en, word);
                     state.correct++;
                     this.onCorrect(word, state);
                 } else {
                     btn.classList.add('incorrect');
                     buttons.forEach(b => { if (b.dataset.key === answerKey) b.classList.add('correct'); });
-                    this._showFeedback(false, word.pt || word.en);
+                    this._showFeedback(false, word.pt || word.en, word);
                     state.mistakes++;
                     state.wrongAnswers.push({ word: word.pt, english: word.en, type: 'select' });
                     this._handleMistake(state);
@@ -3430,20 +3431,57 @@ export class ChallengeRenderer {
     }
 
     /**
-     * Show challenge feedback
+     * Show challenge feedback with optional helper information
+     * @param {boolean} isCorrect - Whether answer was correct
+     * @param {string|null} correctAnswer - The correct answer text
+     * @param {Object|null} word - Optional word object with helper info (mnemonic, grammarNotes, etc.)
      * @private
      */
-    _showFeedback(isCorrect, correctAnswer = null) {
+    _showFeedback(isCorrect, correctAnswer = null, word = null) {
         const feedback = document.getElementById('feedback');
         if (!feedback) return;
         
+        // Build helper info HTML if word has helper data
+        let helperHTML = '';
+        if (word && isCorrect) {
+            const helpers = [];
+            
+            // Add mnemonic if available
+            if (word.mnemonic) {
+                helpers.push(`<div class="feedback-helper mnemonic">🧠 <strong>Remember:</strong> ${escapeHtml(word.mnemonic)}</div>`);
+            }
+            
+            // Add grammar note if available
+            if (word.grammarNotes) {
+                helpers.push(`<div class="feedback-helper grammar">📖 <strong>Grammar:</strong> ${escapeHtml(word.grammarNotes)}</div>`);
+            }
+            
+            // Add cultural note if available  
+            if (word.culturalNote) {
+                helpers.push(`<div class="feedback-helper cultural">🇵🇹 <strong>Culture:</strong> ${escapeHtml(word.culturalNote)}</div>`);
+            }
+            
+            // Add tip if available and different from mnemonic
+            if (word.aiTip && word.aiTip !== word.mnemonic) {
+                helpers.push(`<div class="feedback-helper tip">💡 <strong>Tip:</strong> ${escapeHtml(word.aiTip)}</div>`);
+            }
+            
+            if (helpers.length > 0) {
+                helperHTML = `<div class="feedback-helpers">${helpers.join('')}</div>`;
+            }
+        }
+        
         if (isCorrect) {
-            feedback.innerHTML = `<div class="feedback-correct">✓ Correct!</div>`;
+            feedback.innerHTML = `
+                <div class="feedback-correct">✓ Correct!</div>
+                ${helperHTML}
+            `;
             feedback.className = 'challenge-feedback success';
         } else {
             feedback.innerHTML = `
                 <div class="feedback-incorrect">✗ Incorrect</div>
                 ${correctAnswer ? `<div class="feedback-answer">Correct answer: <strong>${escapeHtml(correctAnswer)}</strong></div>` : ''}
+                ${helperHTML}
             `;
             feedback.className = 'challenge-feedback error';
         }

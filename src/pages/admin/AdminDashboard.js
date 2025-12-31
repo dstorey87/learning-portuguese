@@ -1,19 +1,22 @@
 /**
  * Admin Dashboard
- * 
+ *
  * Provides admin functionality:
  * - User list with "Log in as" controls
  * - AI action feed per user (time-windowed)
  * - Global event log for ALL users (when logged in as admin)
  * - Rescue triggers and lessons created
  * - Event processing status
- * 
+ *
  * @module pages/admin/AdminDashboard
  */
 
 import * as Logger from '../../services/Logger.js';
 import { getUser, isAdmin } from '../../services/AuthService.js';
 import { userStorage } from '../../services/userStorage.js';
+import { AI_CONFIG as PIPELINE_AI_CONFIG } from '../../config/constants.js';
+import { AI_CONFIG as AI_SERVICE_CONFIG, checkOllamaStatus, setModel as setAIServiceModel } from '../../services/AIService.js';
+import { parseCSV } from '../../services/CSVLessonLoader.js';
 
 // ============================================================================
 // CONSTANTS
@@ -21,9 +24,40 @@ import { userStorage } from '../../services/userStorage.js';
 
 const ADMIN_STORAGE_KEY = 'admin_action_log';
 const GLOBAL_EVENT_LOG_KEY = 'global_event_log';
+const ADMIN_AI_SETTINGS_KEY = 'admin_ai_settings';
+const ADMIN_INGESTION_KEY = 'admin_ingested_lessons';
 const MAX_ACTIONS_PER_USER = 500;
 const MAX_GLOBAL_EVENTS = 1000;
 const DEFAULT_TIME_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
+
+const CSV_TEMPLATE_PATH = '/src/data/templates/csv_lesson_template.csv';
+const STATIC_IMAGE_OPTIONS = [
+    { id: 'default', label: 'Default', path: 'assets/lesson-thumbs/default.svg' },
+    { id: 'building', label: 'Building Blocks', path: 'assets/lesson-thumbs/building-blocks.svg' },
+    { id: 'essentials', label: 'Essentials', path: 'assets/lesson-thumbs/essentials.svg' },
+    { id: 'phrase', label: 'Phrase Hacks', path: 'assets/lesson-thumbs/phrase-hacks.svg' }
+];
+
+const DEFAULT_INGESTION_FORM = {
+    lessonId: '',
+    title: '',
+    titlePt: '',
+    category: 'Building Blocks',
+    tier: 1,
+    order: 1,
+    description: '',
+    icon: '📚',
+    image: STATIC_IMAGE_OPTIONS[0].path,
+    imageStrategy: 'static',
+    estimatedMinutes: 10
+};
+
+const DEFAULT_AI_SETTINGS = {
+    preferredModel: AI_SERVICE_CONFIG.defaultModel || PIPELINE_AI_CONFIG.model || 'qwen2.5:7b',
+    fallbackModel: AI_SERVICE_CONFIG.fallbackModel || PIPELINE_AI_CONFIG.fallbackModel || 'qwen2.5:3b',
+    temperature: AI_SERVICE_CONFIG.defaultTemperature || PIPELINE_AI_CONFIG.temperature || 0.7,
+    useFallback: true
+};
 
 // ============================================================================
 // STATE
@@ -37,7 +71,21 @@ let adminState = {
     timeWindow: DEFAULT_TIME_WINDOW,
     isImpersonating: false,
     originalAdminId: null,
-    refreshInterval: null
+    refreshInterval: null,
+    aiSettings: { ...DEFAULT_AI_SETTINGS },
+    aiStatus: {
+        available: null,
+        models: [],
+        selectedModel: DEFAULT_AI_SETTINGS.preferredModel,
+        lastCheck: null,
+        provider: null
+    },
+    ingestion: {
+        form: { ...DEFAULT_INGESTION_FORM },
+        preview: null,
+        staged: [],
+        error: null
+    }
 };
 
 // ============================================================================
@@ -57,9 +105,9 @@ export function logGlobalEvent(event) {
         details: event.data || event.details || event,
         source: event.source || 'app'
     };
-    
+
     adminState.globalEventLog.unshift(entry);
-    
+
     // Also log to per-user action log
     if (entry.userId && entry.userId !== 'unknown') {
         logAIAction(entry.userId, {
@@ -68,15 +116,15 @@ export function logGlobalEvent(event) {
             source: entry.source
         });
     }
-    
+
     // Trim to max size
     if (adminState.globalEventLog.length > MAX_GLOBAL_EVENTS) {
         adminState.globalEventLog = adminState.globalEventLog.slice(0, MAX_GLOBAL_EVENTS);
     }
-    
+
     // Persist
     saveGlobalEventLog();
-    
+
     return entry;
 }
 
@@ -90,7 +138,6 @@ export function getGlobalEvents(windowMs = DEFAULT_TIME_WINDOW) {
 
 function saveGlobalEventLog() {
     try {
-        // Store in localStorage without user prefix (global)
         localStorage.setItem(GLOBAL_EVENT_LOG_KEY, JSON.stringify(adminState.globalEventLog));
     } catch (e) {
         Logger.warn('Failed to save global event log', { error: e.message });
@@ -119,23 +166,23 @@ export function logAIAction(userId, action) {
     if (!adminState.actionLog[userId]) {
         adminState.actionLog[userId] = [];
     }
-    
+
     const entry = {
         id: crypto.randomUUID(),
         timestamp: Date.now(),
         ...action
     };
-    
+
     adminState.actionLog[userId].unshift(entry);
-    
+
     // Trim to max size
     if (adminState.actionLog[userId].length > MAX_ACTIONS_PER_USER) {
         adminState.actionLog[userId] = adminState.actionLog[userId].slice(0, MAX_ACTIONS_PER_USER);
     }
-    
+
     // Persist
     saveActionLog();
-    
+
     return entry;
 }
 
@@ -154,13 +201,13 @@ export function getUserActions(userId, windowMs = DEFAULT_TIME_WINDOW) {
 export function getAllActions(windowMs = DEFAULT_TIME_WINDOW) {
     const cutoff = Date.now() - windowMs;
     const allActions = [];
-    
+
     for (const [userId, actions] of Object.entries(adminState.actionLog)) {
         actions
             .filter(a => a.timestamp >= cutoff)
             .forEach(a => allActions.push({ userId, ...a }));
     }
-    
+
     return allActions.sort((a, b) => b.timestamp - a.timestamp);
 }
 
@@ -193,36 +240,36 @@ function loadActionLog() {
  */
 export function impersonateUser(targetUserId) {
     const currentUser = getUser();
-    
+
     if (!isAdmin()) {
         Logger.error('Impersonation requires admin role');
         return { success: false, error: 'Admin access required' };
     }
-    
+
     // Save original admin ID for return
     if (!adminState.isImpersonating) {
         adminState.originalAdminId = currentUser.username || 'admin';
     }
-    
+
     // Log the impersonation
     logAIAction(targetUserId, {
         type: 'impersonation_start',
         adminId: currentUser.username || 'admin',
         reason: 'Admin audit'
     });
-    
+
     // Set viewing context to target user
     adminState.isImpersonating = true;
     adminState.selectedUserId = targetUserId;
-    
-    Logger.info('Impersonation started', { 
-        adminId: adminState.originalAdminId, 
-        targetUserId 
+
+    Logger.info('Impersonation started', {
+        adminId: adminState.originalAdminId,
+        targetUserId
     });
-    
+
     // Refresh dashboard to show target user's data
     refreshDashboard();
-    
+
     return { success: true };
 }
 
@@ -233,29 +280,29 @@ export function endImpersonation() {
     if (!adminState.isImpersonating || !adminState.originalAdminId) {
         return { success: false, error: 'Not currently impersonating' };
     }
-    
+
     const targetUserId = adminState.selectedUserId;
-    
+
     // Log the end of impersonation
     logAIAction(targetUserId, {
         type: 'impersonation_end',
         adminId: adminState.originalAdminId,
         duration: Date.now() - (adminState.actionLog[targetUserId]?.[0]?.timestamp || Date.now())
     });
-    
+
     adminState.isImpersonating = false;
     adminState.selectedUserId = null;
-    
-    Logger.info('Impersonation ended', { 
-        adminId: adminState.originalAdminId, 
-        wasImpersonating: targetUserId 
+
+    Logger.info('Impersonation ended', {
+        adminId: adminState.originalAdminId,
+        wasImpersonating: targetUserId
     });
-    
+
     adminState.originalAdminId = null;
-    
+
     // Refresh dashboard
     refreshDashboard();
-    
+
     return { success: true };
 }
 
@@ -284,7 +331,7 @@ export function getUserList() {
             userIds.add(match[1]);
         }
     }
-    
+
     // Also check the auth storage for logged users
     try {
         const authData = localStorage.getItem('portugueseAuth');
@@ -297,10 +344,10 @@ export function getUserList() {
     } catch (e) {
         // Ignore parse errors
     }
-    
+
     // Add admin user
     userIds.add('admin');
-    
+
     const users = Array.from(userIds).map(userId => {
         const actions = getUserActions(userId, DEFAULT_TIME_WINDOW);
         let userEvents = [];
@@ -312,7 +359,7 @@ export function getUserList() {
         } catch (e) {
             // Ignore
         }
-        
+
         return {
             userId,
             username: userId,
@@ -325,7 +372,7 @@ export function getUserList() {
             rescueLessonsCreated: countRescueLessons(userId)
         };
     });
-    
+
     return users.sort((a, b) => {
         // Admin first, then by recent activity
         if (a.isAdmin) return -1;
@@ -361,6 +408,221 @@ function countRescueLessons(userId) {
 }
 
 // ============================================================================
+// AI CONTROLS
+// ============================================================================
+
+function loadAdminAISettings() {
+    try {
+        const saved = localStorage.getItem(ADMIN_AI_SETTINGS_KEY);
+        if (saved) {
+            adminState.aiSettings = { ...DEFAULT_AI_SETTINGS, ...JSON.parse(saved) };
+        }
+    } catch (e) {
+        adminState.aiSettings = { ...DEFAULT_AI_SETTINGS };
+    }
+}
+
+function saveAdminAISettings() {
+    try {
+        localStorage.setItem(ADMIN_AI_SETTINGS_KEY, JSON.stringify(adminState.aiSettings));
+    } catch (e) {
+        Logger.warn('Failed to persist admin AI settings', { error: e.message });
+    }
+}
+
+async function refreshAIStatus() {
+    try {
+        const status = await checkOllamaStatus();
+        adminState.aiStatus = {
+            available: status.available,
+            models: status.models || [],
+            selectedModel: status.selected || adminState.aiSettings.preferredModel,
+            lastCheck: Date.now(),
+            provider: status.available ? 'ollama' : 'rules'
+        };
+
+        // Keep preferred model in sync with runtime selection
+        if (status.selected) {
+            adminState.aiSettings.preferredModel = status.selected;
+            saveAdminAISettings();
+        }
+
+        refreshDashboard();
+        return status;
+    } catch (e) {
+        adminState.aiStatus = {
+            available: false,
+            models: [],
+            selectedModel: adminState.aiSettings.preferredModel,
+            lastCheck: Date.now(),
+            provider: 'rules',
+            error: e.message
+        };
+        refreshDashboard();
+        return adminState.aiStatus;
+    }
+}
+
+function applyModelSelection(modelName) {
+    if (!modelName) return;
+    adminState.aiSettings.preferredModel = modelName;
+
+    // Update both AI stacks so chat/pipeline stay aligned
+    AI_SERVICE_CONFIG.defaultModel = modelName;
+    PIPELINE_AI_CONFIG.model = modelName;
+    setAIServiceModel(modelName);
+
+    saveAdminAISettings();
+    logGlobalEvent({
+        userId: 'admin',
+        eventType: 'admin_model_change',
+        details: { model: modelName, availableModels: adminState.aiStatus.models }
+    });
+    refreshDashboard();
+}
+
+function updateFallbackModel(modelName) {
+    if (!modelName) return;
+    adminState.aiSettings.fallbackModel = modelName;
+    AI_SERVICE_CONFIG.fallbackModel = modelName;
+    PIPELINE_AI_CONFIG.fallbackModel = modelName;
+    saveAdminAISettings();
+    refreshDashboard();
+}
+
+function updateTemperature(value) {
+    const temp = Number(value);
+    if (Number.isNaN(temp)) return;
+    const clamped = Math.min(Math.max(temp, 0), 1.5);
+    adminState.aiSettings.temperature = clamped;
+    AI_SERVICE_CONFIG.defaultTemperature = clamped;
+    PIPELINE_AI_CONFIG.temperature = clamped;
+    saveAdminAISettings();
+    refreshDashboard();
+}
+
+function getModelOptions() {
+    const known = new Set([
+        adminState.aiSettings.preferredModel,
+        adminState.aiSettings.fallbackModel,
+        PIPELINE_AI_CONFIG.model,
+        PIPELINE_AI_CONFIG.fallbackModel,
+        AI_SERVICE_CONFIG.defaultModel,
+        AI_SERVICE_CONFIG.fallbackModel
+    ].filter(Boolean));
+    (adminState.aiStatus.models || []).forEach(m => known.add(m));
+    return Array.from(known).filter(Boolean);
+}
+
+// ============================================================================
+// INGESTION CONTROLS
+// ============================================================================
+
+function loadIngestionState() {
+    try {
+        const saved = localStorage.getItem(ADMIN_INGESTION_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            adminState.ingestion.form = { ...DEFAULT_INGESTION_FORM, ...(parsed.form || {}) };
+            adminState.ingestion.staged = parsed.staged || [];
+        }
+    } catch (e) {
+        adminState.ingestion.form = { ...DEFAULT_INGESTION_FORM };
+        adminState.ingestion.staged = [];
+    }
+}
+
+function saveIngestionState() {
+    try {
+        localStorage.setItem(ADMIN_INGESTION_KEY, JSON.stringify({
+            form: adminState.ingestion.form,
+            staged: adminState.ingestion.staged
+        }));
+    } catch (e) {
+        Logger.warn('Failed to persist ingestion state', { error: e.message });
+    }
+}
+
+async function handleCSVUpload(event) {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        const rows = parseCSV(text);
+        const columns = rows[0] ? Object.keys(rows[0]) : [];
+        adminState.ingestion.preview = {
+            filename: file.name,
+            rows,
+            columns,
+            totalRows: rows.length
+        };
+        adminState.ingestion.error = rows.length ? null : 'CSV contains no rows';
+        event.target.value = '';
+        refreshDashboard();
+    } catch (e) {
+        adminState.ingestion.error = 'Failed to parse CSV';
+        refreshDashboard();
+    }
+}
+
+function updateIngestionField(field, value) {
+    const numericFields = ['tier', 'order', 'estimatedMinutes'];
+    if (numericFields.includes(field)) {
+        adminState.ingestion.form[field] = Number(value) || 0;
+    } else {
+        adminState.ingestion.form[field] = value;
+    }
+    saveIngestionState();
+    refreshDashboard();
+}
+
+function stageLessonFromPreview() {
+    const { preview, form } = adminState.ingestion;
+    if (!preview || !preview.rows?.length) {
+        adminState.ingestion.error = 'Upload a CSV before staging a lesson.';
+        refreshDashboard();
+        return;
+    }
+
+    const metadata = {
+        id: form.lessonId || preview.filename?.replace(/\.csv$/i, '') || `lesson_${Date.now()}`,
+        title: form.title || preview.filename || 'Custom Lesson',
+        titlePt: form.titlePt || form.title || preview.filename || 'Lição personalizada',
+        category: form.category || 'Building Blocks',
+        tier: Number(form.tier) || 1,
+        order: Number(form.order) || 1,
+        description: form.description || '',
+        icon: form.icon || '📚',
+        image: form.image,
+        imageStrategy: 'static',
+        estimatedMinutes: Number(form.estimatedMinutes) || 10,
+        source: 'admin_csv',
+        createdAt: new Date().toISOString(),
+        rowCount: preview.rows.length
+    };
+
+    const lessonPackage = {
+        metadata,
+        rows: preview.rows,
+        columns: preview.columns
+    };
+
+    adminState.ingestion.staged.unshift(lessonPackage);
+    adminState.ingestion.error = null;
+    saveIngestionState();
+    refreshDashboard();
+}
+
+function clearStagedLessons() {
+    adminState.ingestion.staged = [];
+    adminState.ingestion.preview = null;
+    adminState.ingestion.form = { ...DEFAULT_INGESTION_FORM };
+    adminState.ingestion.error = null;
+    saveIngestionState();
+    refreshDashboard();
+}
+
+// ============================================================================
 // DASHBOARD RENDERING
 // ============================================================================
 
@@ -376,11 +638,11 @@ export function renderAdminDashboard() {
             </div>
         `;
     }
-    
+
     const users = getUserList();
     const recentActions = getAllActions(adminState.timeWindow);
     const globalEvents = getGlobalEvents(adminState.timeWindow);
-    
+
     return `
         <div class="admin-dashboard">
             <header class="admin-header">
@@ -388,13 +650,16 @@ export function renderAdminDashboard() {
                 ${adminState.isImpersonating ? `
                     <div class="impersonation-banner">
                         ⚠️ Viewing as: <strong>${adminState.selectedUserId}</strong>
-                        <button onclick="window.adminDashboard.endImpersonation()" class="btn-small btn-warning">
-                            Return to Admin View
-                        </button>
+                        <button onclick="window.adminDashboard.endImpersonation()" class="btn-small btn-warning">Return to Admin View</button>
                     </div>
                 ` : ''}
             </header>
-            
+
+            <div class="admin-top-grid">
+                ${renderAIControls()}
+                ${renderLessonIngestion()}
+            </div>
+
             <div class="admin-grid">
                 <!-- User List Panel -->
                 <section class="admin-panel user-list-panel">
@@ -403,7 +668,7 @@ export function renderAdminDashboard() {
                         ${users.map(user => renderUserCard(user)).join('')}
                     </div>
                 </section>
-                
+
                 <!-- Global Event Log (ALL users) -->
                 <section class="admin-panel global-events-panel">
                     <h3>📊 Global Event Log (All Users)</h3>
@@ -417,24 +682,24 @@ export function renderAdminDashboard() {
                         <button onclick="window.adminDashboard.refreshDashboard()" class="btn-small">🔄 Refresh</button>
                     </div>
                     <div class="global-event-feed">
-                        ${globalEvents.length === 0 ? 
+                        ${globalEvents.length === 0 ?
                             '<p class="muted">No events recorded yet. User interactions will appear here.</p>' :
                             globalEvents.slice(0, 100).map(e => renderGlobalEventEntry(e)).join('')
                         }
                     </div>
                 </section>
-                
+
                 <!-- AI Activity Feed -->
                 <section class="admin-panel activity-panel">
                     <h3>🤖 AI Activity Feed</h3>
                     <div class="activity-feed">
-                        ${recentActions.length === 0 ? 
+                        ${recentActions.length === 0 ?
                             '<p class="muted">No recent AI activity</p>' :
                             recentActions.slice(0, 50).map(a => renderActionEntry(a)).join('')
                         }
                     </div>
                 </section>
-                
+
                 <!-- Stats Panel -->
                 <section class="admin-panel stats-panel">
                     <h3>📊 Quick Stats</h3>
@@ -456,7 +721,7 @@ export function renderAdminDashboard() {
                             <span class="stat-label">Rescue Lessons</span>
                         </div>
                     </div>
-                    
+
                     <!-- Logger Stats -->
                     <div class="logger-stats">
                         <h4>📝 Logger Statistics</h4>
@@ -484,10 +749,148 @@ function getTimeWindowLabel() {
     return '7d';
 }
 
+function renderAIControls() {
+    const status = adminState.aiStatus || {};
+    const settings = adminState.aiSettings || DEFAULT_AI_SETTINGS;
+    const models = getModelOptions();
+    const lastCheck = status.lastCheck ? new Date(status.lastCheck).toLocaleTimeString() : 'never';
+
+    return `
+        <section class="admin-panel ai-controls-panel">
+            <div class="panel-header">
+                <div>
+                    <h3>🤖 AI Controls</h3>
+                    <p class="muted small-text">Model registry, runtime status, and tutor levers.</p>
+                </div>
+                <div class="panel-actions">
+                    <button onclick="window.adminDashboard.refreshAIStatus()" class="btn-small">🔄 Check Ollama</button>
+                </div>
+            </div>
+            <div class="ai-status-row">
+                <span class="pill ${status.available ? 'pill-success' : 'pill-danger'}">${status.available ? 'Ollama online' : 'Offline / fallback'}</span>
+                <span class="pill">Active: ${settings.preferredModel}</span>
+                <span class="pill">Fallback: ${settings.fallbackModel}</span>
+                <span class="muted">Last check: ${lastCheck}</span>
+            </div>
+            <div class="admin-form-grid ai-form-grid">
+                <label>
+                    <span>Active model</span>
+                    <select onchange="window.adminDashboard.setActiveModel(this.value)">
+                        ${models.map(model => `<option value="${model}" ${model === settings.preferredModel ? 'selected' : ''}>${model}</option>`).join('')}
+                    </select>
+                </label>
+                <label>
+                    <span>Fallback model</span>
+                    <input type="text" value="${sanitize(settings.fallbackModel)}" oninput="window.adminDashboard.updateFallbackModel(this.value)" />
+                </label>
+                <label>
+                    <span>Temperature</span>
+                    <input type="number" min="0" max="1.5" step="0.1" value="${settings.temperature}" onchange="window.adminDashboard.updateTemperature(this.value)" />
+                </label>
+            </div>
+            <div class="ai-note">
+                <p class="muted">Use local models for accuracy and stability. Avoid dynamic image pulls; pair lessons with static assets.</p>
+                ${status.models?.length ? `<p class="muted small-text">Discovered models: ${status.models.join(', ')}</p>` : '<p class="muted small-text">No models discovered yet. Start Ollama then refresh.</p>'}
+            </div>
+        </section>
+    `;
+}
+
+function renderLessonIngestion() {
+    const { form, preview, staged, error } = adminState.ingestion;
+    return `
+        <section class="admin-panel ingestion-panel">
+            <div class="panel-header">
+                <div>
+                    <h3>📥 Lesson CSV Ingestion</h3>
+                    <p class="muted small-text">Upload CSV from template, validate, and stage with static imagery.</p>
+                </div>
+                <div class="panel-actions">
+                    <a class="btn-small" href="${CSV_TEMPLATE_PATH}" download>⬇️ Download template</a>
+                    <label class="btn-small file-input-btn" for="adminCsvUpload">📂 Upload CSV</label>
+                    <input id="adminCsvUpload" type="file" accept=".csv" style="display:none" onchange="window.adminDashboard.handleCSVUpload(event)" />
+                </div>
+            </div>
+            <div class="admin-form-grid">
+                <label><span>Lesson ID</span><input value="${sanitize(form.lessonId)}" oninput="window.adminDashboard.updateIngestionField('lessonId', this.value)" placeholder="e.g., 099_custom_topic" /></label>
+                <label><span>Title (EN)</span><input value="${sanitize(form.title)}" oninput="window.adminDashboard.updateIngestionField('title', this.value)" placeholder="English title" /></label>
+                <label><span>Title (PT)</span><input value="${sanitize(form.titlePt)}" oninput="window.adminDashboard.updateIngestionField('titlePt', this.value)" placeholder="Título em Português" /></label>
+                <label><span>Category</span><input value="${sanitize(form.category)}" oninput="window.adminDashboard.updateIngestionField('category', this.value)" placeholder="Building Blocks" /></label>
+                <label><span>Tier</span><input type="number" min="1" max="3" value="${form.tier}" oninput="window.adminDashboard.updateIngestionField('tier', this.value)" /></label>
+                <label><span>Order</span><input type="number" min="1" value="${form.order}" oninput="window.adminDashboard.updateIngestionField('order', this.value)" /></label>
+                <label><span>Icon</span><input value="${sanitize(form.icon)}" oninput="window.adminDashboard.updateIngestionField('icon', this.value)" placeholder="Emoji or short code" /></label>
+                <label><span>Estimated Minutes</span><input type="number" min="5" max="45" value="${form.estimatedMinutes}" oninput="window.adminDashboard.updateIngestionField('estimatedMinutes', this.value)" /></label>
+                <label class="span-2"><span>Description</span><textarea rows="2" oninput="window.adminDashboard.updateIngestionField('description', this.value)">${form.description || ''}</textarea></label>
+                <label><span>Image (static asset)</span>
+                    <select onchange="window.adminDashboard.updateIngestionField('image', this.value)">
+                        ${STATIC_IMAGE_OPTIONS.map(opt => `<option value="${opt.path}" ${opt.path === form.image ? 'selected' : ''}>${opt.label} (${opt.path})</option>`).join('')}
+                        <option value="${sanitize(form.image)}" ${STATIC_IMAGE_OPTIONS.every(opt => opt.path !== form.image) ? 'selected' : ''}>Custom path</option>
+                    </select>
+                </label>
+                <label><span>Custom image path</span><input value="${sanitize(form.image)}" oninput="window.adminDashboard.updateIngestionField('image', this.value)" placeholder="assets/lesson-thumbs/default.svg" /></label>
+            </div>
+            ${error ? `<p class="error-text">${error}</p>` : ''}
+            ${preview ? renderCSVPreview(preview) : '<p class="muted">Upload a CSV to see a preview. Template enforces word_id, portuguese, english, pronunciation, type, difficulty, tip, example_pt, example_en, image.</p>'}
+            <div class="ingestion-actions">
+                <button class="btn-small" onclick="window.adminDashboard.stageLessonFromPreview()">✅ Stage lesson</button>
+                <button class="btn-small btn-secondary" onclick="window.adminDashboard.clearStagedLessons()">🗑️ Clear staged</button>
+            </div>
+            ${renderStagedLessons(staged)}
+        </section>
+    `;
+}
+
+function renderCSVPreview(preview) {
+    if (!preview?.rows?.length) {
+        return '<p class="muted">No rows found in CSV.</p>';
+    }
+    const headers = preview.columns || Object.keys(preview.rows[0]);
+    const rows = preview.rows.slice(0, 5);
+    return `
+        <div class="ingestion-preview">
+            <div class="preview-header">
+                <strong>${preview.filename}</strong>
+                <span class="muted">${preview.totalRows} rows</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                    <tbody>
+                        ${rows.map(row => `<tr>${headers.map(h => `<td>${sanitize(row[h] || '')}</td>`).join('')}</tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+function renderStagedLessons(staged) {
+    if (!staged || staged.length === 0) {
+        return '<p class="muted">No staged lessons yet.</p>';
+    }
+    return `
+        <div class="staged-lessons">
+            ${staged.map(lesson => `
+                <div class="staged-card">
+                    <div>
+                        <strong>${lesson.metadata.id}</strong>
+                        <p class="muted small-text">${lesson.metadata.title} / ${lesson.metadata.titlePt}</p>
+                    </div>
+                    <div class="staged-meta">
+                        <span class="pill">${lesson.rows.length} rows</span>
+                        <span class="pill">Tier ${lesson.metadata.tier}</span>
+                        <a class="btn-small" href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(lesson, null, 2))}" download="${lesson.metadata.id}.json">⬇️ Package</a>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
 function renderGlobalEventEntry(event) {
     const time = new Date(event.timestamp).toLocaleTimeString();
     const date = new Date(event.timestamp).toLocaleDateString();
-    
+
     const typeIcons = {
         'word_attempt': '📝',
         'pronunciation': '🎤',
@@ -503,9 +906,9 @@ function renderGlobalEventEntry(event) {
         'error': '❌',
         'tip_generated': '💡'
     };
-    
+
     const icon = typeIcons[event.eventType] || '📌';
-    
+
     // Format details for display
     let detailsStr = '';
     if (event.details) {
@@ -516,7 +919,7 @@ function renderGlobalEventEntry(event) {
             detailsStr = keys.map(k => `${k}: ${JSON.stringify(event.details[k]).slice(0, 30)}`).join(', ');
         }
     }
-    
+
     return `
         <div class="global-event-entry event-type-${event.eventType}">
             <span class="event-icon">${icon}</span>
@@ -584,7 +987,7 @@ function renderLoggerHistory() {
 
 function renderUserCard(user) {
     const isCurrentUser = user.userId === getUser().userId;
-    
+
     return `
         <div class="user-card ${isCurrentUser ? 'current-user' : ''}" data-user-id="${user.userId}">
             <div class="user-info">
@@ -601,15 +1004,9 @@ function renderUserCard(user) {
             </div>
             <div class="user-actions">
                 ${!isCurrentUser && !adminState.isImpersonating ? `
-                    <button onclick="window.adminDashboard.impersonateUser('${user.userId}')" 
-                            class="btn-small btn-secondary" title="Log in as this user">
-                        🔑 Login as
-                    </button>
+                    <button onclick="window.adminDashboard.impersonateUser('${user.userId}')" class="btn-small btn-secondary" title="Log in as this user">🔑 Login as</button>
                 ` : ''}
-                <button onclick="window.adminDashboard.viewUserActions('${user.userId}')" 
-                        class="btn-small" title="View AI actions">
-                    📋 Actions
-                </button>
+                <button onclick="window.adminDashboard.viewUserActions('${user.userId}')" class="btn-small" title="View AI actions">📋 Actions</button>
             </div>
         </div>
     `;
@@ -618,7 +1015,7 @@ function renderUserCard(user) {
 function renderActionEntry(action) {
     const time = new Date(action.timestamp).toLocaleTimeString();
     const date = new Date(action.timestamp).toLocaleDateString();
-    
+
     const typeIcons = {
         'chat': '💬',
         'tool_call': '🔧',
@@ -629,9 +1026,9 @@ function renderActionEntry(action) {
         'error': '❌',
         'tip_generated': '💡'
     };
-    
+
     const icon = typeIcons[action.type] || '📝';
-    
+
     return `
         <div class="action-entry action-type-${action.type}">
             <span class="action-icon">${icon}</span>
@@ -647,6 +1044,16 @@ function renderActionEntry(action) {
             </div>
         </div>
     `;
+}
+
+function sanitize(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // ============================================================================
@@ -666,9 +1073,9 @@ export function setTimeWindow(ms) {
  */
 export function viewUserActions(userId) {
     adminState.selectedUserId = userId;
-    
+
     const actions = getUserActions(userId, adminState.timeWindow);
-    
+
     // Show in modal or panel
     const modal = document.createElement('div');
     modal.className = 'modal admin-modal';
@@ -679,7 +1086,7 @@ export function viewUserActions(userId) {
                 <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
             </div>
             <div class="modal-body">
-                ${actions.length === 0 ? 
+                ${actions.length === 0 ?
                     '<p class="muted">No actions in selected time window</p>' :
                     actions.map(a => renderActionEntry({ userId, ...a })).join('')
                 }
@@ -710,7 +1117,12 @@ export function refreshDashboard() {
 export function initAdminDashboard() {
     loadActionLog();
     loadGlobalEventLog();
-    
+    loadAdminAISettings();
+    loadIngestionState();
+
+    // Kick off AI status check without blocking render
+    refreshAIStatus();
+
     // Subscribe to AI events for logging
     window.addEventListener('ai-tool-call', (e) => {
         const userId = e.detail.userId || userStorage.getCurrentUserId() || 'unknown';
@@ -721,7 +1133,7 @@ export function initAdminDashboard() {
             source: 'ai-agent'
         });
     });
-    
+
     window.addEventListener('ai-chat-response', (e) => {
         const userId = e.detail.userId || userStorage.getCurrentUserId() || 'unknown';
         logGlobalEvent({
@@ -731,7 +1143,7 @@ export function initAdminDashboard() {
             source: 'ai-chat'
         });
     });
-    
+
     window.addEventListener('ai-rescue-lesson-needed', (e) => {
         const { userId, wordKeys } = e.detail;
         logGlobalEvent({
@@ -741,7 +1153,7 @@ export function initAdminDashboard() {
             source: 'stuck-words'
         });
     });
-    
+
     // Subscribe to event streaming batch events
     window.addEventListener('ai-event-batch', (e) => {
         const events = e.detail?.events || [];
@@ -754,7 +1166,7 @@ export function initAdminDashboard() {
             });
         });
     });
-    
+
     // Subscribe to learning events
     window.addEventListener('learning_event', (e) => {
         logGlobalEvent({
@@ -764,12 +1176,12 @@ export function initAdminDashboard() {
             source: 'learning'
         });
     });
-    
+
     // Start auto-refresh if admin
     if (isAdmin()) {
         startAutoRefresh();
     }
-    
+
     // Expose to window for onclick handlers
     window.adminDashboard = {
         impersonateUser,
@@ -778,9 +1190,17 @@ export function initAdminDashboard() {
         setTimeWindow,
         refreshDashboard,
         logGlobalEvent,
-        getGlobalEvents
+        getGlobalEvents,
+        setActiveModel: applyModelSelection,
+        refreshAIStatus,
+        updateFallbackModel,
+        updateTemperature,
+        handleCSVUpload,
+        updateIngestionField,
+        stageLessonFromPreview,
+        clearStagedLessons
     };
-    
+
     Logger.info('Admin dashboard initialized');
 }
 
