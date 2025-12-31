@@ -1,0 +1,69 @@
+{
+  "apis": {
+    "pexels": {
+      "enabled": true,
+      "priority": 1,
+      "base_url": "https://api.pexels.com/v1",
+      "key_env_var": "PEXELS_API_KEY",
+      "rate_limit": {
+        "requests_per_hour": 200,
+        "requests_per_month": 20000
+      },
+      "features": {
+        "search": true,
+        "curated": true,
+        "alt_text": true,
+        "attribution_required": true,
+        "hotlinking_allowed": true
+      },
+      "image_sizes": ["original", "large2x", "large", "medium", "small", "portrait", "landscape", "tiny"],
+      "preferred_size": "medium"
+    },
+    "pixabay": {
+      "enabled": true,
+      "priority": 2,
+      "base_url": "https://pixabay.com/api",
+      "key_env_var": "PIXABAY_API_KEY",
+      "rate_limit": {
+        "requests_per_minute": 100
+      },
+      "features": {
+        "search": true,
+        "must_download": false,
+        "attribution_required": false,
+        "hotlinking_allowed": true
+      },
+      "image_sizes": ["webformatURL", "largeImageURL", "fullHDURL", "imageURL"],
+      "preferred_size": "webformatURL"
+    },
+    "unsplash": {
+      "enabled": false,
+      "priority": 3,
+      "base_url": "https://api.unsplash.com",
+      "key_env_var": "UNSPLASH_ACCESS_KEY",
+      "rate_limit": {
+        "requests_per_hour": 50
+      },
+      "features": {
+        "search": true,
+        "attribution_required": true,
+        "hotlinking_allowed": false
+      },
+      "note": "Disabled by default - requires download and self-hosting"
+    }
+  },
+  "defaults": {
+    "results_per_query": 5,
+    "safe_search": true,
+    "language": "en",
+    "timeout_seconds": 30,
+    "retry_attempts": 3,
+    "retry_delay_seconds": 2
+  },
+  "caching": {
+    "enabled": true,
+    "cache_dir": ".image_cache",
+    "max_age_hours": 24,
+    "max_size_mb": 100
+  }
+}

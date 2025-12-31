@@ -13,3 +13,4 @@ models/
 
 image-curator/__pycache__/
 image-curator/*.log
+image-curator/.cache/
