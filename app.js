@@ -60,6 +60,20 @@ import {
     speakWithEngine as voiceSpeakWithEngine
 } from './src/services/VoiceService.js';
 
+// ===== API BASE RESOLUTION =====
+const API_BASE = (typeof window !== 'undefined' && (window.PORTULINGO_API_URL || window.PORTULINGO_API_BASE))
+    ? (window.PORTULINGO_API_URL || window.PORTULINGO_API_BASE)
+    : (localStorage.getItem('portulingo_api_base') || 'http://localhost:3001');
+// eslint-disable-next-line no-unused-vars -- Reserved for future use (payment callbacks, etc.)
+const APP_BASE = (typeof window !== 'undefined' && (window.PORTULINGO_APP_URL || window.location.origin))
+    ? (window.PORTULINGO_APP_URL || window.location.origin)
+    : 'http://localhost:4321';
+const PRICE_IDS = {
+    weekly: (typeof window !== 'undefined' && window.PORTULINGO_PRICE_WEEKLY) ? window.PORTULINGO_PRICE_WEEKLY : '',
+    monthly: (typeof window !== 'undefined' && window.PORTULINGO_PRICE_MONTHLY) ? window.PORTULINGO_PRICE_MONTHLY : '',
+    annual: (typeof window !== 'undefined' && window.PORTULINGO_PRICE_ANNUAL) ? window.PORTULINGO_PRICE_ANNUAL : ''
+};
+
 // =========== STUB SERVICES (for features not yet fully wired) ===========
 const aiTts = {
     async checkServerHealth() { return TTSService.checkServerHealth(); },
@@ -85,6 +99,62 @@ const DEMO_PHRASE = 'Bom dia, como está?';
 const DIALOGUES = [];
 const GRAMMAR_CARDS = {};
 const MNEMONICS = {};
+
+// =========== API HELPERS ===========
+async function apiFetch(path, options = {}) {
+    const url = `${API_BASE}${path}`;
+    const defaultHeaders = { 'Content-Type': 'application/json' };
+    const merged = {
+        credentials: 'include',
+        ...options,
+        headers: { ...defaultHeaders, ...(options.headers || {}) }
+    };
+    return fetch(url, merged);
+}
+
+async function getCsrfToken() {
+    const res = await apiFetch('/auth/csrf', { method: 'GET', credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.csrfToken || null;
+}
+
+async function fetchRemoteSession() {
+    try {
+        const res = await apiFetch('/auth/me', { method: 'GET' });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (err) {
+        console.warn('[AUTH] Failed to fetch remote session', err);
+        return null;
+    }
+}
+
+async function beginGoogleLogin() {
+    const target = `${API_BASE}/auth/google`;
+    window.location.href = target;
+}
+
+async function remoteLogout() {
+    const csrfToken = await getCsrfToken();
+    await apiFetch('/auth/logout', {
+        method: 'POST',
+        headers: csrfToken ? { 'CSRF-Token': csrfToken } : {},
+        body: JSON.stringify({})
+    });
+}
+
+async function createCheckout(priceId) {
+    const res = await apiFetch('/billing/create-checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({ priceId })
+    });
+    if (!res.ok) throw new Error('Failed to start checkout');
+    const data = await res.json();
+    if (data?.url) {
+        window.location.href = data.url;
+    }
+}
 
 // =========== STUB FUNCTIONS ===========
 function toggleTheme() {
@@ -2027,6 +2097,34 @@ function hidePaywall() {
     if (modal) modal.style.display = 'none';
 }
 
+function setupBillingButtons() {
+    const planButtons = document.querySelectorAll('.btn-plan');
+    planButtons.forEach(btn => {
+        const plan = btn.dataset.plan;
+        const priceId = PRICE_IDS[plan];
+        if (priceId) btn.dataset.priceId = priceId;
+
+        btn.addEventListener('click', async () => {
+            try {
+                const user = getUser();
+                if (!user.loggedIn || user.username === 'Guest') {
+                    await beginGoogleLogin();
+                    return;
+                }
+                const finalPriceId = btn.dataset.priceId || PRICE_IDS[plan];
+                if (!finalPriceId) {
+                    alert('Price ID not configured. Please set window.PORTULINGO_PRICE_*');
+                    return;
+                }
+                await createCheckout(finalPriceId);
+            } catch (err) {
+                console.error('Checkout failed', err);
+                alert('Unable to start checkout. Please try again.');
+            }
+        });
+    });
+}
+
 // =========== PERSONAL NOTEPAD ===========
 let notepadData = [];
 
@@ -3064,8 +3162,8 @@ function setupEventListeners() {
                     handleLogout();
                 }
             } else {
-                // Not logged in - show login modal
-                showLoginModal();
+                // Not logged in - start Google OAuth
+                beginGoogleLogin();
             }
         });
     }
@@ -3075,17 +3173,9 @@ function setupEventListeners() {
     const closePaywall = document.querySelector('.close-paywall');
     if (closePaywall) closePaywall.addEventListener('click', hidePaywall);
     const subscribeBtn = document.querySelector('.btn-subscribe');
-    if (subscribeBtn) {
-        subscribeBtn.addEventListener('click', () => {
-            alert('Payment integration would go here. For now, premium unlocked.');
-            userData.isPremium = true;
-            saveUserData();
-            updateDashboard();
-            hidePaywall();
-            renderLessons();
-            updatePlanAccess();
-        });
-    }
+    if (subscribeBtn) subscribeBtn.addEventListener('click', () => showPaywall());
+
+    setupBillingButtons();
 
     const startBtn = document.getElementById('startBtn');
     if (startBtn) startBtn.addEventListener('click', () => document.getElementById('learn').scrollIntoView({ behavior: 'smooth' }));
@@ -3313,6 +3403,29 @@ function setActiveUserContext(user) {
     console.log(`[AUTH] User context set: ${currentUserId} - all data is now user-specific`);
 }
 
+async function syncRemoteAuthState() {
+    const params = new URLSearchParams(window.location.search);
+    const hasAuthParam = params.has('auth');
+    const session = await fetchRemoteSession();
+    if (session?.authenticated) {
+        const displayName = session.user?.name || session.user?.email || 'Learner';
+        const user = login(displayName);
+        setActiveUserContext(user);
+        const activeSub = session.subscription?.active;
+        userData.isPremium = Boolean(activeSub);
+        saveUserData(userData);
+        updatePlanAccess();
+        renderLessons();
+        updateHeaderStats();
+    }
+    if (hasAuthParam) {
+        params.delete('auth');
+        const newQuery = params.toString();
+        const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, '', newUrl);
+    }
+}
+
 function showLoginModal() {
     const modal = document.getElementById('loginModal');
     if (modal) {
@@ -3414,12 +3527,16 @@ function handleGuestLogin() {
 }
 
 function handleLogout() {
-    logout();
-    currentUserId = bootstrapAuthUser();
-    userData = loadUserData();
-    renderLessons();
-    updateHeaderStats();
-    showNotification('Logged out', 'info');
+    remoteLogout().finally(() => {
+        logout();
+        currentUserId = bootstrapAuthUser();
+        userData = loadUserData();
+        userData.isPremium = false;
+        saveUserData(userData);
+        renderLessons();
+        updateHeaderStats();
+        showNotification('Logged out', 'info');
+    });
 }
 
 // showNotification now delegates to Toast component
@@ -4032,6 +4149,9 @@ async function bootstrap() {
         
         // Now initialize the app
         initApp();
+
+        // Sync remote auth (Google/Stripe) and reflect premium state
+        await syncRemoteAuthState();
 
         // Re-bind UI to persisted auth state (ensures admin dashboard shows for stored admins)
         setActiveUserContext(getUser());
