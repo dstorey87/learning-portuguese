@@ -26,6 +26,7 @@ import {
     IMAGE_CATEGORIES 
 } from '../../config/imageConfig.js';
 import { renderImageCuratorConsole, initImageCuratorConsole, cleanupImageCuratorConsole } from './ImageCuratorConsole.js';
+import { renderAPIKeyManager, initAPIKeyManager, cleanupAPIKeyManager } from './APIKeyManager.js';
 
 // ============================================================================
 // CONSTANTS
@@ -1182,6 +1183,11 @@ export function renderAdminDashboard() {
                 ${renderImageCuratorConsole()}
             </div>
 
+            <!-- API Key Management -->
+            <div id="apiKeyManagerContainer" class="admin-panel">
+                ${renderAPIKeyManager()}
+            </div>
+
             ${renderLessonEditor()}
 
             <div class="admin-grid">
@@ -1898,6 +1904,8 @@ export function initAdminDashboard() {
         startAutoRefresh();
         // Initialize image curator console
         initImageCuratorConsole();
+        // Initialize API key manager
+        initAPIKeyManager();
     }
 
     // Expose to window for onclick handlers

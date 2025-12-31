@@ -22,3 +22,9 @@ export {
     initImageCuratorConsole,
     cleanupImageCuratorConsole
 } from './ImageCuratorConsole.js';
+
+export {
+    renderAPIKeyManager,
+    initAPIKeyManager,
+    cleanupAPIKeyManager
+} from './APIKeyManager.js';
