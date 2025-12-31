@@ -153,7 +153,11 @@ const CURATED_IMAGES = {
     brother: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=300&fit=crop', // Brother
     sister: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=300&fit=crop', // Sister
     grandpa: 'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=400&h=300&fit=crop', // Grandfather
+    grandfather: 'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=400&h=300&fit=crop', // Grandfather alias
     grandma: 'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=400&h=300&fit=crop', // Grandmother
+    grandmother: 'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=400&h=300&fit=crop', // Grandmother alias
+    grandson: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=300&fit=crop', // Grandson
+    granddaughter: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=300&fit=crop', // Granddaughter
     uncle: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop', // Uncle
     aunt: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=300&fit=crop', // Aunt
     cousin: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=300&fit=crop', // Cousins
@@ -241,12 +245,16 @@ const CURATED_IMAGES = {
     hand: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&h=300&fit=crop', // Hand
     arm: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop', // Arm
     leg: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop', // Leg
-    foot: 'https://images.unsplash.com/photo-1582207912108-63e54c2aa5dc?w=400&h=300&fit=crop', // Foot
+    foot: 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400&h=300&fit=crop', // Feet walking on beach
     eye: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=400&h=300&fit=crop', // Eyes
     ear: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop', // Ear
     nose: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop', // Face/nose
     mouth: 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=400&h=300&fit=crop', // Mouth/smile
     heart: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&h=300&fit=crop', // Heart
+    body: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop', // Body/fitness
+    back: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop', // Back
+    finger: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&h=300&fit=crop', // Finger/hand
+    knee: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop', // Knee/leg
     
     // Professions
     doctor: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=300&fit=crop', // Doctor
@@ -301,8 +309,11 @@ export function getWordImageUrl(imageKey, englishWord = '') {
         return CURATED_IMAGES[engKey];
     }
     
-    // Try partial matches
+    // Try partial matches (only for keys with 4+ chars to avoid false positives)
     for (const [imgKey, url] of Object.entries(CURATED_IMAGES)) {
+        // Skip short keys in partial matching to avoid false positives like "at", "to", "in"
+        if (imgKey.length < 4) continue;
+        
         if (key.includes(imgKey) || imgKey.includes(key)) {
             return url;
         }
