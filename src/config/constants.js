@@ -9,9 +9,21 @@ export const APP_CONFIG = {
     language: 'pt-PT', // European Portuguese only
 };
 
+const resolveApiBase = () => {
+    if (typeof window !== 'undefined' && window.PORTULINGO_API_URL) return window.PORTULINGO_API_URL;
+    try {
+        const stored = localStorage.getItem('portulingo_api_base');
+        if (stored) return stored;
+    } catch (err) {
+        console.warn('[API] unable to read stored api base', err);
+    }
+    return 'http://localhost:3001';
+};
+
 export const API_ENDPOINTS = {
+    apiBase: resolveApiBase(),
     ollama: 'http://localhost:11434',
-    tts: 'http://localhost:3001',
+    tts: resolveApiBase(),
     whisper: 'http://localhost:3002',
 };
 

@@ -19,8 +19,20 @@
 /**
  * TTS Service configuration
  */
+function resolveApiBase() {
+    // Priority: explicit global → persisted override → default localhost.
+    if (typeof window !== 'undefined' && window.PORTULINGO_API_URL) return window.PORTULINGO_API_URL;
+    try {
+        const stored = localStorage.getItem('portulingo_api_base');
+        if (stored) return stored;
+    } catch (err) {
+        console.warn('[TTS] unable to read stored api base', err);
+    }
+    return 'http://localhost:3001';
+}
+
 export const TTS_CONFIG = {
-    serverUrl: 'http://localhost:3001',
+    serverUrl: resolveApiBase(),
     timeout: 15000,
     // Recheck more frequently so we recover quickly when the TTS server starts.
     healthCheckInterval: 5000,
