@@ -139,6 +139,7 @@ function transformWordFromCSV(row) {
             tip: row.tip || null,
             aiTip: row.tip || null,
             image: row.image || null,
+            incorrectAnswers: row.incorrect_answers ? row.incorrect_answers.split('|').map(v => v.trim()).filter(Boolean) : [],
             phraseExample: row.example_pt || null,
             phraseTranslation: row.example_en || null,
             examples: row.example_pt ? [{

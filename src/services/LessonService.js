@@ -391,7 +391,7 @@ export function getLessonAccuracy() {
  * @returns {number} Accuracy percentage
  */
 export function calculateAccuracy(attempts, correct) {
-    if (!attempts || attempts === 0) return 0;
+    if (!attempts || attempts === 0) return 100;
     return Math.round((correct / attempts) * 100);
 }
 

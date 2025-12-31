@@ -209,6 +209,31 @@ function resolveChallengeImage(challenge, lesson) {
     return buildWordSvg(word, lesson);
 }
 
+/**
+ * Get a plain image URL for a word (not wrapped in url())
+ * Used for <img src="..."> elements
+ * @param {Object} word - Word object with image, en, pt properties
+ * @param {Object} lesson - Lesson object for context
+ * @returns {string|null} - Image URL or null
+ */
+function getWordImage(word, lesson) {
+    if (!word) return null;
+    
+    // Get the image key from word data
+    const imageKey = word.image || '';
+    const englishWord = word.en || word.english || '';
+    
+    // Use the curated image mapping
+    const imageUrl = getWordImageUrl(imageKey, englishWord);
+    
+    // Return null if only got the default fallback and no meaningful key
+    if (!imageKey && !englishWord) {
+        return null;
+    }
+    
+    return imageUrl;
+}
+
 // Generate a deterministic inline SVG for each word so every challenge has a unique, relevant visual
 function buildWordSvg(word, lesson) {
     if (!word) return null;

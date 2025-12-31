@@ -232,6 +232,75 @@
 }
 
 /* ============================================================================
+   LESSON EDITOR
+   ============================================================================ */
+
+.lesson-editor-panel {
+    margin-top: var(--spacing-md, 1rem);
+}
+
+.lesson-meta-grid {
+    margin-top: var(--spacing-sm, 0.5rem);
+}
+
+.lesson-image-row {
+    display: flex;
+    gap: var(--spacing-xs, 0.25rem);
+    align-items: center;
+}
+
+.lesson-editor-actions {
+    display: flex;
+    gap: var(--spacing-xs, 0.25rem);
+    align-items: center;
+    margin: var(--spacing-sm, 0.5rem) 0;
+}
+
+.lesson-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs, 0.25rem);
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: var(--radius-sm, 4px);
+    padding: var(--spacing-xs, 0.25rem);
+}
+
+.lesson-row {
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: var(--radius-sm, 4px);
+    padding: var(--spacing-xs, 0.25rem);
+    background: var(--surface-bg, #fafafa);
+}
+
+.lesson-row-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-xs, 0.25rem);
+}
+
+.lesson-row-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+
+.lesson-row-fields input {
+    padding: 6px;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid var(--border-color, #ddd);
+    font: inherit;
+}
+
+.lesson-row-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--spacing-xs, 0.25rem);
+}
+
+/* ============================================================================
    IMPERSONATION BANNER
    ============================================================================ */
 
@@ -322,6 +391,28 @@
     gap: var(--spacing-xs, 0.25rem);
     padding-left: 2.5rem;
     margin-top: var(--spacing-xs, 0.25rem);
+}
+
+.user-progress-bar {
+    position: relative;
+    background: var(--surface-bg, #f1f3f5);
+    border-radius: var(--radius-sm, 4px);
+    height: 10px;
+    margin: 0 2.5rem;
+    overflow: hidden;
+}
+
+.user-progress-bar span {
+    position: absolute;
+    top: -18px;
+    right: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #666);
+}
+
+.user-progress-fill {
+    height: 100%;
+    background: var(--primary-color, #4a90d9);
 }
 
 /* ============================================================================

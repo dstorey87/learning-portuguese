@@ -16,7 +16,9 @@ import { getUser, isAdmin } from '../../services/AuthService.js';
 import { userStorage } from '../../services/userStorage.js';
 import { AI_CONFIG as PIPELINE_AI_CONFIG } from '../../config/constants.js';
 import { AI_CONFIG as AI_SERVICE_CONFIG, checkOllamaStatus, setModel as setAIServiceModel } from '../../services/AIService.js';
+import eventStream from '../../services/eventStreaming.js';
 import { parseCSV } from '../../services/CSVLessonLoader.js';
+import { loadLessonMetadata } from '../../services/CSVLessonLoader.js';
 
 // ============================================================================
 // CONSTANTS
@@ -26,9 +28,16 @@ const ADMIN_STORAGE_KEY = 'admin_action_log';
 const GLOBAL_EVENT_LOG_KEY = 'global_event_log';
 const ADMIN_AI_SETTINGS_KEY = 'admin_ai_settings';
 const ADMIN_INGESTION_KEY = 'admin_ingested_lessons';
+const ADMIN_USER_BACKUPS_KEY = 'admin_user_backups';
+const ADMIN_USER_BACKUP_PREFIX = 'admin_user_backup_';
+const LESSON_STATE_STORAGE_KEY = 'lessonSession';
+const ADMIN_API_BASE = 'http://localhost:3001';
 const MAX_ACTIONS_PER_USER = 500;
 const MAX_GLOBAL_EVENTS = 1000;
 const DEFAULT_TIME_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
+const PROGRESS_STORAGE_KEY = 'portulingo_progress';
+const REQUIRED_CSV_COLUMNS = ['word_id', 'portuguese', 'english', 'pronunciation', 'type', 'difficulty', 'tip', 'example_pt', 'example_en'];
+const DEFAULT_LESSON_COLUMNS = [...REQUIRED_CSV_COLUMNS, 'incorrect_answers', 'image'];
 
 const CSV_TEMPLATE_PATH = '/src/data/templates/csv_lesson_template.csv';
 const STATIC_IMAGE_OPTIONS = [
@@ -85,8 +94,22 @@ let adminState = {
         preview: null,
         staged: [],
         error: null
-    }
+    },
+    lessonEditor: {
+        lessons: [],
+        categories: {},
+        selectedLessonId: null,
+        csv: { rows: [], columns: [] },
+        meta: null,
+        loading: false,
+        saving: false,
+        error: null,
+        message: null
+    },
+    backups: []
 };
+
+let refreshTimer = null;
 
 // ============================================================================
 // GLOBAL EVENT LOGGING (captures ALL user events)
@@ -360,6 +383,9 @@ export function getUserList() {
             // Ignore
         }
 
+        const progress = getUserProgressSummary(userId);
+        const hasBackup = hasBackupForUser(userId);
+
         return {
             userId,
             username: userId,
@@ -369,7 +395,9 @@ export function getUserList() {
             lastAction: actions[0]?.timestamp || null,
             totalEvents: userEvents.length,
             stuckWordsCount: getStuckWordsCount(userId),
-            rescueLessonsCreated: countRescueLessons(userId)
+            rescueLessonsCreated: countRescueLessons(userId),
+            progress,
+            hasBackup
         };
     });
 
@@ -405,6 +433,160 @@ function countRescueLessons(userId) {
         // Ignore
     }
     return 0;
+}
+
+function getUserProgressSummary(userId) {
+    const result = {
+        totalLessons: 0,
+        averageAccuracy: null,
+        lastAccuracy: null,
+        learnedWords: 0,
+        inProgress: null
+    };
+
+    try {
+        const raw = localStorage.getItem(`${userId}_${PROGRESS_STORAGE_KEY}`);
+        if (raw) {
+            const progress = JSON.parse(raw);
+            const lessons = progress.completedLessons || [];
+            result.totalLessons = lessons.length;
+            result.learnedWords = (progress.learnedWords || []).length;
+            if (lessons.length) {
+                const accuracies = lessons
+                    .map(l => (typeof l.accuracy === 'number' ? l.accuracy : null))
+                    .filter(val => val !== null && !Number.isNaN(val));
+                if (accuracies.length) {
+                    result.averageAccuracy = Math.round(accuracies.reduce((a, b) => a + b, 0) / accuracies.length);
+                    result.lastAccuracy = accuracies[accuracies.length - 1];
+                }
+            }
+        }
+    } catch (e) {
+        Logger.warn('Failed to read user progress', { userId, error: e.message });
+    }
+
+    try {
+        const sessionRaw = localStorage.getItem(`${userId}_${LESSON_STATE_STORAGE_KEY}`);
+        if (sessionRaw) {
+            const session = JSON.parse(sessionRaw);
+            const total = Array.isArray(session.challenges) ? session.challenges.length : 0;
+            const index = Number(session.currentIndex || 0);
+            const percent = total > 0 ? Math.min(100, Math.round((index / total) * 100)) : 0;
+            result.inProgress = {
+                lessonId: session.lessonId || session.lesson?.id || 'unknown',
+                percent
+            };
+        }
+    } catch (e) {
+        Logger.warn('Failed to read active lesson session', { userId, error: e.message });
+    }
+
+    return result;
+}
+
+function hasBackupForUser(userId) {
+    if (!adminState.backups?.length) return false;
+    return adminState.backups.some(entry => entry.userId === userId);
+}
+
+function captureUserBackup(userId) {
+    const items = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith(`${userId}_`)) {
+            items.push({ key, value: localStorage.getItem(key) });
+        }
+    }
+
+    return {
+        id: `${userId}_${Date.now()}`,
+        userId,
+        createdAt: new Date().toISOString(),
+        items,
+        actionLog: adminState.actionLog[userId] || [],
+        globalEvents: adminState.globalEventLog.filter(e => e.userId === userId)
+    };
+}
+
+function persistUserBackup(backup) {
+    try {
+        localStorage.setItem(`${ADMIN_USER_BACKUP_PREFIX}${backup.id}`, JSON.stringify(backup));
+        const index = loadBackupIndex();
+        index.unshift({ id: backup.id, userId: backup.userId, createdAt: backup.createdAt });
+        adminState.backups = index;
+        saveBackupIndex(index);
+    } catch (e) {
+        Logger.warn('Failed to persist user backup', { userId: backup.userId, error: e.message });
+    }
+}
+
+function getLatestBackupId(userId) {
+    const entry = (adminState.backups || []).find(b => b.userId === userId);
+    return entry ? entry.id : null;
+}
+
+function deleteUserWithBackup(userId) {
+    if (!userId || userId === 'admin') {
+        alert('Cannot delete admin user.');
+        return;
+    }
+
+    const confirmed = confirm(`Delete user ${userId}? This will backup and remove their data.`);
+    if (!confirmed) return;
+
+    const backup = captureUserBackup(userId);
+    persistUserBackup(backup);
+
+    // Remove user-specific storage keys
+    try {
+        userStorage.deleteAllForUser(userId, true);
+    } catch (e) {
+        Logger.warn('Fallback deleteAllForUser failed, clearing manually', { error: e.message });
+    }
+    const prefix = `${userId}_`;
+    const keysToDelete = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith(prefix)) {
+            keysToDelete.push(key);
+        }
+    }
+    keysToDelete.forEach(k => localStorage.removeItem(k));
+
+    // Remove logs
+    delete adminState.actionLog[userId];
+    adminState.globalEventLog = adminState.globalEventLog.filter(e => e.userId !== userId);
+    saveActionLog();
+    saveGlobalEventLog();
+
+    Logger.info('User deleted with backup', { userId, backupId: backup.id });
+    requestDashboardRefresh();
+}
+
+function restoreUserFromBackup(backupId) {
+    if (!backupId) return;
+    const raw = localStorage.getItem(`${ADMIN_USER_BACKUP_PREFIX}${backupId}`);
+    if (!raw) {
+        alert('Backup not found.');
+        return;
+    }
+    const backup = JSON.parse(raw);
+    backup.items.forEach(item => localStorage.setItem(item.key, item.value));
+
+    if (backup.actionLog) {
+        adminState.actionLog[backup.userId] = backup.actionLog;
+    }
+    if (backup.globalEvents) {
+        adminState.globalEventLog = [
+            ...backup.globalEvents,
+            ...adminState.globalEventLog.filter(e => e.userId !== backup.userId)
+        ].slice(0, MAX_GLOBAL_EVENTS);
+    }
+    saveActionLog();
+    saveGlobalEventLog();
+
+    Logger.info('User restored from backup', { userId: backup.userId, backupId });
+    requestDashboardRefresh();
 }
 
 // ============================================================================
@@ -532,6 +714,24 @@ function loadIngestionState() {
     }
 }
 
+function loadBackupIndex() {
+    try {
+        const saved = localStorage.getItem(ADMIN_USER_BACKUPS_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        Logger.warn('Failed to load backup index', { error: e.message });
+        return [];
+    }
+}
+
+function saveBackupIndex(index) {
+    try {
+        localStorage.setItem(ADMIN_USER_BACKUPS_KEY, JSON.stringify(index.slice(0, 50)));
+    } catch (e) {
+        Logger.warn('Failed to save backup index', { error: e.message });
+    }
+}
+
 function saveIngestionState() {
     try {
         localStorage.setItem(ADMIN_INGESTION_KEY, JSON.stringify({
@@ -543,6 +743,155 @@ function saveIngestionState() {
     }
 }
 
+// ============================================================================
+// LESSON EDITOR (GUI for CSV + metadata)
+// ============================================================================
+
+async function loadLessonEditorIndex() {
+    const editor = adminState.lessonEditor;
+    editor.loading = true;
+    editor.error = null;
+    try {
+        const res = await fetch(`${ADMIN_API_BASE}/admin/lessons`);
+        if (!res.ok) throw new Error(`Lesson index failed (${res.status})`);
+        const data = await res.json();
+        editor.lessons = data.lessons || [];
+        editor.categories = data.categories || {};
+    } catch (e) {
+        try {
+            const fallback = await loadLessonMetadata();
+            editor.lessons = Object.values(fallback.lessons || {});
+            editor.categories = fallback.categories || {};
+            editor.error = `Using local metadata (API unreachable): ${e.message}`;
+        } catch (err) {
+            editor.error = e.message || 'Failed to load lessons';
+        }
+    }
+    editor.loading = false;
+    requestDashboardRefresh();
+}
+
+async function selectLessonForEdit(lessonId) {
+    const editor = adminState.lessonEditor;
+    if (!lessonId) return;
+    editor.selectedLessonId = lessonId;
+    editor.loading = true;
+    editor.error = null;
+    editor.message = null;
+    try {
+        const res = await fetch(`${ADMIN_API_BASE}/admin/lessons/${lessonId}`);
+        if (!res.ok) throw new Error(`Lesson fetch failed (${res.status})`);
+        const data = await res.json();
+        editor.meta = data.lesson;
+        editor.csv = data.csv || { rows: [], columns: [] };
+    } catch (e) {
+        try {
+            const fallbackMeta = await loadLessonMetadata();
+            const lesson = fallbackMeta.lessons?.[lessonId];
+            if (!lesson) throw e;
+            const csvRes = await fetch(`/src/data/csv/${lesson.csvFile}`);
+            const csvText = await csvRes.text();
+            const rows = parseCSV(csvText);
+            const columns = csvText.trim().split('\n')[0]?.split(',') || DEFAULT_LESSON_COLUMNS;
+            editor.meta = lesson;
+            editor.csv = { rows, columns };
+            editor.error = `Using static files (API unreachable): ${e.message}`;
+        } catch (fallbackError) {
+            editor.error = e.message || fallbackError.message;
+            editor.meta = null;
+            editor.csv = { rows: [], columns: [] };
+        }
+    }
+    editor.loading = false;
+    requestDashboardRefresh();
+}
+
+function updateLessonMetaField(field, value) {
+    if (!adminState.lessonEditor.meta) return;
+    adminState.lessonEditor.meta = { ...adminState.lessonEditor.meta, [field]: value };
+    requestDashboardRefresh();
+}
+
+function updateLessonRow(index, field, value) {
+    const editor = adminState.lessonEditor;
+    const rows = [...(editor.csv.rows || [])];
+    if (!rows[index]) return;
+    rows[index] = { ...rows[index], [field]: value };
+    editor.csv.rows = rows;
+    requestDashboardRefresh();
+}
+
+function addLessonRow() {
+    const editor = adminState.lessonEditor;
+    const columns = editor.csv.columns.length ? editor.csv.columns : DEFAULT_LESSON_COLUMNS;
+    const newRow = {};
+    columns.forEach(col => {
+        newRow[col] = '';
+    });
+    editor.csv.rows = [...editor.csv.rows, newRow];
+    requestDashboardRefresh();
+}
+
+function removeLessonRow(index) {
+    const editor = adminState.lessonEditor;
+    editor.csv.rows = editor.csv.rows.filter((_, i) => i !== index);
+    requestDashboardRefresh();
+}
+
+async function uploadLessonImage(fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file || !adminState.lessonEditor.selectedLessonId) return;
+    const editor = adminState.lessonEditor;
+    editor.saving = true;
+    editor.error = null;
+    editor.message = null;
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const res = await fetch(`${ADMIN_API_BASE}/admin/lessons/${editor.selectedLessonId}/upload-image`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+        const data = await res.json();
+        updateLessonMetaField('image', data.path);
+        editor.message = 'Image uploaded';
+    } catch (e) {
+        editor.error = e.message || 'Upload failed';
+    }
+    editor.saving = false;
+    requestDashboardRefresh();
+}
+
+async function saveLessonEditorChanges() {
+    const editor = adminState.lessonEditor;
+    if (!editor.selectedLessonId || !editor.meta) return;
+    editor.saving = true;
+    editor.error = null;
+    editor.message = null;
+    try {
+        const metaRes = await fetch(`${ADMIN_API_BASE}/admin/lessons/${editor.selectedLessonId}/meta`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(editor.meta)
+        });
+        if (!metaRes.ok) throw new Error(`Meta save failed (${metaRes.status})`);
+
+        const columns = editor.csv.columns.length ? editor.csv.columns : DEFAULT_LESSON_COLUMNS;
+        const csvRes = await fetch(`${ADMIN_API_BASE}/admin/lessons/${editor.selectedLessonId}/csv`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows: editor.csv.rows, columns })
+        });
+        if (!csvRes.ok) throw new Error(`CSV save failed (${csvRes.status})`);
+        editor.message = 'Lesson saved';
+    } catch (e) {
+        editor.error = e.message || 'Save failed';
+    }
+    editor.saving = false;
+    requestDashboardRefresh();
+}
+
 async function handleCSVUpload(event) {
     const file = event.target?.files?.[0];
     if (!file) return;
@@ -550,6 +899,16 @@ async function handleCSVUpload(event) {
         const text = await file.text();
         const rows = parseCSV(text);
         const columns = rows[0] ? Object.keys(rows[0]) : [];
+        const validation = validateCSV(rows, columns);
+        if (!validation.valid) {
+            adminState.ingestion.preview = null;
+            adminState.ingestion.error = `CSV validation failed: ${validation.errors[0] || 'Unknown error'}`;
+            Logger.error('CSV ingestion validation failed', { errors: validation.errors });
+            event.target.value = '';
+            requestDashboardRefresh();
+            return;
+        }
+
         adminState.ingestion.preview = {
             filename: file.name,
             rows,
@@ -558,10 +917,14 @@ async function handleCSVUpload(event) {
         };
         adminState.ingestion.error = rows.length ? null : 'CSV contains no rows';
         event.target.value = '';
-        refreshDashboard();
+
+        // Auto-stage on successful validation for upload-and-forget flow
+        stageLessonFromPreview(true);
+        requestDashboardRefresh();
     } catch (e) {
         adminState.ingestion.error = 'Failed to parse CSV';
-        refreshDashboard();
+        Logger.error('CSV parse failed', { error: e.message });
+        requestDashboardRefresh();
     }
 }
 
@@ -576,12 +939,22 @@ function updateIngestionField(field, value) {
     refreshDashboard();
 }
 
-function stageLessonFromPreview() {
+function stageLessonFromPreview(skipValidation = false) {
     const { preview, form } = adminState.ingestion;
     if (!preview || !preview.rows?.length) {
         adminState.ingestion.error = 'Upload a CSV before staging a lesson.';
-        refreshDashboard();
+        requestDashboardRefresh();
         return;
+    }
+
+    if (!skipValidation) {
+        const validation = validateCSV(preview.rows, preview.columns || []);
+        if (!validation.valid) {
+            adminState.ingestion.error = `CSV validation failed: ${validation.errors[0]}`;
+            Logger.error('CSV staging blocked by validation', { errors: validation.errors });
+            requestDashboardRefresh();
+            return;
+        }
     }
 
     const metadata = {
@@ -610,7 +983,8 @@ function stageLessonFromPreview() {
     adminState.ingestion.staged.unshift(lessonPackage);
     adminState.ingestion.error = null;
     saveIngestionState();
-    refreshDashboard();
+    Logger.info('Admin staged lesson package', { lessonId: metadata.id, rows: preview.rows.length });
+    requestDashboardRefresh();
 }
 
 function clearStagedLessons() {
@@ -620,6 +994,41 @@ function clearStagedLessons() {
     adminState.ingestion.error = null;
     saveIngestionState();
     refreshDashboard();
+}
+
+function validateCSV(rows, columns = []) {
+    const errors = [];
+    if (!rows || rows.length === 0) {
+        errors.push('CSV contains no rows');
+        return { valid: false, errors };
+    }
+
+    const cols = columns.length ? columns : Object.keys(rows[0]);
+    const missingColumns = REQUIRED_CSV_COLUMNS.filter(col => !cols.includes(col));
+    if (missingColumns.length) {
+        errors.push(`Missing required columns: ${missingColumns.join(', ')}`);
+    }
+
+    rows.forEach((row, idx) => {
+        const missing = REQUIRED_CSV_COLUMNS.filter(col => !row[col] || String(row[col]).trim() === '');
+        if (missing.length) {
+            errors.push(`Row ${idx + 1} missing: ${missing.join(', ')}`);
+        }
+    });
+
+    const wordIds = new Set();
+    rows.forEach((row, idx) => {
+        const id = String(row.word_id || '').trim();
+        if (id) {
+            if (wordIds.has(id)) {
+                errors.push(`Duplicate word_id detected: ${id} (row ${idx + 1})`);
+            } else {
+                wordIds.add(id);
+            }
+        }
+    });
+
+    return { valid: errors.length === 0, errors };
 }
 
 // ============================================================================
@@ -659,6 +1068,8 @@ export function renderAdminDashboard() {
                 ${renderAIControls()}
                 ${renderLessonIngestion()}
             </div>
+
+            ${renderLessonEditor()}
 
             <div class="admin-grid">
                 <!-- User List Panel -->
@@ -840,6 +1251,98 @@ function renderLessonIngestion() {
     `;
 }
 
+function renderLessonEditor() {
+    const editor = adminState.lessonEditor;
+    const categories = Object.keys(editor.categories || {});
+    const lessons = editor.lessons || [];
+    const meta = editor.meta || {};
+    const columns = editor.csv.columns.length ? editor.csv.columns : DEFAULT_LESSON_COLUMNS;
+
+    const lessonSelect = lessons.length ? `
+        <select onchange="window.adminDashboard.selectLessonForEdit(this.value)">
+            <option value="">Select lesson…</option>
+            ${lessons.map(l => `<option value="${sanitize(l.id)}" ${l.id === editor.selectedLessonId ? 'selected' : ''}>${sanitize(l.id)} — ${sanitize(l.title || '')}</option>`).join('')}
+        </select>
+    ` : '<span class="muted">No lessons loaded yet.</span>';
+
+    const metaForm = editor.meta ? `
+        <div class="admin-form-grid lesson-meta-grid">
+            <label><span>Subject name (EN)</span><input value="${sanitize(meta.title || '')}" oninput="window.adminDashboard.updateLessonMetaField('title', this.value)" /></label>
+            <label><span>Subject name (PT)</span><input value="${sanitize(meta.titlePt || '')}" oninput="window.adminDashboard.updateLessonMetaField('titlePt', this.value)" /></label>
+            <label class="span-2"><span>Description</span><textarea rows="2" oninput="window.adminDashboard.updateLessonMetaField('description', this.value)">${sanitize(meta.description || '')}</textarea></label>
+            <label><span>Lesson type</span>
+                <select onchange="window.adminDashboard.updateLessonMetaField('category', this.value)">
+                    ${categories.map(cat => `<option value="${sanitize(cat)}" ${cat === meta.category ? 'selected' : ''}>${sanitize(cat)}</option>`).join('')}
+                    ${categories.includes(meta.category) ? '' : `<option value="${sanitize(meta.category || '')}" selected>${sanitize(meta.category || '')}</option>`}
+                </select>
+            </label>
+            <label><span>Tier</span><input type="number" min="1" max="5" value="${meta.tier || 1}" oninput="window.adminDashboard.updateLessonMetaField('tier', Number(this.value))" /></label>
+            <label><span>Order</span><input type="number" min="1" value="${meta.order || 1}" oninput="window.adminDashboard.updateLessonMetaField('order', Number(this.value))" /></label>
+            <label><span>Icon</span><input value="${sanitize(meta.icon || '')}" oninput="window.adminDashboard.updateLessonMetaField('icon', this.value)" /></label>
+            <label><span>Estimated minutes</span><input type="number" min="5" max="60" value="${meta.estimatedMinutes || 10}" oninput="window.adminDashboard.updateLessonMetaField('estimatedMinutes', Number(this.value))" /></label>
+            <label><span>Difficulty levels</span><input value="${sanitize((meta.difficultyLevels || []).join(', '))}" oninput="window.adminDashboard.updateLessonMetaField('difficultyLevels', this.value.split(',').map(v => v.trim()).filter(Boolean))" placeholder="beginner_1, beginner_2" /></label>
+            <label><span>CSV file</span><input value="${sanitize(meta.csvFile || '')}" disabled /></label>
+            <label class="span-2">
+                <span>Lesson image</span>
+                <div class="lesson-image-row">
+                    <input value="${sanitize(meta.image || '')}" oninput="window.adminDashboard.updateLessonMetaField('image', this.value)" />
+                    <label class="btn-small file-input-btn">
+                        📁 Upload
+                        <input type="file" accept="image/*" style="display:none" onchange="window.adminDashboard.uploadLessonImage(this)" />
+                    </label>
+                </div>
+                <small class="muted">Uploads save to assets/lesson-thumbs; existing image references stay untouched.</small>
+            </label>
+        </div>
+    ` : '<p class="muted">Select a lesson to edit metadata.</p>';
+
+    const rowsTable = editor.csv.rows.length ? editor.csv.rows.map((row, idx) => renderLessonRow(row, idx)).join('') : '<p class="muted">Select a lesson to load its CSV rows.</p>';
+
+    return `
+        <section class="admin-panel lesson-editor-panel">
+            <div class="panel-header">
+                <div>
+                    <h3>🗂️ Lesson Editor (CSV + metadata)</h3>
+                    <p class="muted small-text">Edit questions, answers, incorrect options, metadata, and upload replacement images.</p>
+                </div>
+                <div class="panel-actions">
+                    <button class="btn-small" onclick="window.adminDashboard.loadLessonEditorIndex()">🔍 Load lessons</button>
+                    ${lessonSelect}
+                </div>
+            </div>
+            ${editor.loading ? '<p class="muted">Loading lesson data…</p>' : ''}
+            ${editor.error ? `<p class="error-text">${sanitize(editor.error)}</p>` : ''}
+            ${editor.message ? `<p class="success-text">${sanitize(editor.message)}</p>` : ''}
+            ${metaForm}
+            <div class="lesson-editor-actions">
+                <button class="btn-small" onclick="window.adminDashboard.addLessonRow()">➕ Add row</button>
+                <button class="btn-small btn-primary" onclick="window.adminDashboard.saveLessonEditorChanges()" ${editor.saving || !editor.selectedLessonId ? 'disabled' : ''}>💾 Save changes</button>
+            </div>
+            <div class="lesson-rows">
+                ${rowsTable}
+            </div>
+        </section>
+    `;
+}
+
+function renderLessonRow(row, index) {
+    return `
+        <div class="lesson-row" data-row-index="${index}">
+            <div class="lesson-row-fields">
+                <label><span>Word ID</span><input value="${sanitize(row.word_id || '')}" oninput="window.adminDashboard.updateLessonRow(${index}, 'word_id', this.value)" /></label>
+                <label><span>Question (PT)</span><input value="${sanitize(row.portuguese || '')}" oninput="window.adminDashboard.updateLessonRow(${index}, 'portuguese', this.value)" /></label>
+                <label><span>Answer (EN)</span><input value="${sanitize(row.english || '')}" oninput="window.adminDashboard.updateLessonRow(${index}, 'english', this.value)" /></label>
+                <label><span>Incorrect answers</span><input value="${sanitize(row.incorrect_answers || '')}" oninput="window.adminDashboard.updateLessonRow(${index}, 'incorrect_answers', this.value)" placeholder="comma-separated distractors" /></label>
+                <label><span>Type</span><input value="${sanitize(row.type || '')}" oninput="window.adminDashboard.updateLessonRow(${index}, 'type', this.value)" /></label>
+                <label><span>Difficulty</span><input value="${sanitize(row.difficulty || '')}" oninput="window.adminDashboard.updateLessonRow(${index}, 'difficulty', this.value)" /></label>
+            </div>
+            <div class="lesson-row-actions">
+                <button class="btn-small btn-secondary" onclick="window.adminDashboard.removeLessonRow(${index})">🗑️ Remove</button>
+            </div>
+        </div>
+    `;
+}
+
 function renderCSVPreview(preview) {
     if (!preview?.rows?.length) {
         return '<p class="muted">No rows found in CSV.</p>';
@@ -987,6 +1490,9 @@ function renderLoggerHistory() {
 
 function renderUserCard(user) {
     const isCurrentUser = user.userId === getUser().userId;
+    const progress = user.progress || {};
+    const inProgress = progress.inProgress;
+    const latestBackupId = getLatestBackupId(user.userId);
 
     return `
         <div class="user-card ${isCurrentUser ? 'current-user' : ''}" data-user-id="${user.userId}">
@@ -1002,11 +1508,26 @@ function renderUserCard(user) {
                 <span title="Stuck words">📛 ${user.stuckWordsCount}</span>
                 <span title="Rescue lessons">🆘 ${user.rescueLessonsCreated}</span>
             </div>
+            <div class="user-stats">
+                <span title="Completed lessons">📚 ${progress.totalLessons || 0}</span>
+                <span title="Avg accuracy">🎯 ${progress.averageAccuracy ?? '—'}%</span>
+                <span title="Learned words">🧠 ${progress.learnedWords || 0}</span>
+            </div>
+            ${inProgress ? `
+                <div class="user-progress-bar" title="In-progress lesson ${inProgress.lessonId}">
+                    <div class="user-progress-fill" style="width:${inProgress.percent}%"></div>
+                    <span>${inProgress.percent}% in ${inProgress.lessonId}</span>
+                </div>
+            ` : ''}
             <div class="user-actions">
                 ${!isCurrentUser && !adminState.isImpersonating ? `
                     <button onclick="window.adminDashboard.impersonateUser('${user.userId}')" class="btn-small btn-secondary" title="Log in as this user">🔑 Login as</button>
                 ` : ''}
                 <button onclick="window.adminDashboard.viewUserActions('${user.userId}')" class="btn-small" title="View AI actions">📋 Actions</button>
+                ${!user.isAdmin ? `
+                    <button onclick="window.adminDashboard.deleteUserWithBackup('${user.userId}')" class="btn-small btn-danger" title="Backup then delete user">🗑️ Delete</button>
+                    ${latestBackupId ? `<button onclick="window.adminDashboard.restoreUserFromBackup('${latestBackupId}')" class="btn-small btn-secondary" title="Restore last backup">⏪ Restore</button>` : ''}
+                ` : ''}
             </div>
         </div>
     `;
@@ -1097,6 +1618,16 @@ export function viewUserActions(userId) {
     document.body.appendChild(modal);
 }
 
+function requestDashboardRefresh(delay = 250) {
+    if (refreshTimer) {
+        clearTimeout(refreshTimer);
+    }
+    refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        refreshDashboard();
+    }, delay);
+}
+
 /**
  * Refresh the dashboard display
  */
@@ -1119,6 +1650,7 @@ export function initAdminDashboard() {
     loadGlobalEventLog();
     loadAdminAISettings();
     loadIngestionState();
+    loadLessonEditorIndex();
 
     // Kick off AI status check without blocking render
     refreshAIStatus();
@@ -1175,6 +1707,9 @@ export function initAdminDashboard() {
             details: e.detail,
             source: 'learning'
         });
+
+        // Refresh soon after learning events to surface real-time progress
+        requestDashboardRefresh(200);
     });
 
     // Start auto-refresh if admin
@@ -1198,7 +1733,17 @@ export function initAdminDashboard() {
         handleCSVUpload,
         updateIngestionField,
         stageLessonFromPreview,
-        clearStagedLessons
+        clearStagedLessons,
+        loadLessonEditorIndex,
+        selectLessonForEdit,
+        updateLessonMetaField,
+        updateLessonRow,
+        addLessonRow,
+        removeLessonRow,
+        uploadLessonImage,
+        saveLessonEditorChanges,
+        deleteUserWithBackup,
+        restoreUserFromBackup
     };
 
     Logger.info('Admin dashboard initialized');
