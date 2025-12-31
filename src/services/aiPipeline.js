@@ -6,6 +6,9 @@
 import { AI_CONFIG, API_ENDPOINTS } from '../config/constants.js';
 import { userStorage } from './userStorage.js';
 import { LearnerProfiler } from './learning/LearnerProfiler.js';
+import * as ProgressTracker from './ProgressTracker.js';
+import eventStream from './eventStreaming.js';
+import { getStuckWords } from './learning/StuckWordsService.js';
 
 // Stuck word threshold - consistent with StuckWordsService
 const STUCK_THRESHOLD = 3;
@@ -393,10 +396,32 @@ class AIPipelineService {
     }
 
     _getUserLearningData() {
+        const recentEvents = (userStorage.get('events') || []).slice(-200);
+        const progressSnapshot = (() => {
+            try { return ProgressTracker.getProgressSnapshot(); } catch { return {}; }
+        })();
+        const progressSummary = (() => {
+            try { return ProgressTracker.getProgressSummary(); } catch { return {}; }
+        })();
+        const pronunciationSummary = (() => {
+            try { return ProgressTracker.getPronunciationSummary(); } catch { return {}; }
+        })();
+        const exercisePerformance = (() => {
+            try { return eventStream.getExercisePerformance(); } catch { return {}; }
+        })();
+        const stuckWords = (() => {
+            try { return getStuckWords({ includeRescued: false, limit: 10 }); } catch { return []; }
+        })();
+
         return {
             profile: userStorage.get('learning') || {},
-            recentEvents: (userStorage.get('events') || []).slice(-100),
+            recentEvents,
             progress: userStorage.get('progress') || {},
+            progressSnapshot,
+            progressSummary,
+            pronunciationSummary,
+            exercisePerformance,
+            stuckWords
         };
     }
 

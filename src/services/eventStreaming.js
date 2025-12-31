@@ -515,6 +515,74 @@ class EventStreamingService {
         };
     }
 
+    /**
+     * Get per-exercise performance and weak word signals for personalization
+     * @returns {Object} { stats, strongTypes, weakTypes, weakWordIds }
+     */
+    getExercisePerformance() {
+        const events = userStorage.get('events') || [];
+        const attempts = events.filter(e =>
+            e.eventType === EVENT_TYPES.ANSWER_ATTEMPT || e.eventType === 'word_attempt'
+        );
+
+        const stats = {};
+        const wordStats = new Map();
+
+        for (const event of attempts) {
+            const data = event.data || {};
+            const exerciseType = data.exerciseType || 'unknown';
+            const correct = data.correctness ?? data.correct ?? false;
+            const wordId = data.wordId || data.word || null;
+
+            if (!stats[exerciseType]) {
+                stats[exerciseType] = { correct: 0, total: 0 };
+            }
+            stats[exerciseType].total += 1;
+            if (correct) stats[exerciseType].correct += 1;
+
+            if (wordId) {
+                if (!wordStats.has(wordId)) {
+                    wordStats.set(wordId, { correct: 0, total: 0 });
+                }
+                const entry = wordStats.get(wordId);
+                entry.total += 1;
+                if (correct) entry.correct += 1;
+            }
+        }
+
+        const normalizedStats = Object.entries(stats).reduce((acc, [type, value]) => {
+            const accuracy = value.total > 0 ? value.correct / value.total : 0;
+            acc[type] = { ...value, accuracy };
+            return acc;
+        }, {});
+
+        const strongTypes = Object.entries(normalizedStats)
+            .filter(([, value]) => value.total >= 3 && value.accuracy >= 0.75)
+            .map(([type]) => type);
+
+        const weakTypes = Object.entries(normalizedStats)
+            .filter(([, value]) => value.total >= 3 && value.accuracy < 0.6)
+            .map(([type]) => type);
+
+        const weakWordIds = Array.from(wordStats.entries())
+            .map(([wordId, value]) => ({
+                wordId,
+                accuracy: value.total > 0 ? value.correct / value.total : 0,
+                incorrect: value.total - value.correct,
+                total: value.total
+            }))
+            .filter(entry => entry.total >= 2 && entry.accuracy < 0.7)
+            .sort((a, b) => b.incorrect - a.incorrect || b.total - a.total)
+            .map(entry => entry.wordId);
+
+        return {
+            stats: normalizedStats,
+            strongTypes,
+            weakTypes,
+            weakWordIds
+        };
+    }
+
     // ========================================================================
     // PRIVATE METHODS
     // ========================================================================

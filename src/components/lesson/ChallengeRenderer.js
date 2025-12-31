@@ -436,6 +436,136 @@ export function buildQuizOptions(correctWord, pool, learnedWords = []) {
     }));
 }
 
+function deriveReinforcementTypes(personalization = {}) {
+    const preferred = personalization.strongTypes || personalization.exerciseStrengths || [];
+    const fallback = [CHALLENGE_TYPES.MCQ, CHALLENGE_TYPES.LISTEN_TYPE, CHALLENGE_TYPES.TYPE_ANSWER, CHALLENGE_TYPES.PRONUNCIATION];
+
+    const normalize = (value) => {
+        if (!value) return null;
+        const lower = String(value).toLowerCase();
+        if (lower.includes('listen')) return CHALLENGE_TYPES.LISTEN_TYPE;
+        if (lower.includes('type')) return CHALLENGE_TYPES.TYPE_ANSWER;
+        if (lower.includes('pron')) return CHALLENGE_TYPES.PRONUNCIATION;
+        return CHALLENGE_TYPES.MCQ;
+    };
+
+    const normalized = preferred
+        .map(normalize)
+        .filter(Boolean);
+
+    const unique = [...new Set([...normalized, ...fallback])];
+    return unique.slice(0, 3); // keep top 3
+}
+
+function buildAdaptiveChallenge(type, word, words, learnedWords = [], label = 'adaptive') {
+    switch (type) {
+        case CHALLENGE_TYPES.LISTEN_TYPE:
+            return {
+                type: CHALLENGE_TYPES.LISTEN_TYPE,
+                word,
+                phase: CHALLENGE_PHASES.PRACTICE,
+                options: buildQuizOptions(word, words, learnedWords),
+                isAdaptive: true,
+                label
+            };
+        case CHALLENGE_TYPES.TYPE_ANSWER:
+            return {
+                type: CHALLENGE_TYPES.TYPE_ANSWER,
+                word,
+                phase: CHALLENGE_PHASES.PRACTICE,
+                options: buildQuizOptions(word, words, learnedWords),
+                isAdaptive: true,
+                label
+            };
+        case CHALLENGE_TYPES.PRONUNCIATION:
+            return {
+                type: CHALLENGE_TYPES.PRONUNCIATION,
+                word,
+                phase: CHALLENGE_PHASES.PRONOUNCE,
+                maxAttempts: CHALLENGE_CONFIG.maxPronunciationAttempts,
+                isAdaptive: true,
+                label
+            };
+        default:
+            return {
+                type: CHALLENGE_TYPES.MCQ,
+                word,
+                phase: CHALLENGE_PHASES.PRACTICE,
+                options: buildQuizOptions(word, words, learnedWords),
+                isAdaptive: true,
+                label
+            };
+    }
+}
+
+function applyAdaptiveReinforcement(challenges, lesson, personalization = {}, learnedWords = []) {
+    const words = lesson.words || [];
+    const weakSet = new Set(
+        (personalization.weakWordIds || personalization.weakWords || []).map(id => String(id).toLowerCase())
+    );
+
+    // include stuck words if provided
+    (personalization.stuckWords || []).forEach(word => {
+        const key = word.wordKey || word.wordId || word.pt || word.en;
+        if (key) weakSet.add(String(key).toLowerCase());
+    });
+
+    const reinforcementTypes = deriveReinforcementTypes(personalization);
+
+    const weakWords = words.filter(w => {
+        const key = getWordKey(w).toLowerCase();
+        const id = (w.id || '').toLowerCase();
+        return weakSet.has(key) || (id && weakSet.has(id));
+    });
+
+    if (weakWords.length === 0 && !personalization.forceExtra) {
+        return challenges;
+    }
+
+    const extras = [];
+    const targetAccuracy = personalization.targetAccuracy || 0.85;
+    const currentAccuracy = personalization.overallAccuracy || 0.75;
+    const needsBooster = currentAccuracy < targetAccuracy;
+
+    const pool = weakWords.length > 0 ? weakWords : words;
+    const loopCount = needsBooster ? 2 : 1;
+
+    for (let loop = 0; loop < loopCount; loop += 1) {
+        for (const word of pool) {
+            for (const type of reinforcementTypes) {
+                extras.push(buildAdaptiveChallenge(type, word, words, learnedWords, 'adaptive')); 
+            }
+        }
+    }
+
+    // Re-index existing challenges first to keep deterministic order before extras
+    const base = challenges.map((c, idx) => ({ ...c, index: idx }));
+    const offset = base.length;
+    const withExtras = [...base, ...extras.map((c, i) => ({ ...c, index: offset + i }))];
+    return withExtras;
+}
+
+function attachIllustrations(challenges, lesson) {
+    return challenges.map(challenge => {
+        if (!challenge) return challenge;
+        const hasImage = challenge.image || challenge.media?.image;
+        if (!hasImage) {
+            const resolved = resolveChallengeImage(challenge, lesson);
+            if (resolved) {
+                const media = challenge.media || {};
+                challenge.media = { ...media, image: resolved };
+                challenge.image = challenge.image || resolved;
+            }
+        }
+        return challenge;
+    });
+}
+
+function finalizeChallenges(challenges, lesson, personalization, learnedWords) {
+    const adaptive = applyAdaptiveReinforcement(challenges, lesson, personalization, learnedWords);
+    return attachIllustrations(adaptive, lesson);
+}
+
 // ============================================================================
 // CHALLENGE BUILDER
 // ============================================================================
@@ -457,6 +587,7 @@ export function buildLessonChallenges(lesson, options = {}) {
     const words = lesson.words || [];
     const sentences = lesson.sentences || [];
     const learnedWords = options.learnedWords || [];
+    const personalization = options.personalization || {};
     const challenges = [];
     let challengeIndex = 0;
     
@@ -502,7 +633,7 @@ export function buildLessonChallenges(lesson, options = {}) {
             });
         });
         
-        return challenges;
+        return finalizeChallenges(challenges, lesson, personalization, learnedWords);
     }
     
     // ==========================================================================
@@ -592,7 +723,7 @@ export function buildLessonChallenges(lesson, options = {}) {
         });
     });
     
-    return challenges;
+    return finalizeChallenges(challenges, lesson, personalization, learnedWords);
 }
 
 // ============================================================================

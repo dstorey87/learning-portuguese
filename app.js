@@ -9,12 +9,19 @@ import {
 import {
     ChallengeRenderer,
     buildLessonChallenges,
-    normalizeText
+    normalizeText,
+    getWordKey
 } from './src/components/lesson/ChallengeRenderer.js';
 import {
     getTemplateDisplay,
     getDifficultyColor
 } from './src/components/lesson/LessonCard.js';
+import {
+    DIFFICULTY_LEVELS,
+    DIFFICULTY_ORDER,
+    getUnlockedLevel,
+    isLevelUnlocked
+} from './src/config/lessonTemplates.config.js';
 import {
     AUTH_CONSTANTS,
     getHearts,
@@ -35,6 +42,8 @@ import {
 import { userStorage } from './src/services/userStorage.js';
 import * as ProgressTracker from './src/services/ProgressTracker.js';
 import { getLearnedWords, SRS_INTERVALS } from './src/services/ProgressTracker.js';
+import eventStream from './src/services/eventStreaming.js';
+import { getStuckWords } from './src/services/learning/StuckWordsService.js';
 import Toast from './src/components/common/Toast.js';
 import {
     getWordKnowledge,
@@ -116,6 +125,7 @@ function debounce(namespace, fn, delay) {
 
 // =========== USER DATA PERSISTENCE ===========
 const USER_DATA_KEY_BASE = 'portugueseProgress';
+const LESSON_STATE_STORAGE_KEY = 'lessonSession';
 let currentUserId = bootstrapAuthUser();
 
 function sanitizeUserId(name = 'guest') {
@@ -203,6 +213,42 @@ function saveUserData(data = userData) {
         localStorage.setItem(getUserDataKey(), JSON.stringify(normalized));
     } catch (e) {
         console.warn('Failed to save user data:', e);
+    }
+}
+
+function loadActiveLessonState() {
+    try {
+        return userStorage.get(LESSON_STATE_STORAGE_KEY) || null;
+    } catch (err) {
+        console.warn('Failed to load lesson session state', err);
+        return null;
+    }
+}
+
+function persistActiveLessonState(state) {
+    if (!state || !state.lesson) return;
+    const snapshot = {
+        lessonId: state.lesson.id,
+        challenges: state.challenges,
+        currentIndex: state.currentIndex || 0,
+        correct: state.correct || 0,
+        mistakes: state.mistakes || 0,
+        wrongAnswers: state.wrongAnswers || [],
+        startTime: state.startTime || Date.now(),
+        hardMode: !!state.hardMode
+    };
+    try {
+        userStorage.set(LESSON_STATE_STORAGE_KEY, snapshot);
+    } catch (err) {
+        console.warn('Failed to persist lesson session state', err);
+    }
+}
+
+function clearActiveLessonState() {
+    try {
+        userStorage.remove(LESSON_STATE_STORAGE_KEY);
+    } catch (err) {
+        console.warn('Failed to clear lesson session state', err);
     }
 }
 
@@ -363,7 +409,7 @@ function renderLessons() {
         if (thumb && imageStyle) {
             thumb.style.backgroundImage = imageStyle;
         }
-        card.addEventListener('click', () => startLesson(lesson.id));
+        card.addEventListener('click', () => showDifficultySelector(lesson.id));
         grid.appendChild(card);
     });
 
@@ -444,7 +490,115 @@ function deleteCustomAILesson(lessonId) {
 // =========== DUOLINGO-STYLE LESSON FLOW ===========
 // Clean implementation: data-driven challenges + accordion layout via ChallengeRenderer
 
-function startLesson(lessonId) {
+function buildPersonalizationProfile(lesson) {
+    const performance = (() => { try { return eventStream.getExercisePerformance(); } catch { return {}; }})();
+    const progressSummary = (() => { try { return ProgressTracker.getProgressSummary(); } catch { return {}; }})();
+    const pronunciationSummary = (() => { try { return ProgressTracker.getPronunciationSummary(); } catch { return {}; }})();
+    const stuckWords = (() => { try { return getStuckWords({ includeRescued: false, limit: 10 }); } catch { return []; }})();
+
+    const lessonWordKeys = new Set((lesson?.words || []).map(w => {
+        const key = getWordKey(w);
+        const id = (w.id || '').toLowerCase();
+        return (id || key).toLowerCase();
+    }));
+
+    const weakWordIds = new Set((performance?.weakWordIds || []).map(id => String(id).toLowerCase()));
+    stuckWords.forEach(word => {
+        const candidate = String(word.wordKey || word.wordId || '').toLowerCase();
+        if (candidate) weakWordIds.add(candidate);
+    });
+
+    const weakWordsForLesson = Array.from(weakWordIds).filter(key => lessonWordKeys.has(key));
+    const stuckWordsForLesson = (stuckWords || []).filter(word => {
+        const candidate = String(word.wordKey || word.wordId || word.pt || word.en || '').toLowerCase();
+        return candidate && lessonWordKeys.has(candidate);
+    });
+
+    const overallAccuracy = progressSummary?.words?.accuracy != null
+        ? progressSummary.words.accuracy / 100
+        : 0.75;
+    const targetAccuracy = Math.min(0.92, Math.max(0.82, overallAccuracy + 0.05));
+
+    return {
+        strongTypes: performance?.strongTypes || [],
+        weakTypes: performance?.weakTypes || [],
+        weakWordIds: weakWordsForLesson,
+        stuckWords: stuckWordsForLesson,
+        overallAccuracy,
+        targetAccuracy,
+        exerciseStats: performance?.stats || {},
+        pronunciationSummary
+    };
+}
+
+/**
+ * Show difficulty selector modal before starting lesson
+ */
+function showDifficultySelector(lessonId) {
+    const lesson = getLessonByIdForUI(lessonId);
+    if (!lesson) return;
+    
+    // Get user's progress for this lesson
+    const lessonProgress = userData.lessonProgress?.[lessonId] || {};
+    const unlockedLevel = getUnlockedLevel(lessonProgress);
+    const completions = lessonProgress.completions || 0;
+    
+    // Build difficulty options
+    const levelOptions = DIFFICULTY_ORDER.map(levelId => {
+        const level = DIFFICULTY_LEVELS[levelId.toUpperCase()];
+        if (!level) return null;
+        const isUnlocked = isLevelUnlocked(levelId, lessonProgress);
+        const isCurrent = levelId === unlockedLevel;
+        // Show version number for beginner level based on completions
+        let displayName = level.displayName;
+        if (levelId === 'beginner' && completions > 0) {
+            displayName = `Easy ${completions + 1}.0`;
+        }
+        return { levelId, level, isUnlocked, isCurrent, displayName };
+    }).filter(Boolean);
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay difficulty-selector-modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>${lesson.title}</h2>
+                <button class="modal-close" id="closeDifficultyModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="muted" style="margin-bottom: 1rem;">Select difficulty level:</p>
+                <div class="difficulty-options">
+                    ${levelOptions.map(opt => `
+                        <button class="difficulty-option ${opt.isCurrent ? 'current' : ''} ${!opt.isUnlocked ? 'locked' : ''}"
+                            data-level="${opt.levelId}" ${!opt.isUnlocked ? 'disabled' : ''}>
+                            <span class="diff-icon" style="color: ${opt.level.color}">${opt.level.icon}</span>
+                            <span class="diff-name">${opt.displayName}</span>
+                            <span class="diff-desc">${opt.level.description}</span>
+                            ${!opt.isUnlocked ? '<span class="lock-icon">🔒</span>' : ''}
+                            ${opt.isCurrent ? '<span class="current-badge">★ Current</span>' : ''}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event handlers
+    modal.querySelector('#closeDifficultyModal').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    
+    modal.querySelectorAll('.difficulty-option:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const selectedLevel = btn.dataset.level;
+            modal.remove();
+            startLesson(lessonId, { difficultyLevel: selectedLevel });
+        });
+    });
+}
+
+function startLesson(lessonId, options = {}) {
     const lesson = getLessonByIdForUI(lessonId);
     if (!lesson) return;
     if (lesson.gated && !userData.isPremium) {
@@ -457,26 +611,45 @@ function startLesson(lessonId) {
         return;
     }
 
-    userData.activeLesson = lessonId;
-    uiState.lessonStartMs = Date.now();
-    saveUserData();
+    // Get difficulty level from options or user's current unlocked level
+    const lessonProgress = userData.lessonProgress?.[lessonId] || {};
+    const difficultyLevel = options.difficultyLevel || getUnlockedLevel(lessonProgress);
 
-    const challenges = buildLessonChallenges(lesson, {
-        learnedWords: getLearnedWords()
-    });
+    const resumeState = options.resumeState || loadActiveLessonState();
+    const canResume = resumeState && resumeState.lessonId === lessonId && Array.isArray(resumeState.challenges);
+    if (resumeState && resumeState.lessonId && resumeState.lessonId !== lessonId) {
+        clearActiveLessonState();
+    }
+
+    const personalization = buildPersonalizationProfile(lesson);
+
+    const challenges = canResume
+        ? resumeState.challenges
+        : buildLessonChallenges(lesson, { 
+            learnedWords: getLearnedWords(),
+            difficultyLevel,
+            lessonProgress,
+            personalization
+        });
+
+    const startTime = canResume ? (resumeState.startTime || Date.now()) : Date.now();
+    userData.activeLesson = lessonId;
+    uiState.lessonStartMs = startTime;
+    saveUserData();
 
     const lessonState = {
         lesson,
         challenges,
-        currentIndex: 0,
-        correct: 0,
-        mistakes: 0,
-        startTime: Date.now(),
-        wrongAnswers: [],
-        hardMode: !!userData.hardMode
+        currentIndex: canResume ? Math.min(resumeState.currentIndex || 0, challenges.length) : 0,
+        correct: canResume ? resumeState.correct || 0 : 0,
+        mistakes: canResume ? resumeState.mistakes || 0 : 0,
+        startTime,
+        wrongAnswers: canResume && Array.isArray(resumeState.wrongAnswers) ? resumeState.wrongAnswers : [],
+        hardMode: canResume ? !!resumeState.hardMode : !!userData.hardMode
     };
 
     uiState.activeLessonState = lessonState;
+    persistActiveLessonState(lessonState);
 
     const section = document.querySelector('.learning-section');
     if (!section) return;
@@ -549,6 +722,7 @@ function startLesson(lessonId) {
 
     document.getElementById('backToLessons').addEventListener('click', () => {
         if (!confirm('Exit lesson? Your progress will be saved.')) return;
+        persistActiveLessonState(lessonState);
         lessonState.renderer?.destroy();
         backToLessons();
     });
@@ -563,6 +737,8 @@ function renderChallenge(state) {
 
     const progress = (state.currentIndex / state.challenges.length) * 100;
     if (progressFill) progressFill.style.width = `${progress}%`;
+
+    persistActiveLessonState(state);
 
     if (state.currentIndex >= state.challenges.length) {
         renderLessonComplete(state);
@@ -584,6 +760,7 @@ function renderLessonComplete(state) {
     state.renderer?.destroy();
     state.renderer = null;
     uiState.activeLessonState = null;
+    clearActiveLessonState();
 
     const durationSec = Math.max(1, Math.round((Date.now() - state.startTime) / 1000));
     const minutes = Math.floor(durationSec / 60);
@@ -946,10 +1123,6 @@ function resolveWordForm(word, speakerGender) {
     return word.pt;
 }
 
-function getWordKey(word) {
-    return `${word.pt}|${word.en}`;
-}
-
 // Debounced UI updates to prevent flicker from rapid state changes
 function debouncedUIUpdate() {
     debounce('ui-update', () => {
@@ -1135,6 +1308,7 @@ function completeLesson(lesson, options = {}) {
     userData.streak += 1;
     userData.activeLesson = null;
     userData.lastLessonId = lessonId;
+    clearActiveLessonState();
 
     if (uiState.lessonStartMs && idx !== -1) {
         const durationSec = Math.max(1, Math.round((Date.now() - uiState.lessonStartMs) / 1000));
@@ -3640,6 +3814,13 @@ function renderCoachPanel() {
     renderSkillDashboard();
 }
 
+function maybeResumeActiveLesson() {
+    const savedState = loadActiveLessonState();
+    if (savedState?.lessonId) {
+        startLesson(savedState.lessonId, { resumeState: savedState });
+    }
+}
+
 function analyzeSkills() {
     const skillDefs = [
         {
@@ -3825,6 +4006,9 @@ function initApp() {
 
     // Header/profile stats
     updateDashboard();
+
+    // Resume an in-progress lesson if we have a saved session
+    maybeResumeActiveLesson();
 }
 
 // Initialize lesson loader and then the app

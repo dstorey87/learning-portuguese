@@ -80,6 +80,7 @@ function parseCSV(csvString) {
 
 /**
  * Transform CSV row into word object
+ * Parses ALL CSV columns including helper information
  */
 function transformCSVRow(row) {
     const examples = [];
@@ -97,6 +98,11 @@ function transformCSVRow(row) {
         examples.push({ pt: row.example_pt, en: row.example_en || '' });
     }
 
+    // Parse distractors from semicolon-separated string
+    const distractors = row.distractors 
+        ? row.distractors.split(';').map(d => d.trim()).filter(Boolean)
+        : [];
+
     return {
         id: row.word_id || row.portuguese?.toLowerCase().replace(/\s+/g, '_') || '',
         pt: row.portuguese || row.word || '',
@@ -104,11 +110,17 @@ function transformCSVRow(row) {
         audio: (row.portuguese || row.word || '').toLowerCase().replace(/\s+/g, '-'),
         pronunciation: row.pronunciation || row.sounds_like || '',
         type: row.type || 'vocabulary',
+        difficulty: row.difficulty || 'beginner_1',
+        // Helper information - critical for learning
+        mnemonic: row.mnemonic || '',
         grammarNotes: row.grammar_notes || '',
         culturalNote: row.cultural_note || '',
         aiTip: row.tip || '',
         examples: examples,
-        image: row.image || ''
+        image: row.image || '',
+        // Distractors for quiz options
+        distractors: distractors,
+        exerciseOrder: parseInt(row.exercise_order) || 0
     };
 }
 
@@ -232,7 +244,9 @@ async function loadLessonFromCSV(lessonId, lessonMeta) {
         difficultyLevel: lessonMeta.difficultyLevel || 'beginner',
         words: words,
         sentences: sentences,
-        challenges: generateChallenges(words),
+        // NOTE: Don't pre-generate challenges - let TemplateBuilder handle it
+        // This ensures learn-word, MCQ, pronunciation phases are properly created
+        challenges: [],
         source: 'csv'
     };
 }

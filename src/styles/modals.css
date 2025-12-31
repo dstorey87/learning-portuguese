@@ -391,3 +391,83 @@ dialog.modal[open] {
 .modal.animate-out {
     animation: modal-fade-out var(--transition-normal) forwards;
 }
+
+/* ============================================================================
+   DIFFICULTY SELECTOR MODAL
+   ============================================================================ */
+
+.difficulty-selector-modal {
+    opacity: 1;
+    visibility: visible;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.difficulty-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.difficulty-option {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0.25rem 0.75rem;
+    align-items: center;
+    padding: 1rem;
+    border: 2px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.difficulty-option:hover:not([disabled]) {
+    border-color: var(--primary-color, #6366f1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.difficulty-option.current {
+    border-color: var(--primary-color, #6366f1);
+    background: var(--primary-light, #eef2ff);
+}
+
+.difficulty-option.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.difficulty-option .diff-icon {
+    grid-row: span 2;
+    font-size: 2rem;
+}
+
+.difficulty-option .diff-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.difficulty-option .diff-desc {
+    grid-column: 2;
+    font-size: 0.85rem;
+    color: var(--text-muted, #64748b);
+}
+
+.difficulty-option .lock-icon {
+    grid-row: span 2;
+    font-size: 1.5rem;
+}
+
+.difficulty-option .current-badge {
+    grid-row: span 2;
+    background: var(--primary-color, #6366f1);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
