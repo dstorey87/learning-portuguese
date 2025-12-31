@@ -178,16 +178,25 @@ function resolveChallengeImage(challenge, lesson) {
 
     // Get the word data for image lookup
     const word = challenge.word || challenge;
+    
+    // PRIORITY 1: Check for explicit image_url field (direct URL from CSV)
+    // This is the industry-standard approach used by Anki, Quizlet, Memrise
+    // Check both snake_case and camelCase for compatibility
+    const explicitImageUrl = word?.image_url || word?.imageUrl || challenge?.image_url || challenge?.imageUrl;
+    if (explicitImageUrl && isValidImageUrl(explicitImageUrl)) {
+        return toBackground(explicitImageUrl);
+    }
+    
     const imageKey = word?.image || challenge.image;
     const englishWord = word?.en || word?.english || challenge.english || '';
     
-    // Use curated word image mapping - this is the PRIMARY source now
+    // PRIORITY 2: Use curated word image mapping 
     const wordMappedImage = getWordImageUrl(imageKey, englishWord);
     if (wordMappedImage && wordMappedImage !== getWordImageUrl('default')) {
         return toBackground(wordMappedImage);
     }
 
-    // Check for explicit full URLs in challenge/word data
+    // PRIORITY 3: Check for explicit full URLs in challenge/word data (legacy)
     const explicitImage = challenge.image || challenge.media?.image || word?.image;
     if (explicitImage && isValidImageUrl(explicitImage)) {
         return toBackground(explicitImage);
@@ -212,18 +221,26 @@ function resolveChallengeImage(challenge, lesson) {
 /**
  * Get a plain image URL for a word (not wrapped in url())
  * Used for <img src="..."> elements
- * @param {Object} word - Word object with image, en, pt properties
+ * @param {Object} word - Word object with image, image_url, en, pt properties
  * @param {Object} lesson - Lesson object for context
  * @returns {string|null} - Image URL or null
  */
 function getWordImage(word, lesson) {
     if (!word) return null;
     
+    // PRIORITY 1: Check for explicit image_url field (direct URL from CSV)
+    // This is the industry-standard approach used by Anki, Quizlet, Memrise
+    // Check both snake_case and camelCase for compatibility
+    const explicitUrl = word.image_url || word.imageUrl;
+    if (explicitUrl && isValidImageUrl(explicitUrl)) {
+        return explicitUrl;
+    }
+    
     // Get the image key from word data
     const imageKey = word.image || '';
     const englishWord = word.en || word.english || '';
     
-    // Use the curated image mapping
+    // PRIORITY 2: Use the curated image mapping
     const imageUrl = getWordImageUrl(imageKey, englishWord);
     
     // Return null if only got the default fallback and no meaningful key
@@ -1830,9 +1847,8 @@ export class ChallengeRenderer {
         const isFirstExposure = challenge.isFirstExposure === true;
         const isReinforcement = challenge.isReinforcement === true;
         
-        // Get the word image URL
-        const imageKey = word?.image || challenge.image;
-        const wordImageUrl = getWordImageUrl(imageKey, word.en);
+        // Get the word image URL using the proper helper (checks image_url first)
+        const wordImageUrl = getWordImage(word, state.lesson);
         
         // Practice-first instruction varies based on exposure
         const instruction = isFirstExposure 

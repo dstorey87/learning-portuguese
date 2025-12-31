@@ -118,6 +118,10 @@ function transformCSVRow(row) {
         aiTip: row.tip || '',
         examples: examples,
         image: row.image || '',
+        // Explicit image URL - industry standard approach (Anki/Quizlet style)
+        // BOTH snake_case and camelCase for compatibility across different consumers
+        image_url: row.image_url || '',
+        imageUrl: row.image_url || '',  // camelCase alias for TemplateBuilder/ChallengeRenderer
         // Distractors for quiz options
         distractors: distractors,
         exerciseOrder: parseInt(row.exercise_order) || 0

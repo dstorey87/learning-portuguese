@@ -52,4 +52,38 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Status:** Open
 - **Proposed Fix:** Review and enhance the telemetry logging mechanism to ensure all relevant events are captured consistently.
 
+## bug-011: Speech recognition converts Portuguese words to integers
+- **Description:** When users speak Portuguese numbers (e.g., "quatro"), the speech recognition system converts them to integers (4) instead of recognizing the actual word. This causes scoring to fail (only 10% match).
+- **Impact:** CRITICAL - Users cannot complete pronunciation exercises for numbers correctly, as the system compares "4" against "quatro".
+- **Status:** Open
+- **Priority:** High
+- **Proposed Fix:** Modify speech recognition result handling to preserve the spoken word text rather than auto-converting to numerical values. Check Azure Speech SDK settings for number formatting options.
+
+## bug-012: Learn-the-word sections score 0% instead of auto-passing
+- **Description:** Instructional screens that teach vocabulary (not questions) are scoring 0% when users aren't required to answer anything. These should automatically pass as they're informational only.
+- **Impact:** High - Skews user progress metrics and may prevent lesson completion if pass thresholds aren't met.
+- **Status:** Open
+- **Priority:** High
+- **Proposed Fix:** Identify exercise types that are instructional (no user input required) and mark them as auto-pass. Exclude from scoring calculations.
+
+## bug-013: Questions display both question AND answer on same screen
+- **Description:** Some exercises show the answer alongside the question. For example, asking "What is the Portuguese word for X?" but showing both Portuguese and English in the answer options.
+- **Impact:** CRITICAL - Defeats the purpose of the exercise as users can simply match without learning.
+- **Status:** Open
+- **Priority:** High
+- **Proposed Fix:** Review ChallengeRenderer and exercise generation logic to ensure answer options only contain the target language, not bilingual pairs.
+
+## bug-014: Word images do not accurately represent vocabulary
+- **Description:** Images shown for vocabulary words often don't match the word meaning. The current keyword-matching system was unreliable.
+- **Impact:** High - Incorrect visual associations can confuse learners and impede vocabulary acquisition.
+- **Status:** ✅ FIXED (Numbers 1-10 lesson)
+- **Priority:** High
+- **Fix Applied:**
+  1. Added explicit `image_url` column to CSV files (industry standard per Anki/Quizlet/Memrise research)
+  2. Modified CSVOnlyLessonLoader.js to parse `image_url` field and expose as both `image_url` and `imageUrl`
+  3. Updated ChallengeRenderer.js `getWordImage()` helper to check explicit URL FIRST before keyword matching
+  4. Fixed renderMCQ() to use `getWordImage()` helper instead of bypassing it
+- **Evidence:** Screenshots in `.playwright-mcp/numbers_image_fix_*.png` show correct images loading from CSV URLs
+- **Rollout:** Numbers 1-10 complete. Other lessons can be updated by adding `image_url` column with curated URLs.
+
 
