@@ -727,3 +727,140 @@
 .dark-theme .mcq-card.reinforcement {
     border-left-color: #4ade80;
 }
+
+/* ===== WORD IMAGE DISPLAY ===== */
+.word-image-container {
+    width: 100%;
+    max-width: 280px;
+    height: 180px;
+    margin: 0 auto 16px auto;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+    position: relative;
+}
+
+.word-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.word-image-container:hover .word-image {
+    transform: scale(1.05);
+}
+
+/* Prompt image - larger, centered above the question */
+.word-image-container.prompt-image {
+    max-width: 200px;
+    max-height: 150px;
+    margin: 0 auto 16px auto;
+}
+
+/* Image loading state */
+.word-image-container.loading {
+    animation: image-shimmer 1.5s infinite;
+}
+
+@keyframes image-shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
+}
+
+.word-image-container.loading::before {
+    content: '🖼️';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+/* Compact image for options */
+.option-image-container {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.option-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* MCQ option with image layout */
+.mcq-option.has-image {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.mcq-option.has-image .option-image-container {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.mcq-option.has-image .mcq-option-pt,
+.mcq-option.has-image .mcq-option-en {
+    text-align: left;
+}
+
+/* MCQ option with image */
+.mcq-option-with-image {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.mcq-option-with-image .option-text {
+    flex: 1;
+}
+
+/* Reverse selection (Portuguese word cards) */
+.reverse-option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    min-height: 140px;
+    justify-content: center;
+    gap: 8px;
+}
+
+.reverse-option-card .option-image-container {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+}
+
+.reverse-option-card .option-pt {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.reverse-option-card .option-en {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Dark theme */
+.dark-theme .word-image-container {
+    background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+

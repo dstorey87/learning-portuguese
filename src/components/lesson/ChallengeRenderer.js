@@ -34,6 +34,7 @@ import {
     getLearnedWords 
 } from '../../services/ProgressTracker.js';
 import { getAllLessons, getLessonImage as getLessonImageData } from '../../data/LessonLoader.js';
+import { getWordImageUrl, isValidImageUrl } from '../../config/wordImages.config.js';
 
 // Create logger for this module
 const logger = createLogger({ context: 'ChallengeRenderer' });
@@ -167,48 +168,45 @@ export function getWordKey(word) {
  * before hitting remote Unsplash URLs.
  */
 function resolveChallengeImage(challenge, lesson) {
-    // Convert value to CSS background url, but only if it looks like a real path/URL
-    // Skip simple names like 'wave', 'sunrise' that aren't file paths
+    // Convert value to CSS background url
     const toBackground = (value) => {
         if (!value) return null;
         const str = String(value).trim();
-        // Already a CSS url() value
         if (str.startsWith('url(')) return str;
-        // Skip if it's just a simple word (no path separators, dots for extension, or protocol)
-        const looksLikePath = str.includes('/') || str.includes('.') || str.startsWith('http') || str.startsWith('data:');
-        if (!looksLikePath) return null;
         return `url('${str}')`;
     };
 
-    const challengeImage = toBackground(challenge.image || challenge.media?.image);
-    const explicitWordImage = toBackground(challenge.word?.image || challenge.word?.media?.image);
-    const wordSvg = buildWordSvg(challenge.word, lesson);
-    const wordRemote = toBackground(buildWordRemoteImage(challenge.word, lesson));
+    // Get the word data for image lookup
+    const word = challenge.word || challenge;
+    const imageKey = word?.image || challenge.image;
+    const englishWord = word?.en || word?.english || challenge.english || '';
+    
+    // Use curated word image mapping - this is the PRIMARY source now
+    const wordMappedImage = getWordImageUrl(imageKey, englishWord);
+    if (wordMappedImage && wordMappedImage !== getWordImageUrl('default')) {
+        return toBackground(wordMappedImage);
+    }
 
-    // Pull structured lesson image data (local/svg/remotes)
+    // Check for explicit full URLs in challenge/word data
+    const explicitImage = challenge.image || challenge.media?.image || word?.image;
+    if (explicitImage && isValidImageUrl(explicitImage)) {
+        return toBackground(explicitImage);
+    }
+
+    // Fall back to lesson-level images
     const lessonImageData = lesson
         ? getLessonImageData(lesson)
         : getLessonImageData({ id: 'default', topicId: 'default', title: 'Lesson' });
 
-    const lessonLocal = toBackground(
-        lessonImageData?.localUrl
-        || lessonImageData?.url // lesson.image url may already be local
-    );
-    const lessonSvg = toBackground(lessonImageData?.svgUrl);
-    const lessonRemote = toBackground(lessonImageData?.remoteUrl);
-    const lessonRemoteFallback = toBackground(lessonImageData?.remoteFallbackUrl);
+    const lessonLocal = toBackground(lessonImageData?.localUrl || lessonImageData?.url);
+    if (lessonLocal) return lessonLocal;
 
-    // Priority: explicit/challenge → word local → deterministic (svg/local) → remote pools
-    return (
-        challengeImage
-        || explicitWordImage
-        || wordSvg
-        || lessonLocal
-        || lessonSvg
-        || wordRemote
-        || lessonRemote
-        || lessonRemoteFallback
-    );
+    // Final fallback: use mapped image even if default, or generate SVG
+    if (wordMappedImage) {
+        return toBackground(wordMappedImage);
+    }
+    
+    return buildWordSvg(word, lesson);
 }
 
 // Generate a deterministic inline SVG for each word so every challenge has a unique, relevant visual
@@ -1807,6 +1805,10 @@ export class ChallengeRenderer {
         const isFirstExposure = challenge.isFirstExposure === true;
         const isReinforcement = challenge.isReinforcement === true;
         
+        // Get the word image URL
+        const imageKey = word?.image || challenge.image;
+        const wordImageUrl = getWordImageUrl(imageKey, word.en);
+        
         // Practice-first instruction varies based on exposure
         const instruction = isFirstExposure 
             ? '🎯 New word! Listen and guess the meaning'
@@ -1818,6 +1820,9 @@ export class ChallengeRenderer {
             <div class="challenge-card mcq-card ${isFirstExposure ? 'first-exposure' : ''} ${isReinforcement ? 'reinforcement' : ''}">
                 <div class="challenge-instruction">${instruction}</div>
                 ${isFirstExposure ? '<div class="first-exposure-hint">Don\'t worry if you don\'t know yet - just give it your best guess! 🎲</div>' : ''}
+                <div class="word-image-container loading" id="wordImageContainer">
+                    <img src="${wordImageUrl}" alt="${escapeHtml(word.en)}" class="word-image" id="wordImage" loading="eager">
+                </div>
                 <div class="mcq-prompt">
                     <span class="mcq-word">${escapeHtml(resolved)}</span>
                     <button class="btn-listen-small" id="listenBtn">🔊</button>
@@ -1836,6 +1841,18 @@ export class ChallengeRenderer {
                 </div>
             </div>
         `;
+        
+        // Handle image load state
+        const wordImage = document.getElementById('wordImage');
+        const imageContainer = document.getElementById('wordImageContainer');
+        if (wordImage) {
+            wordImage.onload = () => imageContainer?.classList.remove('loading');
+            wordImage.onerror = () => {
+                // On error, show a colored placeholder
+                imageContainer?.classList.remove('loading');
+                wordImage.style.display = 'none';
+            };
+        }
         
         // Auto-play audio for first exposure (practice-first pattern)
         if (isFirstExposure) {
@@ -1914,17 +1931,32 @@ export class ChallengeRenderer {
         const resolvedOptions = options.length ? options : [{ key: answerKey, en: word.en, pt: word.pt }];
         const lessonTitle = state.lesson?.title || 'Lesson';
 
+        // Get image for the main prompt word
+        const promptImageUrl = getWordImage(word, state.lesson);
+
         container.innerHTML = `
             <div class="challenge-card type-card">
                 <div class="challenge-instruction">${instruction}</div>
+                ${promptImageUrl ? `
+                    <div class="word-image-container prompt-image">
+                        <img class="word-image" src="${promptImageUrl}" alt="${escapeHtml(word.en)}" loading="lazy" onerror="this.parentElement.classList.add('image-error')">
+                    </div>
+                ` : ''}
                 <div class="type-prompt">${escapeHtml(prompt)}</div>
                 <div class="mcq-options">
-                    ${resolvedOptions.map(opt => `
-                        <button class="mcq-option" data-key="${escapeHtml(opt.key)}">
+                    ${resolvedOptions.map(opt => {
+                        const optImageUrl = getWordImage(opt, state.lesson);
+                        return `
+                        <button class="mcq-option ${optImageUrl ? 'has-image' : ''}" data-key="${escapeHtml(opt.key)}">
+                            ${optImageUrl ? `
+                                <div class="option-image-container">
+                                    <img class="option-image" src="${optImageUrl}" alt="${escapeHtml(opt.en || '')}" loading="lazy" onerror="this.parentElement.classList.add('image-error')">
+                                </div>
+                            ` : ''}
                             <div class="mcq-option-pt">${escapeHtml(opt.pt || opt.en || '')}</div>
                             <div class="mcq-option-en">${escapeHtml(opt.en || '')}</div>
                         </button>
-                    `).join('')}
+                    `;}).join('')}
                 </div>
                 <div class="challenge-feedback" id="feedback"></div>
                 <button class="btn-save-word btn-save-small" id="saveWordBtn" data-pt="${escapeHtml(word.pt)}" data-en="${escapeHtml(word.en)}">💾 Save</button>
