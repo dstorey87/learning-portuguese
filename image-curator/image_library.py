@@ -99,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_queue_priority ON curation_queue(priority DESC);
 @dataclass
 class ImageRecord:
     """Image database record."""
+
     word: str
     url: str
     source: str
@@ -123,33 +124,33 @@ class ImageRecord:
     ai_model: Optional[str] = None
     ai_reason: Optional[str] = None
     ai_validated_at: Optional[str] = None
-    status: str = 'candidate'
+    status: str = "candidate"
     manually_verified: bool = False
     verified_by: Optional[str] = None
     verified_at: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         d = asdict(self)
         # Convert tags list to JSON string for storage
-        if isinstance(d.get('tags'), list):
-            d['tags'] = json.dumps(d['tags'])
+        if isinstance(d.get("tags"), list):
+            d["tags"] = json.dumps(d["tags"])
         return d
-    
+
     @classmethod
-    def from_row(cls, row: sqlite3.Row) -> 'ImageRecord':
+    def from_row(cls, row: sqlite3.Row) -> "ImageRecord":
         """Create from database row."""
         d = dict(row)
         # Parse tags JSON
-        if d.get('tags'):
+        if d.get("tags"):
             try:
-                d['tags'] = json.loads(d['tags'])
+                d["tags"] = json.loads(d["tags"])
             except:
-                d['tags'] = []
+                d["tags"] = []
         else:
-            d['tags'] = []
+            d["tags"] = []
         return cls(**d)
 
 
@@ -158,23 +159,23 @@ class ImageLibrary:
     SQLite-based image library for vocabulary images.
     Designed for easy migration to cloud databases.
     """
-    
+
     def __init__(self, db_path: Optional[str] = None):
         """
         Initialize the image library.
-        
+
         Args:
             db_path: Path to SQLite database. Defaults to image-curator/images.db
         """
-        self.db_path = db_path or str(Path(__file__).parent / 'images.db')
+        self.db_path = db_path or str(Path(__file__).parent / "images.db")
         self._init_database()
-    
+
     def _init_database(self) -> None:
         """Initialize database schema."""
         with self._get_connection() as conn:
             conn.executescript(SCHEMA)
             logger.info(f"Database initialized at {self.db_path}")
-    
+
     @contextmanager
     def _get_connection(self):
         """Get database connection with row factory."""
@@ -188,100 +189,101 @@ class ImageLibrary:
             raise
         finally:
             conn.close()
-    
+
     # =========================================================================
     # CRUD Operations
     # =========================================================================
-    
-    def add_image(self, image: ImageRecord, actor: str = 'system') -> int:
+
+    def add_image(self, image: ImageRecord, actor: str = "system") -> int:
         """
         Add an image to the library.
-        
+
         Args:
             image: ImageRecord to add
             actor: Who is adding (for audit trail)
-        
+
         Returns:
             ID of inserted image
         """
         with self._get_connection() as conn:
             data = image.to_dict()
-            data.pop('id', None)  # Remove id for insert
-            data['created_at'] = datetime.now().isoformat()
-            data['updated_at'] = data['created_at']
-            
-            columns = ', '.join(data.keys())
-            placeholders = ', '.join(['?' for _ in data])
-            
+            data.pop("id", None)  # Remove id for insert
+            data["created_at"] = datetime.now().isoformat()
+            data["updated_at"] = data["created_at"]
+
+            columns = ", ".join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+
             cursor = conn.execute(
                 f"INSERT OR REPLACE INTO images ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             image_id = cursor.lastrowid
-            
+
             # Log history
-            self._log_history(conn, image_id, 'created', actor, 
-                           f"Added image from {image.source}")
-            
+            self._log_history(
+                conn, image_id, "created", actor, f"Added image from {image.source}"
+            )
+
             logger.info(f"Added image {image_id} for word '{image.word}'")
             return image_id
-    
+
     def get_image(self, image_id: int) -> Optional[ImageRecord]:
         """Get image by ID."""
         with self._get_connection() as conn:
             row = conn.execute(
-                "SELECT * FROM images WHERE id = ?", 
-                (image_id,)
+                "SELECT * FROM images WHERE id = ?", (image_id,)
             ).fetchone()
             return ImageRecord.from_row(row) if row else None
-    
+
     def get_images_for_word(self, word: str) -> List[ImageRecord]:
         """Get all images for a word."""
         with self._get_connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM images WHERE word = ? ORDER BY ai_score_total DESC",
-                (word,)
+                (word,),
             ).fetchall()
             return [ImageRecord.from_row(row) for row in rows]
-    
+
     def get_selected_image(self, word: str) -> Optional[ImageRecord]:
         """Get the selected image for a word."""
         with self._get_connection() as conn:
             row = conn.execute(
                 "SELECT * FROM images WHERE word = ? AND status = 'selected' LIMIT 1",
-                (word,)
+                (word,),
             ).fetchone()
             return ImageRecord.from_row(row) if row else None
-    
-    def update_image(self, image_id: int, updates: Dict, actor: str = 'system') -> bool:
+
+    def update_image(self, image_id: int, updates: Dict, actor: str = "system") -> bool:
         """
         Update image fields.
-        
+
         Args:
             image_id: Image ID
             updates: Dictionary of fields to update
             actor: Who is updating
-        
+
         Returns:
             True if updated
         """
         if not updates:
             return False
-        
-        updates['updated_at'] = datetime.now().isoformat()
-        
+
+        updates["updated_at"] = datetime.now().isoformat()
+
         with self._get_connection() as conn:
-            set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
+            set_clause = ", ".join([f"{k} = ?" for k in updates.keys()])
             conn.execute(
                 f"UPDATE images SET {set_clause} WHERE id = ?",
-                list(updates.values()) + [image_id]
+                list(updates.values()) + [image_id],
             )
-            
-            self._log_history(conn, image_id, 'updated', actor,
-                           f"Updated: {list(updates.keys())}")
+
+            self._log_history(
+                conn, image_id, "updated", actor, f"Updated: {list(updates.keys())}"
+            )
             return True
-    
-    def select_image(self, image_id: int, actor: str = 'ai') -> bool:
+
+    def select_image(self, image_id: int, actor: str = "ai") -> bool:
         """
         Mark an image as selected for its word.
         Deselects any previously selected image for the same word.
@@ -289,44 +291,44 @@ class ImageLibrary:
         with self._get_connection() as conn:
             # Get the word for this image
             row = conn.execute(
-                "SELECT word FROM images WHERE id = ?", 
-                (image_id,)
+                "SELECT word FROM images WHERE id = ?", (image_id,)
             ).fetchone()
-            
+
             if not row:
                 return False
-            
-            word = row['word']
-            
+
+            word = row["word"]
+
             # Deselect any existing selection
             conn.execute(
                 "UPDATE images SET status = 'candidate' WHERE word = ? AND status = 'selected'",
-                (word,)
+                (word,),
             )
-            
+
             # Select this image
             conn.execute(
                 "UPDATE images SET status = 'selected', updated_at = ? WHERE id = ?",
-                (datetime.now().isoformat(), image_id)
+                (datetime.now().isoformat(), image_id),
             )
-            
-            self._log_history(conn, image_id, 'selected', actor,
-                           f"Selected as image for '{word}'")
-            
+
+            self._log_history(
+                conn, image_id, "selected", actor, f"Selected as image for '{word}'"
+            )
+
             logger.info(f"Selected image {image_id} for word '{word}'")
             return True
-    
-    def reject_image(self, image_id: int, reason: str, actor: str = 'ai') -> bool:
+
+    def reject_image(self, image_id: int, reason: str, actor: str = "ai") -> bool:
         """Mark an image as rejected."""
         with self._get_connection() as conn:
             conn.execute(
                 "UPDATE images SET status = 'rejected', updated_at = ? WHERE id = ?",
-                (datetime.now().isoformat(), image_id)
+                (datetime.now().isoformat(), image_id),
             )
-            
-            self._log_history(conn, image_id, 'rejected', actor, reason)
+
+            self._log_history(conn, image_id, "rejected", actor, reason)
             return True
-    
+
     def verify_image(self, image_id: int, verified_by: str) -> bool:
         """Manually verify an image."""
         with self._get_connection() as conn:
@@ -337,27 +339,32 @@ class ImageLibrary:
                    verified_at = ?,
                    updated_at = ?
                    WHERE id = ?""",
-                (verified_by, datetime.now().isoformat(), 
-                 datetime.now().isoformat(), image_id)
+                (
+                    verified_by,
+                    datetime.now().isoformat(),
+                    datetime.now().isoformat(),
+                    image_id,
+                ),
             )
-            
-            self._log_history(conn, image_id, 'verified', f'admin:{verified_by}',
-                           'Manually verified')
+
+            self._log_history(
+                conn, image_id, "verified", f"admin:{verified_by}", "Manually verified"
+            )
             return True
-    
-    def delete_image(self, image_id: int, actor: str = 'system') -> bool:
+
+    def delete_image(self, image_id: int, actor: str = "system") -> bool:
         """Delete an image from the library."""
         with self._get_connection() as conn:
             # Log before delete
-            self._log_history(conn, image_id, 'deleted', actor, 'Image removed')
-            
+            self._log_history(conn, image_id, "deleted", actor, "Image removed")
+
             conn.execute("DELETE FROM images WHERE id = ?", (image_id,))
             return True
-    
+
     # =========================================================================
     # Query Operations
     # =========================================================================
-    
+
     def search_images(
         self,
         word: Optional[str] = None,
@@ -367,17 +374,17 @@ class ImageLibrary:
         source: Optional[str] = None,
         min_score: Optional[int] = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> Tuple[List[ImageRecord], int]:
         """
         Search images with filters.
-        
+
         Returns:
             Tuple of (results, total_count)
         """
         conditions = []
         params = []
-        
+
         if word:
             conditions.append("word LIKE ?")
             params.append(f"%{word}%")
@@ -396,27 +403,26 @@ class ImageLibrary:
         if min_score is not None:
             conditions.append("ai_score_total >= ?")
             params.append(min_score)
-        
+
         where_clause = " AND ".join(conditions) if conditions else "1=1"
-        
+
         with self._get_connection() as conn:
             # Get total count
             count = conn.execute(
-                f"SELECT COUNT(*) FROM images WHERE {where_clause}",
-                params
+                f"SELECT COUNT(*) FROM images WHERE {where_clause}", params
             ).fetchone()[0]
-            
+
             # Get results
             rows = conn.execute(
                 f"""SELECT * FROM images 
                     WHERE {where_clause} 
                     ORDER BY ai_score_total DESC, created_at DESC
                     LIMIT ? OFFSET ?""",
-                params + [limit, offset]
+                params + [limit, offset],
             ).fetchall()
-            
+
             return [ImageRecord.from_row(row) for row in rows], count
-    
+
     def get_words_without_images(self, lesson_id: Optional[str] = None) -> List[str]:
         """Get words that don't have a selected image."""
         # This would need to be joined with vocabulary data
@@ -433,59 +439,57 @@ class ImageLibrary:
                 rows = conn.execute(query, (lesson_id,)).fetchall()
             else:
                 rows = conn.execute(query).fetchall()
-            
-            return [row['word'] for row in rows]
-    
+
+            return [row["word"] for row in rows]
+
     def get_statistics(self) -> Dict:
         """Get library statistics."""
         with self._get_connection() as conn:
             stats = {}
-            
+
             # Total images
-            stats['total'] = conn.execute(
-                "SELECT COUNT(*) FROM images"
-            ).fetchone()[0]
-            
+            stats["total"] = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+
             # By status
             rows = conn.execute(
                 "SELECT status, COUNT(*) as cnt FROM images GROUP BY status"
             ).fetchall()
-            stats['by_status'] = {row['status']: row['cnt'] for row in rows}
-            
+            stats["by_status"] = {row["status"]: row["cnt"] for row in rows}
+
             # By source
             rows = conn.execute(
                 "SELECT source, COUNT(*) as cnt FROM images GROUP BY source"
             ).fetchall()
-            stats['by_source'] = {row['source']: row['cnt'] for row in rows}
-            
+            stats["by_source"] = {row["source"]: row["cnt"] for row in rows}
+
             # By category
             rows = conn.execute(
                 "SELECT category, COUNT(*) as cnt FROM images WHERE category IS NOT NULL GROUP BY category"
             ).fetchall()
-            stats['by_category'] = {row['category']: row['cnt'] for row in rows}
-            
+            stats["by_category"] = {row["category"]: row["cnt"] for row in rows}
+
             # Words with selected images
-            stats['words_with_images'] = conn.execute(
+            stats["words_with_images"] = conn.execute(
                 "SELECT COUNT(DISTINCT word) FROM images WHERE status = 'selected'"
             ).fetchone()[0]
-            
+
             # Average AI score
             row = conn.execute(
                 "SELECT AVG(ai_score_total) FROM images WHERE ai_score_total IS NOT NULL"
             ).fetchone()
-            stats['avg_ai_score'] = round(row[0], 2) if row[0] else None
-            
+            stats["avg_ai_score"] = round(row[0], 2) if row[0] else None
+
             # Verified images
-            stats['verified'] = conn.execute(
+            stats["verified"] = conn.execute(
                 "SELECT COUNT(*) FROM images WHERE manually_verified = TRUE"
             ).fetchone()[0]
-            
+
             return stats
-    
+
     # =========================================================================
     # Queue Operations
     # =========================================================================
-    
+
     def add_to_queue(self, word: str, lesson_id: str, priority: int = 0) -> bool:
         """Add a word to the curation queue."""
         with self._get_connection() as conn:
@@ -493,12 +497,12 @@ class ImageLibrary:
                 conn.execute(
                     """INSERT OR IGNORE INTO curation_queue 
                        (word, lesson_id, priority) VALUES (?, ?, ?)""",
-                    (word, lesson_id, priority)
+                    (word, lesson_id, priority),
                 )
                 return True
             except:
                 return False
-    
+
     def get_next_queue_item(self) -> Optional[Dict]:
         """Get next item from curation queue."""
         with self._get_connection() as conn:
@@ -508,22 +512,24 @@ class ImageLibrary:
                    ORDER BY priority DESC, created_at ASC 
                    LIMIT 1"""
             ).fetchone()
-            
+
             if row:
                 conn.execute(
                     "UPDATE curation_queue SET status = 'processing', last_attempt_at = ? WHERE id = ?",
-                    (datetime.now().isoformat(), row['id'])
+                    (datetime.now().isoformat(), row["id"]),
                 )
                 return dict(row)
             return None
-    
-    def complete_queue_item(self, queue_id: int, success: bool, error: str = None) -> None:
+
+    def complete_queue_item(
+        self, queue_id: int, success: bool, error: str = None
+    ) -> None:
         """Mark queue item as complete or failed."""
         with self._get_connection() as conn:
             if success:
                 conn.execute(
                     "UPDATE curation_queue SET status = 'completed' WHERE id = ?",
-                    (queue_id,)
+                    (queue_id,),
                 )
             else:
                 conn.execute(
@@ -532,37 +538,39 @@ class ImageLibrary:
                        attempts = attempts + 1,
                        error_message = ?
                        WHERE id = ?""",
-                    (error, queue_id)
+                    (error, queue_id),
                 )
-    
+
     def get_queue_stats(self) -> Dict:
         """Get queue statistics."""
         with self._get_connection() as conn:
             rows = conn.execute(
                 "SELECT status, COUNT(*) as cnt FROM curation_queue GROUP BY status"
             ).fetchall()
-            return {row['status']: row['cnt'] for row in rows}
-    
+            return {row["status"]: row["cnt"] for row in rows}
+
     # =========================================================================
     # History/Audit
     # =========================================================================
-    
-    def _log_history(self, conn, image_id: int, action: str, actor: str, details: str) -> None:
+
+    def _log_history(
+        self, conn, image_id: int, action: str, actor: str, details: str
+    ) -> None:
         """Log an action to history."""
         conn.execute(
             "INSERT INTO image_history (image_id, action, actor, details) VALUES (?, ?, ?, ?)",
-            (image_id, action, actor, details)
+            (image_id, action, actor, details),
         )
-    
+
     def get_history(self, image_id: int) -> List[Dict]:
         """Get history for an image."""
         with self._get_connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM image_history WHERE image_id = ? ORDER BY created_at DESC",
-                (image_id,)
+                (image_id,),
             ).fetchall()
             return [dict(row) for row in rows]
-    
+
     def get_recent_activity(self, limit: int = 50) -> List[Dict]:
         """Get recent activity across all images."""
         with self._get_connection() as conn:
@@ -572,7 +580,7 @@ class ImageLibrary:
                    LEFT JOIN images i ON h.image_id = i.id
                    ORDER BY h.created_at DESC 
                    LIMIT ?""",
-                (limit,)
+                (limit,),
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -583,10 +591,11 @@ def get_library(db_path: Optional[str] = None) -> ImageLibrary:
     return ImageLibrary(db_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     logging.basicConfig(level=logging.INFO)
-    
+
     library = get_library()
     stats = library.get_statistics()
     print("Image Library Statistics:")

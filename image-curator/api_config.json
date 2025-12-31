@@ -36,9 +36,26 @@
       "image_sizes": ["webformatURL", "largeImageURL", "fullHDURL", "imageURL"],
       "preferred_size": "webformatURL"
     },
+    "openverse": {
+      "enabled": true,
+      "priority": 3,
+      "base_url": "https://api.openverse.org/v1/images",
+      "key_env_var": "OPENVERSE_API_KEY",
+      "rate_limit": {
+        "requests_per_day": 100,
+        "requests_per_day_authenticated": 10000
+      },
+      "features": {
+        "search": true,
+        "attribution_required": true,
+        "hotlinking_allowed": true,
+        "cc_licensed": true
+      },
+      "note": "800M+ Creative Commons images from museums, libraries, archives"
+    },
     "unsplash": {
       "enabled": false,
-      "priority": 3,
+      "priority": 4,
       "base_url": "https://api.unsplash.com",
       "key_env_var": "UNSPLASH_ACCESS_KEY",
       "rate_limit": {

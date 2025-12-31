@@ -11,56 +11,45 @@ from .api_client import (
     ImageResult,
     PexelsClient,
     PixabayClient,
-    create_api_client
+    create_api_client,
 )
 from .image_search import (
     ImageSearchOrchestrator,
     ImageCache,
     create_orchestrator,
-    search_for_word
+    search_for_word,
 )
-from .image_library import (
-    ImageLibrary,
-    ImageRecord,
-    get_library
-)
-from .storage import (
-    MetadataSidecar,
-    LocalImageStorage
-)
-from .batch_curator import (
-    BatchCurator,
-    BatchConfig,
-    BatchProgress
-)
+from .image_library import ImageLibrary, ImageRecord, get_library
+from .storage import MetadataSidecar, LocalImageStorage
+from .batch_curator import BatchCurator, BatchConfig, BatchProgress
 from .batch_operations import BatchOperations
 
 __all__ = [
-    'GPUManager',
-    'get_gpu_manager',
-    'VisionClient', 
-    'create_vision_client',
-    'ImageScore',
-    'ImageCurator',
-    'CurationResult',
-    'ImageAPIClient',
-    'ImageResult',
-    'PexelsClient',
-    'PixabayClient',
-    'create_api_client',
-    'ImageSearchOrchestrator',
-    'ImageCache',
-    'create_orchestrator',
-    'search_for_word',
-    'ImageLibrary',
-    'ImageRecord',
-    'get_library',
-    'MetadataSidecar',
-    'LocalImageStorage',
-    'BatchCurator',
-    'BatchConfig',
-    'BatchProgress',
-    'BatchOperations'
+    "GPUManager",
+    "get_gpu_manager",
+    "VisionClient",
+    "create_vision_client",
+    "ImageScore",
+    "ImageCurator",
+    "CurationResult",
+    "ImageAPIClient",
+    "ImageResult",
+    "PexelsClient",
+    "PixabayClient",
+    "create_api_client",
+    "ImageSearchOrchestrator",
+    "ImageCache",
+    "create_orchestrator",
+    "search_for_word",
+    "ImageLibrary",
+    "ImageRecord",
+    "get_library",
+    "MetadataSidecar",
+    "LocalImageStorage",
+    "BatchCurator",
+    "BatchConfig",
+    "BatchProgress",
+    "BatchOperations",
 ]
 
-__version__ = '0.1.0'
+__version__ = "0.1.0"

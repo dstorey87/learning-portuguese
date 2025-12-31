@@ -28,6 +28,15 @@ export class APIKeyManager {
                 queryKey: 'key',
                 docsUrl: 'https://pixabay.com/api/docs/',
                 freeInfo: 'Free: 100 requests/minute'
+            },
+            openverse: {
+                name: 'Openverse',
+                icon: '🌐',
+                testUrl: 'https://api.openverse.org/v1/images/?q=test&page_size=1',
+                headerKey: 'Authorization',
+                authPrefix: 'Bearer ',
+                docsUrl: 'https://api.openverse.org/v1/',
+                freeInfo: 'Free: 100 requests/day (10K with approval) - 800M CC images'
             }
         };
     }
@@ -53,6 +62,7 @@ export class APIKeyManager {
                     <ol>
                         <li><strong>Pexels</strong>: Visit <a href="https://www.pexels.com/api/" target="_blank">pexels.com/api</a> → Create account → Get API key</li>
                         <li><strong>Pixabay</strong>: Visit <a href="https://pixabay.com/api/docs/" target="_blank">pixabay.com/api/docs</a> → Sign up → Copy API key</li>
+                        <li><strong>Openverse</strong>: Visit <a href="https://api.openverse.org/v1/" target="_blank">api.openverse.org</a> → Register → Get OAuth token</li>
                         <li>Paste keys above and click "Test" to verify</li>
                     </ol>
                     <p class="info-note">
@@ -217,13 +227,19 @@ export class APIKeyManager {
             } else if (apiId === 'pixabay') {
                 const url = `${api.testUrl}&key=${key}`;
                 response = await fetch(url);
+            } else if (apiId === 'openverse') {
+                response = await fetch(api.testUrl, {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
             }
 
             if (response.ok) {
                 const data = await response.json();
                 const resultCount = apiId === 'pexels' 
                     ? data.photos?.length 
-                    : data.hits?.length;
+                    : apiId === 'pixabay'
+                    ? data.hits?.length
+                    : data.results?.length;
                     
                 this._showResult(apiId, 'success', 
                     `✅ Valid! Found ${resultCount} test result(s). Rate limits OK.`);
@@ -304,7 +320,8 @@ export class APIKeyManager {
         const keys = this._getStoredKeys();
         const envFormat = {
             PEXELS_API_KEY: keys.pexels || '',
-            PIXABAY_API_KEY: keys.pixabay || ''
+            PIXABAY_API_KEY: keys.pixabay || '',
+            OPENVERSE_API_KEY: keys.openverse || ''
         };
         localStorage.setItem('portulingo_api_keys_env', JSON.stringify(envFormat));
     }
@@ -316,7 +333,7 @@ export class APIKeyManager {
 
     hasValidKeys() {
         const keys = this._getStoredKeys();
-        return !!(keys.pexels || keys.pixabay);
+        return !!(keys.pexels || keys.pixabay || keys.openverse);
     }
 
     getPexelsKey() {
@@ -325,6 +342,10 @@ export class APIKeyManager {
 
     getPixabayKey() {
         return this._getStoredKeys().pixabay || null;
+    }
+
+    getOpenverseKey() {
+        return this._getStoredKeys().openverse || null;
     }
 }
 

@@ -1822,6 +1822,9 @@ export function refreshDashboard() {
     const container = document.getElementById('adminDashboardContainer');
     if (container) {
         container.innerHTML = renderAdminDashboard();
+        // Re-initialize sub-components after re-render
+        initImageCuratorConsole();
+        initAPIKeyManager();
     }
 }
 
