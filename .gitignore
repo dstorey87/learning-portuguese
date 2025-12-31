@@ -10,3 +10,6 @@ npm-debug.log*
 models/
 
 .playwright-mcp/
+
+image-curator/__pycache__/
+image-curator/*.log
