@@ -167,7 +167,8 @@ function getDefaultUserData() {
         lessonDurations: [],
         mistakes: [],
         successes: [],
-        hardMode: false
+        hardMode: false,
+        lessonProgress: {} // Per-lesson progress: { [lessonId]: { accuracy, completions } }
     };
 }
 
@@ -187,7 +188,8 @@ function normalizeUserData(data = {}) {
         lessonDurations: normalizeArrayish(data.lessonDurations),
         mistakes: Array.isArray(data.mistakes) ? data.mistakes : [],
         successes: Array.isArray(data.successes) ? data.successes : [],
-        hardMode: !!data.hardMode
+        hardMode: !!data.hardMode,
+        lessonProgress: (data.lessonProgress && typeof data.lessonProgress === 'object') ? data.lessonProgress : {}
     };
 }
 
@@ -788,7 +790,7 @@ function renderLessonComplete(state) {
     `;
 
     document.getElementById('finishLessonBtn')?.addEventListener('click', () => {
-        completeLesson(state.lesson, { showAlert: false });
+        completeLesson(state.lesson, { showAlert: false, accuracy, durationSec });
     });
 }
 
@@ -1280,7 +1282,7 @@ function buildHintForWord(item) {
 
 // eslint-disable-next-line no-unused-vars
 function completeLesson(lesson, options = {}) {
-    const { showAlert = true } = options;
+    const { showAlert = true, accuracy = 100, durationSec = 0 } = options;
     const lessonId = lesson.id;
     const idx = getAllLessonsFlat().findIndex(l => l.id === lessonId);
 
@@ -1310,14 +1312,24 @@ function completeLesson(lesson, options = {}) {
     userData.lastLessonId = lessonId;
     clearActiveLessonState();
 
+    // Update per-lesson progress for difficulty unlocking and interleaving
+    if (!userData.lessonProgress) userData.lessonProgress = {};
+    const prevProgress = userData.lessonProgress[lessonId] || { accuracy: 0, completions: 0 };
+    userData.lessonProgress[lessonId] = {
+        accuracy: Math.max(prevProgress.accuracy, accuracy), // Keep best accuracy
+        completions: prevProgress.completions + 1,
+        lastCompletedAt: Date.now()
+    };
+
     if (uiState.lessonStartMs && idx !== -1) {
-        const durationSec = Math.max(1, Math.round((Date.now() - uiState.lessonStartMs) / 1000));
-        userData.lessonDurations[idx] = durationSec;
+        const duration = durationSec || Math.max(1, Math.round((Date.now() - uiState.lessonStartMs) / 1000));
+        userData.lessonDurations[idx] = duration;
         uiState.lessonStartMs = null;
     }
 
-    if (idx !== -1 && typeof userData.lessonAccuracy[idx] !== 'number') {
-        userData.lessonAccuracy[idx] = 100;
+    // Store accuracy by lesson index for backward compatibility
+    if (idx !== -1) {
+        userData.lessonAccuracy[idx] = accuracy;
     }
     saveUserData();
     updateDashboard();
@@ -4020,6 +4032,9 @@ async function bootstrap() {
         
         // Now initialize the app
         initApp();
+
+        // Re-bind UI to persisted auth state (ensures admin dashboard shows for stored admins)
+        setActiveUserContext(getUser());
     } catch (err) {
         console.error('App initialization failed:', err);
     }
