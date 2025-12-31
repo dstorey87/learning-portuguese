@@ -1,53 +1,11 @@
-level,exercise_id,enabled
-beginner_1,1,true
-beginner_1,2,true
-beginner_1,3,true
-beginner_2,1,true
-beginner_2,2,true
-beginner_2,3,true
-beginner_2,4,true
-beginner_2,5,true
-beginner_3,1,true
-beginner_3,2,true
-beginner_3,3,true
-beginner_3,4,true
-beginner_3,5,true
-beginner_3,6,true
-beginner_3,7,true
-intermediate_1,8,true
-intermediate_1,9,true
-intermediate_1,11,true
-intermediate_2,8,true
-intermediate_2,9,true
-intermediate_2,11,true
-intermediate_2,12,true
-intermediate_2,13,true
-intermediate_3,8,true
-intermediate_3,9,true
-intermediate_3,11,true
-intermediate_3,12,true
-intermediate_3,13,true
-intermediate_3,14,true
-intermediate_3,15,true
-intermediate_3,16,true
-hard_1,10,true
-hard_1,17,true
-hard_1,18,true
-hard_2,10,true
-hard_2,17,true
-hard_2,18,true
-hard_2,12,true
-hard_2,16,true
-hard_3,10,true
-hard_3,17,true
-hard_3,18,true
-hard_3,12,true
-hard_3,16,true
-hard_3,13,true
-hard_3,19,true
-hard_3,20,true
-fluency_check,16,true
-fluency_check,17,true
-fluency_check,9,true
-fluency_check,18,true
-fluency_check,19,true
+level,description,exercise_ids_in_order,pass_mark,unlocks,research_rationale
+beginner_1,First Steps - Recognition,1;2;3;5,80,beginner_2,Duolingo: Start with visual+audio recognition - lowest cognitive load
+beginner_2,Building Recognition,1;2;3;4;5;6,80,beginner_3,Add matching and select-based exercises before production
+beginner_3,Beginner Complete,1;2;3;4;5;6;7;13,80,intermediate_1,Introduce typing (cloze) only after recognition mastered
+intermediate_1,Active Recall,6;7;8;9,80,intermediate_2,Production focus: cloze typing word order sentence building
+intermediate_2,Listening Production,11;13;15;17,80,intermediate_3,Add listen-and-type minimal pairs dialogue and numbers
+intermediate_3,Intermediate Complete,7;8;9;10;11;13;15;16,80,hard_1,Full sentence translation and story completion
+hard_1,Grammar Focus,8;9;14;15,80,hard_2,Grammar transforms and complex sentence building
+hard_2,Pronunciation Mastery,12;19;21,80,hard_3,Speaking exercises: recording shadowing read-aloud
+hard_3,Advanced Complete,10;11;12;14;19;20;21,80,fluency_check,All production types without hints
+fluency_check,Speed Challenge,18,90,-,Timed rapid recall - proves automaticity

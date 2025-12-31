@@ -1,0 +1,14 @@
+phase,order,exercise_type_id,purpose,research_basis,skip_if
+introduction,1,1,Visual recognition - lowest cognitive load,Duolingo/Rosetta: Picture association builds initial memory,
+introduction,2,2,Audio recognition - connect sound to meaning,Pimsleur: Aural interaction builds pronunciation intuition,
+introduction,3,3,Pair matching - reinforce word-translation pairs,Spaced repetition: Matching strengthens associations,
+practice,4,5,Multiple choice - confirm understanding,Retrieval practice: Testing effect strengthens memory,
+practice,5,6,Fill blank with options - guided production,Scaffolding: Support before full production,
+practice,6,13,Minimal pairs - distinguish similar sounds,Phoneme discrimination essential for comprehension,no_audio_words
+production,7,7,Type missing word - active recall,Retrieval practice: Typing requires deeper processing,
+production,8,8,Word order - syntax awareness,Implicit grammar learning through pattern discovery,short_phrases
+production,9,9,Sentence builder with distractors - full sentence,Production with scaffolding: word bank reduces anxiety,
+mastery,10,10,Full translation typing - maximum production,Deep encoding: Translation requires full understanding,
+mastery,11,11,Dictation - listen and type full sentence,Listening + production: Comprehensive skill test,
+mastery,12,12,Speaking - record pronunciation,Speaking practice: Final skill for communication,no_tts
+review,13,18,Rapid recall - timed fluency drill,Speed builds automaticity: Reduces cognitive load in real use,first_time

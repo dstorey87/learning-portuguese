@@ -1,21 +1,23 @@
-id,name,description
-1,picture_flashcard,Select image matching the word
-2,audio_mcq,Listen and pick correct meaning
-3,tap_pairs,Match word pairs together
-4,word_image_match,Match words to images grid
-5,cloze,Fill in the missing word
-6,word_order,Arrange words into sentence
-7,sentence_builder,Build sentence from word bank
-8,translation_type,Type the translation
-9,listen_type,Listen and type what you hear
-10,speak_record,Record yourself saying the word
-11,minimal_pair,Pick between similar sounds
-12,grammar_transform,Change word form
-13,dialogue_reorder,Put conversation in order
-14,story_complete,Complete the story gaps
-15,number_listen,Listen to number and type it
-16,rapid_recall,Timed vocabulary drill
-17,pronunciation_shadowing,Repeat after native audio
-18,conversation_roleplay,Practice dialogue responses
-19,read_aloud,Read text and record
-20,context_guess,Guess word from context
+id,name,description,difficulty_score,skill_type,input_mode,cognitive_load,duolingo_equivalent
+1,picture_flashcard,Select image matching the word,1,recognition,click,low,Which one of these is X?
+2,audio_mcq,Listen and pick correct meaning,2,listening_recognition,click,low,Mark the correct meaning
+3,tap_pairs,Match word pairs together,3,recognition,click,low,Match the pairs
+4,word_image_match,Match words to images grid,4,recognition,click,medium,Match exercise
+5,mark_correct,Select correct translation from options,5,recognition,click,low,Mark the correct meaning
+6,cloze_select,Fill blank by selecting from options,6,recall,click,medium,Select the missing word
+7,cloze_type,Fill blank by typing the answer,7,production,type,medium,Complete the translation
+8,word_order,Arrange words into sentence,8,production,drag,medium,Arrange all the words
+9,sentence_builder,Build sentence from word bank with distractors,9,production,click,medium,Tap what you hear
+10,translation_type,Type the full translation,10,production,type,high,Translation
+11,listen_type,Listen and type what you hear,11,listening_production,type,high,Type what you hear
+12,speak_record,Record yourself saying the word,12,speaking,voice,high,Speak this sentence
+13,minimal_pair,Pick between similar sounds,5,listening_recognition,click,medium,Select the word you hear
+14,grammar_transform,Change word form (tense/gender/number),9,grammar,type,high,Grammar exercise
+15,dialogue_reorder,Put conversation in order,8,comprehension,drag,medium,Conversation order
+16,story_complete,Complete the story gaps,7,comprehension,click,medium,Story completion
+17,number_listen,Listen to number and type it,6,listening_production,type,medium,Number exercise
+18,rapid_recall,Timed vocabulary drill,11,fluency,type,high,Speed review
+19,pronunciation_shadowing,Repeat after native audio,10,speaking,voice,medium,Shadowing
+20,conversation_roleplay,Practice dialogue responses,12,speaking,voice,high,Role play
+21,read_aloud,Read text and record,11,speaking,voice,medium,Read aloud
+22,context_guess,Guess word meaning from context,6,comprehension,click,medium,Context clues
