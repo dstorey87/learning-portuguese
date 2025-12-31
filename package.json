@@ -10,7 +10,9 @@
     "dev": "concurrently \"npm run serve\" \"npm run server\"",
     "test:ui": "playwright test",
     "test": "npm run lint && npm run test:ui",
-    "verify": "npm test"
+    "verify": "npm test",
+    "validate:images": "node scripts/validateImages.cjs",
+    "validate:images:report": "node scripts/validateImages.cjs --report"
   },
   "dependencies": {
     "compression": "^1.7.4",
