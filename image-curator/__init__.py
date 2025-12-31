@@ -19,6 +19,15 @@ from .image_search import (
     create_orchestrator,
     search_for_word
 )
+from .image_library import (
+    ImageLibrary,
+    ImageRecord,
+    get_library
+)
+from .storage import (
+    MetadataSidecar,
+    LocalImageStorage
+)
 
 __all__ = [
     'GPUManager',
@@ -36,7 +45,12 @@ __all__ = [
     'ImageSearchOrchestrator',
     'ImageCache',
     'create_orchestrator',
-    'search_for_word'
+    'search_for_word',
+    'ImageLibrary',
+    'ImageRecord',
+    'get_library',
+    'MetadataSidecar',
+    'LocalImageStorage'
 ]
 
 __version__ = '0.1.0'
