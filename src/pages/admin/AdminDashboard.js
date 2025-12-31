@@ -19,6 +19,12 @@ import { AI_CONFIG as AI_SERVICE_CONFIG, checkOllamaStatus, setModel as setAISer
 import eventStream from '../../services/eventStreaming.js';
 import { parseCSV } from '../../services/CSVLessonLoader.js';
 import { loadLessonMetadata } from '../../services/CSVLessonLoader.js';
+import { 
+    getImageCoverageStats, 
+    getWordsMissingImages, 
+    getWordsWithUnverifiedImages,
+    IMAGE_CATEGORIES 
+} from '../../config/imageConfig.js';
 
 // ============================================================================
 // CONSTANTS
@@ -106,7 +112,18 @@ let adminState = {
         error: null,
         message: null
     },
-    backups: []
+    backups: [],
+    // Image management state
+    imageStats: {
+        total: 0,
+        withImages: 0,
+        withoutImages: 0,
+        verified: 0,
+        coverage: 0,
+        verificationRate: 0
+    },
+    missingImages: [],
+    unverifiedImages: []
 };
 
 let refreshTimer = null;
@@ -612,6 +629,94 @@ function saveAdminAISettings() {
     }
 }
 
+// ============================================================================
+// IMAGE MANAGEMENT FUNCTIONS
+// ============================================================================
+
+/**
+ * Scan all lessons for image coverage statistics
+ * Collects data on which words have images, which need curation
+ */
+async function scanImageCoverage() {
+    try {
+        Logger.info('Scanning image coverage across all lessons');
+        
+        // Load all lesson metadata
+        const metadata = loadLessonMetadata();
+        const allWords = [];
+        
+        // For each lesson, try to load and parse its CSV
+        for (const [lessonId, lessonMeta] of Object.entries(metadata.lessons || {})) {
+            try {
+                const csvFile = lessonMeta.csvFile || `${lessonId}.csv`;
+                const response = await fetch(`/src/data/csv/${csvFile}`);
+                if (response.ok) {
+                    const csvText = await response.text();
+                    const parsed = parseCSV(csvText);
+                    
+                    // Add lesson context to each word
+                    parsed.rows.forEach(row => {
+                        allWords.push({
+                            ...row,
+                            lessonId,
+                            lessonTitle: lessonMeta.title || lessonId
+                        });
+                    });
+                }
+            } catch (e) {
+                Logger.warn(`Failed to load CSV for lesson ${lessonId}`, { error: e.message });
+            }
+        }
+        
+        // Calculate coverage stats
+        adminState.imageStats = getImageCoverageStats(allWords);
+        adminState.missingImages = getWordsMissingImages(allWords);
+        adminState.unverifiedImages = getWordsWithUnverifiedImages(allWords);
+        
+        Logger.info('Image coverage scan complete', { stats: adminState.imageStats });
+        
+        refreshDashboard();
+    } catch (e) {
+        Logger.error('Failed to scan image coverage', { error: e.message });
+    }
+}
+
+/**
+ * Export list of words missing images as CSV for curation
+ */
+function exportMissingImages() {
+    if (!adminState.missingImages || adminState.missingImages.length === 0) {
+        alert('No missing images to export. Run "Scan All Lessons" first.');
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['portuguese', 'english', 'lesson_id', 'image_url', 'image_alt', 'image_verified'];
+    const rows = adminState.missingImages.map(word => [
+        word.pt || '',
+        word.en || '',
+        word.lessonId || '',
+        '', // image_url - to be filled in
+        '', // image_alt - to be filled in
+        'false' // image_verified
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(cell => `"${cell}"`).join(','))].join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `missing_images_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    
+    Logger.info('Exported missing images list', { count: adminState.missingImages.length });
+}
+
+// ============================================================================
+// AI STATUS FUNCTIONS
+// ============================================================================
+
 async function refreshAIStatus() {
     try {
         const status = await checkOllamaStatus();
@@ -1069,6 +1174,8 @@ export function renderAdminDashboard() {
                 ${renderLessonIngestion()}
             </div>
 
+            ${renderImageManagement()}
+
             ${renderLessonEditor()}
 
             <div class="admin-grid">
@@ -1202,6 +1309,74 @@ function renderAIControls() {
             <div class="ai-note">
                 <p class="muted">Use local models for accuracy and stability. Avoid dynamic image pulls; pair lessons with static assets.</p>
                 ${status.models?.length ? `<p class="muted small-text">Discovered models: ${status.models.join(', ')}</p>` : '<p class="muted small-text">No models discovered yet. Start Ollama then refresh.</p>'}
+            </div>
+        </section>
+    `;
+}
+
+/**
+ * Render Image Management Panel
+ * Shows image coverage stats for all lessons and highlights missing/unverified images
+ */
+function renderImageManagement() {
+    const imageStats = adminState.imageStats || { total: 0, withImages: 0, withoutImages: 0, coverage: 0 };
+    const missingImages = adminState.missingImages || [];
+    const unverifiedImages = adminState.unverifiedImages || [];
+    
+    return `
+        <section class="admin-panel image-management-panel">
+            <div class="panel-header">
+                <div>
+                    <h3>🖼️ Image Management</h3>
+                    <p class="muted small-text">Curated images only - no dynamic lookup. All vocabulary needs explicit image_url.</p>
+                </div>
+                <div class="panel-actions">
+                    <button onclick="window.adminDashboard.scanImageCoverage()" class="btn-small">🔄 Scan All Lessons</button>
+                    <button onclick="window.adminDashboard.exportMissingImages()" class="btn-small">📋 Export Missing</button>
+                </div>
+            </div>
+            
+            <div class="image-stats-grid">
+                <div class="stat-card ${imageStats.coverage >= 80 ? 'stat-good' : imageStats.coverage >= 50 ? 'stat-warning' : 'stat-danger'}">
+                    <div class="stat-number">${imageStats.coverage}%</div>
+                    <div class="stat-label">Coverage</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${imageStats.total}</div>
+                    <div class="stat-label">Total Words</div>
+                </div>
+                <div class="stat-card stat-good">
+                    <div class="stat-number">${imageStats.withImages}</div>
+                    <div class="stat-label">With Images</div>
+                </div>
+                <div class="stat-card ${imageStats.withoutImages > 0 ? 'stat-danger' : ''}">
+                    <div class="stat-number">${imageStats.withoutImages}</div>
+                    <div class="stat-label">Missing Images</div>
+                </div>
+            </div>
+            
+            ${missingImages.length > 0 ? `
+                <div class="missing-images-section">
+                    <h4>⚠️ Words Missing Images (${missingImages.length})</h4>
+                    <div class="missing-images-list">
+                        ${missingImages.slice(0, 20).map(word => `
+                            <div class="missing-image-item">
+                                <span class="word-pt">${sanitize(word.pt)}</span>
+                                <span class="word-en">${sanitize(word.en)}</span>
+                                <span class="word-lesson">${sanitize(word.lessonId || 'unknown')}</span>
+                            </div>
+                        `).join('')}
+                        ${missingImages.length > 20 ? `<p class="muted">... and ${missingImages.length - 20} more</p>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div class="image-help-text">
+                <p class="muted small-text">
+                    📌 To add images: Edit CSV files directly, adding <code>image_url</code> column with full Unsplash URLs.<br>
+                    📌 Required format: <code>https://images.unsplash.com/photo-{ID}?w=400&h=300&fit=crop</code><br>
+                    📌 Words without valid image_url will show placeholder and may be skipped from lessons.
+                </p>
             </div>
         </section>
     `;
@@ -1743,7 +1918,10 @@ export function initAdminDashboard() {
         uploadLessonImage,
         saveLessonEditorChanges,
         deleteUserWithBackup,
-        restoreUserFromBackup
+        restoreUserFromBackup,
+        // Image management functions
+        scanImageCoverage,
+        exportMissingImages
     };
 
     Logger.info('Admin dashboard initialized');
