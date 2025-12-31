@@ -28,6 +28,12 @@ from .storage import (
     MetadataSidecar,
     LocalImageStorage
 )
+from .batch_curator import (
+    BatchCurator,
+    BatchConfig,
+    BatchProgress
+)
+from .batch_operations import BatchOperations
 
 __all__ = [
     'GPUManager',
@@ -50,7 +56,11 @@ __all__ = [
     'ImageRecord',
     'get_library',
     'MetadataSidecar',
-    'LocalImageStorage'
+    'LocalImageStorage',
+    'BatchCurator',
+    'BatchConfig',
+    'BatchProgress',
+    'BatchOperations'
 ]
 
 __version__ = '0.1.0'
