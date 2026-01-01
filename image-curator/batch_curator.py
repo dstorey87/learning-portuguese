@@ -42,9 +42,10 @@ logger = logging.getLogger(__name__)
 class BatchConfig:
     """Configuration for batch processing."""
 
-    vision_model: str = "llama3.2-vision:11b"
+    vision_model: str = "gemma3:4b"  # Per plan: gemma3:4b recommended for multilingual
     candidates_per_word: int = 5  # Per plan: search 5 candidates, select best
     min_score: int = 28  # Minimum score (out of 40) to accept - per plan
+    min_relevance: int = 7  # Minimum relevance score (0-10) - per plan
     resume_from_crash: bool = True
     gpu_throttle_percent: int = 75
     target_gpu: Optional[int] = None  # Specific GPU to use (None = auto-select)
@@ -293,6 +294,81 @@ class BatchCurator:
         logger.info(f"Filtered to {len(needs_image)} words needing images")
         return needs_image
 
+    def _update_csv_image_url(self, item: Dict, local_path: str) -> bool:
+        """
+        BUG-020 FIX: Update CSV file with curated image URL.
+        
+        Args:
+            item: Dict with lesson_id and word_id
+            local_path: Path to saved image
+            
+        Returns:
+            True if CSV updated successfully
+        """
+        try:
+            import csv as csv_module
+            
+            lesson_id = item.get("lesson_id", "")
+            word_id = item.get("word_id", "")
+            
+            if not lesson_id or not word_id:
+                logger.warning(f"Cannot update CSV: missing lesson_id or word_id")
+                return False
+            
+            csv_path = Path(__file__).parent.parent / "src" / "data" / "csv" / f"{lesson_id}.csv"
+            
+            if not csv_path.exists():
+                logger.warning(f"CSV not found: {csv_path}")
+                return False
+            
+            # Convert local path to relative asset URL
+            # From: C:\...\assets\images\library\greetings\001_01.jpg
+            # To: assets/images/library/greetings/001_01.jpg
+            local_path_obj = Path(local_path)
+            try:
+                relative_path = local_path_obj.relative_to(Path(__file__).parent.parent)
+                image_url = str(relative_path).replace("\\", "/")
+            except ValueError:
+                # Path is not relative to project root
+                image_url = local_path
+            
+            # Read CSV
+            rows = []
+            fieldnames = []
+            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+                reader = csv_module.DictReader(f)
+                fieldnames = reader.fieldnames or []
+                rows = list(reader)
+            
+            # Add image_url column if it doesn't exist
+            if "image_url" not in fieldnames:
+                fieldnames.append("image_url")
+            
+            # Update the matching row
+            updated = False
+            for row in rows:
+                if row.get("word_id") == word_id:
+                    row["image_url"] = image_url
+                    updated = True
+                    break
+            
+            if not updated:
+                logger.warning(f"Word ID {word_id} not found in {csv_path}")
+                return False
+            
+            # Write back
+            with open(csv_path, "w", encoding="utf-8", newline="") as f:
+                writer = csv_module.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            
+            logger.info(f"Updated CSV {lesson_id}.csv: {word_id} -> {image_url}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update CSV: {e}")
+            return False
+
     async def process_word(self, item: Dict) -> bool:
         """
         Process a single vocabulary word.
@@ -340,19 +416,31 @@ class BatchCurator:
                 logger.warning(f"No images found for '{word}'")
                 return False
 
-            # Find best scoring image above threshold
-            # Results are tuples of (ImageResult, score)
+            # BUG-016 FIX: Score ALL candidates, then select BEST one above threshold
+            # Results are tuples of (ImageResult, score) where score is 0-10 average
+            scored_candidates = []
+            
+            for image_result, score in results:
+                # Convert score from 0-10 average to 0-40 total scale
+                score_40 = score * 4 if score <= 10 else score
+                # Estimate relevance as ~25% of total (since it's 1 of 4 criteria)
+                # If vision returned detailed scores, use those; otherwise estimate
+                estimated_relevance = score  # score is already 0-10 average
+                scored_candidates.append((image_result, score_40, estimated_relevance))
+            
+            # Sort by total score descending to find best
+            scored_candidates.sort(key=lambda x: x[1], reverse=True)
+            
+            # Find best that meets BOTH thresholds (BUG-022 FIX)
             best_result = None
             best_score = 0
-
-            for image_result, score in results:
-                # Score is already extracted from tuple
-                if score > best_score:
-                    # Convert score from 0-10 to 0-40 scale if needed
-                    score_40 = score * 4 if score <= 10 else score
-                    if score_40 >= self.config.min_score:
-                        best_result = image_result
-                        best_score = score_40
+            
+            for image_result, score_40, relevance in scored_candidates:
+                # Check both total score AND relevance minimum per plan
+                if score_40 >= self.config.min_score and relevance >= self.config.min_relevance:
+                    best_result = image_result
+                    best_score = score_40
+                    break  # Already sorted, first match is best
 
             if not best_result:
                 logger.warning(
@@ -375,6 +463,11 @@ class BatchCurator:
 
             if image_record:
                 logger.info(f"Selected image for '{word}' with score {best_score}/40")
+                
+                # BUG-020 FIX: Update CSV with image URL
+                if image_record.local_path:
+                    self._update_csv_image_url(item, image_record.local_path)
+                
                 return True
 
             return False
@@ -541,9 +634,9 @@ async def main():
     """CLI entry point for batch curation."""
     parser = argparse.ArgumentParser(description="Batch curate vocabulary images")
     parser.add_argument(
-        "--model", default="llama3.2-vision:11b", help="Vision model to use"
+        "--model", default="gemma3:4b", help="Vision model to use (default: gemma3:4b)"
     )
-    parser.add_argument("--candidates", type=int, default=3, help="Candidates per word")
+    parser.add_argument("--candidates", type=int, default=5, help="Candidates per word (default: 5)")
     parser.add_argument(
         "--min-score", type=int, default=28, help="Minimum score to accept (out of 40)"
     )

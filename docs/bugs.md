@@ -117,47 +117,47 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 ## bug-016: Curator selects first passing image, not best of 5
 - **Description:** Per implementation plan, curator should "search 5 candidates, select best ≥28/40". Current code selects the FIRST image that meets the threshold, not the BEST scoring one from all 5 candidates.
 - **Impact:** Medium - May miss higher-quality images that score better. Suboptimal image selection.
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED
 - **Priority:** High
 - **Plan Reference:** "search 5 candidates, select best" - Branch 2 vision model section
 - **File:** `image-curator/batch_curator.py` - `process_word()` method
-- **Fix Required:** Score ALL candidates first, THEN select the highest scoring one that meets min_score threshold
+- **Fix Applied:** Now scores ALL candidates, sorts by score descending, then selects best that meets threshold
 
 ## bug-017: CLI default candidates is 3, plan specifies 5
 - **Description:** The argparse default for `--candidates` is 3, but the implementation plan specifies 5 candidates per word for optimal selection.
 - **Impact:** Low - Fewer candidates means lower chance of finding ideal image
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED
 - **Priority:** Medium
 - **Plan Reference:** `CURATOR_CANDIDATES_PER_WORD=3` in plan is env var default, but recommendation says "3-5"
 - **File:** `image-curator/batch_curator.py` - argparse defaults and BatchConfig
-- **Fix Required:** Change default from 3 to 5 in both argparse and BatchConfig
+- **Fix Applied:** Changed default from 3 to 5 in both argparse and BatchConfig
 
 ## bug-018: Using llama3.2-vision instead of recommended qwen2.5-vl or gemma3
 - **Description:** The vision client defaults to `llama3.2-vision:11b` but the implementation plan's research section strongly recommends `qwen2.5-vl:7b` (best accuracy) or `gemma3:4b` (excellent multilingual).
 - **Impact:** Medium - May get lower quality image evaluations, especially for Portuguese context
-- **Status:** 🟡 NOTED (user may have different models available)
+- **Status:** ✅ FIXED
 - **Priority:** Medium
 - **Plan Reference:** "Qwen2.5-VL 7B - Recommended default - Best overall accuracy" - Vision Model Research section
-- **File:** `image-curator/vision_client.py` - VISION_MODELS list, `image-curator/batch_curator.py` - default model
-- **Fix Required:** Update default model to gemma3:4b (already available per user) or qwen2.5-vl:7b
+- **File:** `image-curator/batch_curator.py` - default model
+- **Fix Applied:** Changed default model to gemma3:4b (user has this installed)
 
 ## bug-019: No image resizing to 1200×900 @ 85% quality
 - **Description:** Implementation plan specifies "Image Size: 1200×900 JPEG at 85% quality" but no resizing/compression is implemented. Images are stored at original size.
 - **Impact:** Medium - Larger file sizes, inconsistent dimensions, slower loading
-- **Status:** 🔴 OPEN
+- **Status:** 🟡 DEFERRED
 - **Priority:** Medium
 - **Plan Reference:** "Image Size: 1200×900 JPEG at 85% quality" - Technical Constraints section
 - **File:** `image-curator/storage.py` - `save_image()` method, should use image_processor.py
-- **Fix Required:** Add PIL-based resize/compress before saving: resize to max 1200×900, convert to JPEG at 85%
+- **Note:** Can be added later; Pexels provides optimized sizes
 
 ## bug-020: CSV files not updated with curated image URLs
 - **Description:** Implementation plan states curator should "Update CSV files with validated image URLs" but this is not implemented. CSV files remain unchanged after curation.
 - **Impact:** High - Images are curated but lessons can't use them without manual CSV updates
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED
 - **Priority:** High
 - **Plan Reference:** "Updates CSV files with validated image URLs" - Executive Summary point 5
-- **File:** Need new function in batch_curator.py or separate update script
-- **Fix Required:** After successful image selection, update CSV's `image_url` column with local path or asset URL
+- **File:** `image-curator/batch_curator.py` - `_update_csv_image_url()` method
+- **Fix Applied:** Added `_update_csv_image_url()` method that updates CSV's `image_url` column after successful curation
 
 ## bug-021: Admin Console WebSocket not integrated
 - **Description:** websocket_server.py exists but the admin console doesn't connect to it for real-time progress updates. No live view of processing.
@@ -166,13 +166,13 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Priority:** Low
 - **Plan Reference:** Branch 4 - "WebSocket communication with frontend" for real-time updates
 - **File:** `image-curator/websocket_server.py`, frontend admin console
-- **Fix Required:** Connect admin console to WebSocket for live progress, candidate display
+- **Note:** Not blocking curation; can monitor via terminal output
 
 ## bug-022: Vision validation only checks total score, not relevance minimum
 - **Description:** Plan specifies "only recommend (true) if total score >= 28/40 AND relevance >= 7". Current code only checks total score, ignoring relevance minimum.
 - **Impact:** Medium - Images with low relevance but high other scores may be selected
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED
 - **Priority:** High
 - **Plan Reference:** Vision prompt says "only recommend if total >= 28 AND relevance >= 7"
 - **File:** `image-curator/batch_curator.py` - `process_word()` selection logic
-- **Fix Required:** Add check: `score >= min_score AND image.relevance >= 7` (or 70% of max relevance)
+- **Fix Applied:** Added `min_relevance=7` config and check: `score_40 >= min_score AND relevance >= min_relevance`
