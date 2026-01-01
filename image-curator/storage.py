@@ -243,8 +243,11 @@ class LocalImageStorage:
         # Determine extension from format or URL
         extension = image.format or self._get_extension(image.url) or "jpg"
 
+        # Use word_id for filename if available (e.g., "001_01"), otherwise fall back to word
+        filename_base = image.word_id if image.word_id else image.word
+        
         # Get storage path
-        local_path = self.get_storage_path(image.word, image.category, extension)
+        local_path = self.get_storage_path(filename_base, image.category, extension)
 
         # Handle duplicates by adding suffix
         if local_path.exists():

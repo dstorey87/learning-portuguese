@@ -104,6 +104,7 @@ class ImageRecord:
     url: str
     source: str
     id: Optional[int] = None
+    word_id: Optional[str] = None  # e.g., "001_01" - used for filename
     lesson_id: Optional[str] = None
     local_path: Optional[str] = None
     source_url: Optional[str] = None

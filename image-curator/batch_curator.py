@@ -43,8 +43,8 @@ class BatchConfig:
     """Configuration for batch processing."""
 
     vision_model: str = "llama3.2-vision:11b"
-    candidates_per_word: int = 3
-    min_score: int = 28  # Minimum score (out of 40) to accept
+    candidates_per_word: int = 5  # Per plan: search 5 candidates, select best
+    min_score: int = 28  # Minimum score (out of 40) to accept - per plan
     resume_from_crash: bool = True
     gpu_throttle_percent: int = 75
     target_gpu: Optional[int] = None  # Specific GPU to use (None = auto-select)
@@ -178,9 +178,13 @@ class BatchCurator:
 
     def load_vocabulary(self) -> List[Dict]:
         """
-        Load vocabulary words from lesson CSV files.
+        Load vocabulary words from lesson CSV files in LESSON ORDER.
 
+        Processes lessons in numerical order (001, 002, etc.)
+        and words within each lesson by word_id (001_01, 001_02, etc.)
+        
         Returns list of dicts with:
+        - word_id: Unique word identifier (e.g., 001_01)
         - word: Portuguese word
         - english: English translation
         - lesson_id: Lesson identifier
@@ -193,7 +197,13 @@ class BatchCurator:
             logger.warning(f"CSV directory not found: {csv_dir}")
             return vocabulary
 
-        for csv_file in csv_dir.glob("*.csv"):
+        # Get CSV files and sort by lesson number (001, 002, etc.)
+        csv_files = sorted(
+            [f for f in csv_dir.glob("*.csv") if f.stem[0].isdigit()],
+            key=lambda f: f.stem
+        )
+
+        for csv_file in csv_files:
             try:
                 lesson_id = csv_file.stem
 
@@ -202,34 +212,41 @@ class BatchCurator:
                     if self.config.lesson_filter not in lesson_id:
                         continue
 
+                lesson_words = []
+                
                 with open(csv_file, "r", encoding="utf-8") as f:
-                    # Skip header line
-                    lines = f.readlines()[1:]
+                    import csv as csv_module
+                    reader = csv_module.DictReader(f)
+                    
+                    for row in reader:
+                        word_id = row.get("word_id", "")
+                        word = row.get("portuguese", "").strip()
+                        english = row.get("english", "").strip()
+                        
+                        if not word or not english:
+                            continue
 
-                    for line in lines:
-                        parts = line.strip().split(",")
-                        if len(parts) >= 2:
-                            word = parts[0].strip()
-                            english = parts[1].strip()
+                        # Apply word filter
+                        if self.config.word_filter:
+                            if word not in self.config.word_filter:
+                                continue
 
-                            # Apply word filter
-                            if self.config.word_filter:
-                                if word not in self.config.word_filter:
-                                    continue
-
-                            vocabulary.append(
-                                {
-                                    "word": word,
-                                    "english": english,
-                                    "lesson_id": lesson_id,
-                                    "category": self._get_category(lesson_id),
-                                }
-                            )
+                        lesson_words.append({
+                            "word_id": word_id,
+                            "word": word,
+                            "english": english,
+                            "lesson_id": lesson_id,
+                            "category": self._get_category(lesson_id),
+                        })
+                
+                # Sort words within lesson by word_id
+                lesson_words.sort(key=lambda w: w.get("word_id", ""))
+                vocabulary.extend(lesson_words)
 
             except Exception as e:
                 logger.error(f"Error reading {csv_file}: {e}")
 
-        logger.info(f"Loaded {len(vocabulary)} vocabulary words")
+        logger.info(f"Loaded {len(vocabulary)} vocabulary words in lesson order")
         return vocabulary
 
     def _get_category(self, lesson_id: str) -> str:
@@ -281,21 +298,22 @@ class BatchCurator:
         Process a single vocabulary word.
 
         Args:
-            item: Dict with word, english, lesson_id, category
+            item: Dict with word_id, word, english, lesson_id, category
 
         Returns:
             True if successfully curated
         """
         word = item["word"]
+        word_id = item.get("word_id", "")
         english = item["english"]
 
-        self.progress.current_word = word
+        self.progress.current_word = f"{word_id} ({word})" if word_id else word
         self._notify_progress()
 
-        logger.info(f"Processing: {word} ({english})")
+        logger.info(f"Processing: {word_id} - {word} ({english})")
 
         if self.config.dry_run:
-            logger.info(f"[DRY RUN] Would process: {word}")
+            logger.info(f"[DRY RUN] Would process: {word_id} - {word}")
             return True
 
         try:
@@ -373,6 +391,7 @@ class BatchCurator:
             # Create image record - handle different attribute names
             record = ImageRecord(
                 word=item["word"],
+                word_id=item.get("word_id", ""),  # Use word_id for filename (e.g., "001_01")
                 url=result.url,
                 source=result.source,
                 lesson_id=item["lesson_id"],
