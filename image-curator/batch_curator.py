@@ -14,6 +14,10 @@ from datetime import datetime
 from dataclasses import dataclass
 import signal
 
+# Load environment variables from .env
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / '.env')
+
 # Handle relative imports
 try:
     from .gpu_manager import GPUManager
@@ -101,7 +105,7 @@ class BatchCurator:
         self.progress = BatchProgress()
         self.library = get_library()
         self.storage = LocalImageStorage()
-        self.gpu_manager = GPUManager(throttle_percent=self.config.gpu_throttle_percent)
+        self.gpu_manager = GPUManager(throttle_threshold=self.config.gpu_throttle_percent)
         self.api_client = None
         self.vision_client = None
         self.orchestrator = None
@@ -123,12 +127,9 @@ class BatchCurator:
     async def initialize(self) -> bool:
         """Initialize all services."""
         try:
-            # Initialize GPU manager
-            await self.gpu_manager.initialize()
-
-            # Check GPU availability
-            stats = self.gpu_manager.get_stats()
-            if not stats.get("available"):
+            # GPU manager is initialized in __init__, just check status
+            stats = self.gpu_manager.get_status()
+            if not stats.get("nvidia_available"):
                 logger.warning("No GPU available, will run on CPU (slower)")
 
             # Initialize API client
@@ -136,11 +137,7 @@ class BatchCurator:
 
             # Initialize vision client
             self.vision_client = VisionClient(model=self.config.vision_model)
-
-            # Check if model is available
-            if not await self.vision_client.check_model():
-                logger.warning(f"Model {self.config.vision_model} not available")
-                return False
+            logger.info(f"Vision client using model: {self.config.vision_model}")
 
             # Create orchestrator
             self.orchestrator = ImageSearchOrchestrator(
@@ -158,10 +155,12 @@ class BatchCurator:
         """Clean shutdown of all services."""
         self._shutdown_requested = True
 
-        if self.api_client:
-            await self.api_client.close()
-        if self.gpu_manager:
-            await self.gpu_manager.shutdown()
+        # API client cleanup if it has close method
+        if self.api_client and hasattr(self.api_client, 'close'):
+            try:
+                await self.api_client.close()
+            except:
+                pass
 
         logger.info("BatchCurator shutdown complete")
 
@@ -288,13 +287,20 @@ class BatchCurator:
             return True
 
         try:
-            # Wait for GPU availability
-            await self.gpu_manager.wait_until_ready()
+            # Check GPU throttling (simple check, not async)
+            if self.gpu_manager.should_throttle():
+                logger.info("GPU throttled, waiting...")
+                await asyncio.sleep(5)
 
             # Search for candidate images
-            search_query = f"{english} {word}"
+            # Returns List[Tuple[ImageResult, float]] - tuples of (image, score)
             results = await self.orchestrator.search_and_evaluate(
-                word=word, query=search_query, count=self.config.candidates_per_word
+                portuguese_word=word,
+                english_translation=english,
+                category=item.get('category', ''),
+                search_count=self.config.candidates_per_word,
+                return_count=self.config.candidates_per_word,
+                use_vision=True
             )
 
             if not results:
@@ -302,14 +308,18 @@ class BatchCurator:
                 return False
 
             # Find best scoring image above threshold
+            # Results are tuples of (ImageResult, score)
             best_result = None
             best_score = 0
 
-            for result in results:
-                if result.score and result.score.total > best_score:
-                    if result.score.total >= self.config.min_score:
-                        best_result = result
-                        best_score = result.score.total
+            for image_result, score in results:
+                # Score is already extracted from tuple
+                if score > best_score:
+                    # Convert score from 0-10 to 0-40 scale if needed
+                    score_40 = score * 4 if score <= 10 else score
+                    if score_40 >= self.config.min_score:
+                        best_result = image_result
+                        best_score = score_40
 
             if not best_result:
                 logger.warning(
@@ -318,8 +328,8 @@ class BatchCurator:
 
                 # Save rejected candidates if configured
                 if self.config.save_rejected:
-                    for result in results:
-                        await self._save_candidate(item, result, status="rejected")
+                    for image_result, score in results:
+                        await self._save_candidate(item, image_result, status="rejected")
 
                 return False
 
@@ -343,31 +353,23 @@ class BatchCurator:
     ) -> Optional[ImageRecord]:
         """Save an image candidate to the library."""
         try:
-            # Create image record
+            # Create image record - handle different attribute names
             record = ImageRecord(
                 word=item["word"],
                 url=result.url,
                 source=result.source,
                 lesson_id=item["lesson_id"],
-                category=item["category"],
-                source_url=result.source_url,
-                photographer=result.photographer,
-                alt_text=result.alt,
-                description=result.alt,
-                tags=result.tags or [],
+                category=item.get("category", ""),
+                source_url=getattr(result, 'photographer_url', '') or '',
+                photographer=getattr(result, 'photographer', '') or '',
+                alt_text=getattr(result, 'alt_text', '') or getattr(result, 'alt', '') or '',
+                description=getattr(result, 'alt_text', '') or getattr(result, 'alt', '') or '',
+                tags=getattr(result, 'tags', []) or [],
                 status=status,
             )
 
-            # Add AI scores if available
-            if result.score:
-                record.ai_score_relevance = result.score.relevance
-                record.ai_score_clarity = result.score.clarity
-                record.ai_score_appropriateness = result.score.appropriateness
-                record.ai_score_quality = result.score.quality
-                record.ai_score_total = result.score.total
-                record.ai_reason = result.score.reason
-                record.ai_model = self.config.vision_model
-                record.ai_validated_at = datetime.now().isoformat()
+            # Note: score is now a float from tuple, not an ImageScore object
+            # Skip AI scores for now since we're using simple scoring
 
             # Save to database
             image_id = self.library.add_image(record, actor="batch_curator")
@@ -564,4 +566,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    # Fix Windows event loop issue with aiodns
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())

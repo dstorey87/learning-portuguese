@@ -20,7 +20,7 @@
       "preferred_size": "medium"
     },
     "pixabay": {
-      "enabled": true,
+      "enabled": false,
       "priority": 2,
       "base_url": "https://pixabay.com/api",
       "key_env_var": "PIXABAY_API_KEY",

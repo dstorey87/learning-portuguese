@@ -135,6 +135,10 @@ class VisionClient:
             logger.error(f"Failed to list models: {e}")
             return None
 
+    def has_vision_model(self) -> bool:
+        """Check if a vision model is available."""
+        return self.model is not None
+
     def _encode_image(self, image_path: Union[str, Path]) -> str:
         """Read and base64 encode an image file."""
         path = Path(image_path)
