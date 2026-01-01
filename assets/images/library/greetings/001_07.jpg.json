@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:57:10.797952",
+  "image": {
+    "id": 19,
+    "word": "001_07",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 27845
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@esmihel",
+    "photographer": "Esmihel  Muhammed",
+    "alt_text": "Free stock photo of amg, automotive photography, car",
+    "description": "Free stock photo of amg, automotive photography, car",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:56:49.687176",
+  "image": {
+    "id": 18,
+    "word": "001_05",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 25075
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@jan-van-der-wolf-11680885",
+    "photographer": "Jan van der Wolf",
+    "alt_text": "Vibrant red and blue façades with balconies, capturing urban architectural design.",
+    "description": "Vibrant red and blue façades with balconies, capturing urban architectural design.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}

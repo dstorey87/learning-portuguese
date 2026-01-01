@@ -409,10 +409,13 @@ class ImageAPIClient:
         portuguese_word: str,
         english_translation: str,
         category: str = "",
-        count: int = 3,
+        count: int = 5,
     ) -> List[ImageResult]:
         """
         Search for images appropriate for a vocabulary word.
+        
+        Uses intelligent query building based on word type and category
+        to find the most relevant educational images.
 
         Args:
             portuguese_word: The Portuguese word
@@ -423,30 +426,165 @@ class ImageAPIClient:
         Returns:
             List of ImageResult
         """
-        # Build optimized search query
-        query = english_translation
-
-        # Add category context for better results
-        category_hints = {
-            "numbers": "count quantity",
-            "family": "family person portrait",
-            "food": "food dish cuisine",
-            "transportation": "vehicle transport",
-            "weather": "weather nature sky",
-            "body": "human body anatomy",
-            "colors": "color colorful",
-            "animals": "animal wildlife nature",
-        }
-
-        for cat_key, hint in category_hints.items():
-            if cat_key in category.lower():
-                query = f"{english_translation} {hint}"
-                break
-
+        # Smart query building based on word characteristics
+        query = self._build_smart_query(portuguese_word, english_translation, category)
+        
         logger.info(
             f"Searching for '{portuguese_word}' ({english_translation}): query='{query}'"
         )
-        return await self.search(query, count)
+        
+        results = await self.search(query, count)
+        
+        # If no results, try fallback queries
+        if not results:
+            fallback_queries = self._get_fallback_queries(english_translation, category)
+            for fallback in fallback_queries:
+                logger.info(f"Trying fallback query: '{fallback}'")
+                results = await self.search(fallback, count)
+                if results:
+                    break
+        
+        return results
+
+    def _build_smart_query(
+        self, portuguese_word: str, english_translation: str, category: str
+    ) -> str:
+        """
+        Build an intelligent search query based on word type.
+        
+        Different word types need different search strategies:
+        - Concrete nouns: Direct search works well
+        - Abstract concepts: Need visual metaphors
+        - Greetings: Need people interacting
+        - Verbs: Need action shots
+        - Adjectives: Need examples showing the quality
+        """
+        translation_lower = english_translation.lower()
+        
+        # Word-specific overrides for difficult/abstract words
+        word_specific_queries = {
+            # Greetings - need people interacting
+            "hello": "people waving hello greeting friendly",
+            "good morning": "sunrise morning greeting coffee wake up",
+            "good afternoon": "afternoon sun people meeting",
+            "good evening": "evening sunset dinner greeting",
+            "good night": "night moon stars bedtime",
+            "goodbye": "people waving goodbye farewell",
+            "bye": "friends waving bye casual farewell",
+            "see you later": "friends parting see you soon",
+            "see you tomorrow": "calendar tomorrow planning meeting",
+            "see you soon": "clock time soon meeting",
+            "how are you": "people conversation friendly chat",
+            "fine": "thumbs up okay happy person",
+            "thank you": "grateful thankful appreciation handshake",
+            "thanks": "thank you gratitude appreciation",
+            "you're welcome": "welcoming friendly hospitality",
+            "please": "polite request please manners",
+            "excuse me": "polite apology excuse pardon",
+            "sorry": "apologetic sorry regret",
+            "yes": "thumbs up yes agreement nodding",
+            "no": "no refusal head shake",
+            "maybe": "thinking uncertain perhaps considering",
+            "of course": "confident certain absolutely sure",
+            "okay": "okay agreement thumbs up fine",
+            
+            # Pronouns - need clear single/plural/gender distinctions
+            "i": "person pointing self me individual",
+            "you": "person pointing you conversation",
+            "he": "man male person portrait",
+            "she": "woman female person portrait",
+            "it": "object thing item neutral",
+            "we": "group people together team us",
+            "they": "group people them others",
+            
+            # Articles - need examples of the concept
+            "the": "specific item pointing definite",
+            "a": "single one item object",
+            "an": "single item object one",
+            
+            # Numbers - clear visual representations
+            "one": "number 1 one single item",
+            "two": "number 2 two pair items",
+            "three": "number 3 three items trio",
+            "four": "number 4 four items",
+            "five": "number 5 five items hand fingers",
+            "six": "number 6 six items",
+            "seven": "number 7 seven items",
+            "eight": "number 8 eight items",
+            "nine": "number 9 nine items",
+            "ten": "number 10 ten items both hands",
+            
+            # Common verbs
+            "to be": "existence being identity person",
+            "to have": "having possession holding hands",
+            "to go": "walking going movement travel",
+            "to come": "arriving coming approach",
+            "to want": "desire wanting wish reaching",
+            "to eat": "eating food meal dining",
+            "to drink": "drinking beverage glass",
+            "to sleep": "sleeping bed rest peaceful",
+            "to speak": "speaking talking conversation",
+            "to work": "working office job profession",
+        }
+        
+        # Check for word-specific query
+        if translation_lower in word_specific_queries:
+            return word_specific_queries[translation_lower]
+        
+        # Category-based query enhancement
+        category_hints = {
+            "greetings": "people greeting friendly interaction",
+            "numbers": "number counting quantity clear",
+            "family": "family portrait people relatives",
+            "food": "food dish cuisine delicious",
+            "transportation": "vehicle transport travel",
+            "weather": "weather nature sky outdoor",
+            "body": "human body anatomy health",
+            "colors": "color vibrant colorful",
+            "animals": "animal wildlife nature",
+            "time": "clock time schedule",
+            "calendar": "calendar date schedule",
+            "verbs": "action movement doing",
+            "adjectives": "quality characteristic",
+            "pronouns": "person people portrait",
+            "general": "",  # No extra hints for general
+        }
+        
+        category_lower = category.lower() if category else "general"
+        
+        for cat_key, hint in category_hints.items():
+            if cat_key in category_lower:
+                if hint:
+                    return f"{english_translation} {hint}"
+                break
+        
+        # Default: just use the translation with "clear" for better results
+        return f"{english_translation} clear"
+
+    def _get_fallback_queries(
+        self, english_translation: str, category: str
+    ) -> List[str]:
+        """
+        Generate fallback queries if primary search fails.
+        """
+        fallbacks = []
+        
+        # Try just the word
+        fallbacks.append(english_translation)
+        
+        # Try with "illustration" for abstract concepts
+        fallbacks.append(f"{english_translation} illustration")
+        
+        # Try with "concept" for very abstract words
+        fallbacks.append(f"{english_translation} concept")
+        
+        # Category-specific fallbacks
+        if "greeting" in category.lower():
+            fallbacks.append("people meeting friendly")
+        elif "number" in category.lower():
+            fallbacks.append("counting numbers education")
+        
+        return fallbacks
 
     def get_status(self) -> Dict:
         """Get client status."""

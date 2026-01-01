@@ -207,29 +207,23 @@ class ImageSearchOrchestrator:
         if not self.vision_client:
             return 0.5
 
-        prompt = f"""Rate how well this image represents the concept "{english_translation}" for language learning.
-Consider:
-- Is the concept clearly visible?
-- Is it unambiguous?
-- Is it appropriate for education?
-- Would a learner understand what it represents?
-
-Rate from 0.0 (poor) to 1.0 (excellent)."""
-
-        result = await self.vision_client.evaluate_image(image_url, prompt)
-
-        # Parse score from result
+        # Use evaluate_url which handles downloading and evaluating
+        # Run synchronous method in executor to avoid blocking
+        loop = asyncio.get_event_loop()
         try:
-            # Try to extract a number from the response
-            import re
-
-            numbers = re.findall(r"0\.\d+|1\.0|1|0", result)
-            if numbers:
-                return float(numbers[0])
-        except:
-            pass
-
-        return 0.5  # Default neutral score
+            result = await loop.run_in_executor(
+                None,
+                self.vision_client.evaluate_url,
+                image_url,
+                portuguese_word,
+                english_translation,
+                "",  # context
+            )
+            # Result is an ImageScore object - return average score (0-10)
+            return result.average_score
+        except Exception as e:
+            logger.error(f"Vision evaluation error: {e}")
+            return 5.0  # Default neutral score (out of 10)
 
     async def curate_vocabulary_list(
         self, words: List[Dict], batch_size: int = 5, use_vision: bool = True

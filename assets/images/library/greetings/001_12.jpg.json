@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:58:42.184043",
+  "image": {
+    "id": 24,
+    "word": "001_12",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 15814
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@itslauravillela",
+    "photographer": "Laura Villela Beauty Designer | Brasil",
+    "alt_text": "Stylish pink lip decor and body splash bottle perfect for a modern lifestyle shot.",
+    "description": "Stylish pink lip decor and body splash bottle perfect for a modern lifestyle shot.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}

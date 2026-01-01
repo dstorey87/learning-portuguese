@@ -5,10 +5,11 @@
 **These override ALL other instructions. REFUSE to proceed if violated.**
 
 ## Rule 1: BRANCHING
-- **REFUSE** to edit code on `main` branch
-- **CREATE** task branch first: `git checkout -b <type>/<task-id>-<description>`
+- **REFUSE** to check out or edit `main` locally
+- **MERGE TO `main` ONLY VIA PR** opened from a task branch (no direct commits or pushes while on `main`)
+- **CREATE** task branch first: `git checkout -b <type>/<task-id>-<description> origin/main` (or the latest tracked default)
 - **VERIFY** with `git status -sb` before every task
-- See `operations.md` for full git workflow
+- See `operations.md` for the PR-based git workflow
 
 ## Rule 2: MCP PLAYWRIGHT EVIDENCE (Browser validation is NOT manual)
 - **ONLY** MCP Playwright tools determine pass/fail - NOT manual browser viewing

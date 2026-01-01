@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:57:29.832112",
+  "image": {
+    "id": 20,
+    "word": "001_08",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 29419
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@micheile",
+    "photographer": "Micheile Henderson",
+    "alt_text": "Artistic flat lay of meringues with strawberries and cherries on a marble surface. Perfect for dessert lovers.",
+    "description": "Artistic flat lay of meringues with strawberries and cherries on a marble surface. Perfect for dessert lovers.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}
