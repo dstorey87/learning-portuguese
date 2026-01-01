@@ -96,6 +96,9 @@ function connectWebSocket() {
         Logger.debug('WebSocket already connected');
         return;
     }
+    if (curatorState.ws && curatorState.ws.readyState === WebSocket.CONNECTING) {
+        return;
+    }
     
     curatorState.status = 'connecting';
     addLogEntry('info', 'Connecting to curator service...');
@@ -163,10 +166,7 @@ function handleCuratorMessage(msg) {
             break;
             
         case 'progress':
-            curatorState.progress = { ...curatorState.progress, ...msg.data };
-            curatorState.progress.percent = curatorState.progress.total > 0 
-                ? Math.round((curatorState.progress.processed / curatorState.progress.total) * 100)
-                : 0;
+            curatorState.progress = { ...curatorState.progress, ...normalizeProgress(msg.data) };
             break;
             
         case 'current_word':
@@ -186,6 +186,11 @@ function handleCuratorMessage(msg) {
             curatorState.current.selected = msg.data;
             addLogEntry('success', `Selected image for "${curatorState.current.word}": ${msg.data.source}`);
             break;
+        
+        case 'complete':
+            curatorState.status = 'idle';
+            addLogEntry('success', `Curation complete: ${msg.data.successful || 0}/${msg.data.total_words || msg.data.total || 0} successful`);
+            break;
             
         case 'error':
             addLogEntry('error', msg.data.message || 'Unknown error');
@@ -200,7 +205,7 @@ function handleCuratorMessage(msg) {
             
         case 'complete':
             curatorState.status = 'idle';
-            addLogEntry('success', `Curation complete: ${msg.data.succeeded}/${msg.data.total} successful`);
+            addLogEntry('success', `Curation complete: ${(msg.data.successful ?? msg.data.succeeded ?? 0)}/${msg.data.total_words ?? msg.data.total ?? 0} successful`);
             break;
             
         default:
@@ -215,6 +220,9 @@ function updateStatus(data) {
     if (data.gpu) curatorState.gpu = data.gpu;
     if (data.vision) curatorState.vision = data.vision;
     if (data.apis) curatorState.apis = data.apis;
+    if (data.progress) {
+        curatorState.progress = { ...curatorState.progress, ...normalizeProgress(data.progress) };
+    }
 }
 
 // ============================================================================
@@ -227,6 +235,7 @@ async function startCurator() {
     refreshConsole();
     
     try {
+        connectWebSocket();
         const response = await fetch(`${CURATOR_API_BASE}/api/curator/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -462,7 +471,7 @@ function renderConfig() {
 function renderProgress() {
     const p = curatorState.progress;
     
-    if (curatorState.status !== 'running' && p.total === 0) {
+    if (curatorState.status !== 'running' && (p.total || p.total_words || 0) === 0) {
         return `
             <div class="curator-progress">
                 <div class="progress-empty">
@@ -478,7 +487,7 @@ function renderProgress() {
                 <div class="progress-fill" style="width: ${p.percent}%"></div>
             </div>
             <div class="progress-stats">
-                <span class="progress-text">${p.processed}/${p.total} words processed (${p.percent}%)</span>
+                <span class="progress-text">${p.processed}/${p.total || p.total_words || 0} words processed (${p.percent}%)</span>
                 <div class="progress-details">
                     <span class="stat-success">✓ ${p.succeeded}</span>
                     <span class="stat-error">✗ ${p.failed}</span>
@@ -525,7 +534,7 @@ function renderCandidates(candidates, selected) {
                 <div class="candidate ${selected?.id === img.id ? 'selected' : ''}" data-index="${idx}">
                     <img src="${escapeHtml(img.thumbnail_url || img.url)}" alt="${escapeHtml(img.alt_text || '')}" loading="lazy">
                     <div class="candidate-info">
-                        <div class="candidate-score">${img.score ? `Score: ${(img.score * 10).toFixed(1)}/10` : ''}</div>
+                        <div class="candidate-score">${typeof img.score === 'number' ? `Score: ${img.score.toFixed(1)}/10` : ''}</div>
                         <div class="candidate-source">${escapeHtml(img.source)}</div>
                         ${selected?.id === img.id ? '<div class="selected-badge">✓ Selected</div>' : ''}
                     </div>
@@ -577,6 +586,21 @@ function refreshConsole() {
     }
 }
 
+function normalizeProgress(progress = {}) {
+    const total = progress.total ?? progress.total_words ?? 0;
+    const processed = progress.processed ?? 0;
+    const percent = total > 0 ? Math.round((processed / total) * 100) : 0;
+    return {
+        total,
+        total_words: progress.total_words ?? total,
+        processed,
+        succeeded: progress.succeeded ?? progress.successful ?? 0,
+        failed: progress.failed ?? 0,
+        skipped: progress.skipped ?? 0,
+        percent
+    };
+}
+
 function startPolling() {
     if (curatorState.pollTimer) return;
     
@@ -606,6 +630,7 @@ export function updateConfig(key, value) {
 export function initImageCuratorConsole() {
     // Try to get initial status
     getCuratorStatus();
+    connectWebSocket();
     
     // Start polling for status
     startPolling();

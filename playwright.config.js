@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: 'tests',
+  testIgnore: ['**/unit/**', '**/integration/**'],
   timeout: 30_000,
   retries: process.env.CI ? 2 : 0,
   // Use 8 workers for faster test execution

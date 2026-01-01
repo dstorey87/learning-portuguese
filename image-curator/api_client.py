@@ -287,8 +287,15 @@ class OpenverseClient:
                     photographer_url=item.get("creator_url", "") or "",
                     source="openverse",
                     license=item.get("license", "CC"),
-                    attribution=item.get("attribution", f"Via Openverse ({item.get('source', 'unknown')})"),
-                    tags=[t.get("name", "") for t in item.get("tags", []) if isinstance(t, dict)],
+                    attribution=item.get(
+                        "attribution",
+                        f"Via Openverse ({item.get('source', 'unknown')})",
+                    ),
+                    tags=[
+                        t.get("name", "")
+                        for t in item.get("tags", [])
+                        if isinstance(t, dict)
+                    ],
                 )
             )
         return parsed
@@ -413,7 +420,7 @@ class ImageAPIClient:
     ) -> List[ImageResult]:
         """
         Search for images appropriate for a vocabulary word.
-        
+
         Uses intelligent query building based on word type and category
         to find the most relevant educational images.
 
@@ -428,13 +435,13 @@ class ImageAPIClient:
         """
         # Smart query building based on word characteristics
         query = self._build_smart_query(portuguese_word, english_translation, category)
-        
+
         logger.info(
             f"Searching for '{portuguese_word}' ({english_translation}): query='{query}'"
         )
-        
+
         results = await self.search(query, count)
-        
+
         # If no results, try fallback queries
         if not results:
             fallback_queries = self._get_fallback_queries(english_translation, category)
@@ -443,7 +450,7 @@ class ImageAPIClient:
                 results = await self.search(fallback, count)
                 if results:
                     break
-        
+
         return results
 
     def _build_smart_query(
@@ -451,7 +458,7 @@ class ImageAPIClient:
     ) -> str:
         """
         Build an intelligent search query based on word type.
-        
+
         Different word types need different search strategies:
         - Concrete nouns: Direct search works well
         - Abstract concepts: Need visual metaphors
@@ -460,7 +467,7 @@ class ImageAPIClient:
         - Adjectives: Need examples showing the quality
         """
         translation_lower = english_translation.lower()
-        
+
         # Word-specific overrides for difficult/abstract words
         word_specific_queries = {
             # Greetings - need people interacting
@@ -487,7 +494,6 @@ class ImageAPIClient:
             "maybe": "thinking uncertain perhaps considering",
             "of course": "confident certain absolutely sure",
             "okay": "okay agreement thumbs up fine",
-            
             # Pronouns - need clear single/plural/gender distinctions
             "i": "person pointing self me individual",
             "you": "person pointing you conversation",
@@ -496,12 +502,10 @@ class ImageAPIClient:
             "it": "object thing item neutral",
             "we": "group people together team us",
             "they": "group people them others",
-            
             # Articles - need examples of the concept
             "the": "specific item pointing definite",
             "a": "single one item object",
             "an": "single item object one",
-            
             # Numbers - clear visual representations
             "one": "number 1 one single item",
             "two": "number 2 two pair items",
@@ -513,7 +517,6 @@ class ImageAPIClient:
             "eight": "number 8 eight items",
             "nine": "number 9 nine items",
             "ten": "number 10 ten items both hands",
-            
             # Common verbs
             "to be": "existence being identity person",
             "to have": "having possession holding hands",
@@ -526,11 +529,11 @@ class ImageAPIClient:
             "to speak": "speaking talking conversation",
             "to work": "working office job profession",
         }
-        
+
         # Check for word-specific query
         if translation_lower in word_specific_queries:
             return word_specific_queries[translation_lower]
-        
+
         # Category-based query enhancement
         category_hints = {
             "greetings": "people greeting friendly interaction",
@@ -549,15 +552,15 @@ class ImageAPIClient:
             "pronouns": "person people portrait",
             "general": "",  # No extra hints for general
         }
-        
+
         category_lower = category.lower() if category else "general"
-        
+
         for cat_key, hint in category_hints.items():
             if cat_key in category_lower:
                 if hint:
                     return f"{english_translation} {hint}"
                 break
-        
+
         # Default: just use the translation with "clear" for better results
         return f"{english_translation} clear"
 
@@ -568,22 +571,22 @@ class ImageAPIClient:
         Generate fallback queries if primary search fails.
         """
         fallbacks = []
-        
+
         # Try just the word
         fallbacks.append(english_translation)
-        
+
         # Try with "illustration" for abstract concepts
         fallbacks.append(f"{english_translation} illustration")
-        
+
         # Try with "concept" for very abstract words
         fallbacks.append(f"{english_translation} concept")
-        
+
         # Category-specific fallbacks
         if "greeting" in category.lower():
             fallbacks.append("people meeting friendly")
         elif "number" in category.lower():
             fallbacks.append("counting numbers education")
-        
+
         return fallbacks
 
     def get_status(self) -> Dict:

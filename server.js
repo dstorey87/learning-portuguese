@@ -525,136 +525,182 @@ app.post('/admin/lessons/:id/upload-image', upload.single('image'), (req, res) =
 // ============================================================================
 
 import { spawn } from 'child_process';
+import WebSocket from 'ws';
 
-let curatorProcess = null;
+let curatorWsProcess = null;
+let curatorWsClient = null;
 let curatorStatus = {
     status: 'offline',
     pid: null,
     startedAt: null,
     config: {},
-    progress: { total: 0, processed: 0, succeeded: 0, failed: 0, skipped: 0 }
+    progress: { total_words: 0, processed: 0, successful: 0, failed: 0, skipped: 0, percent_complete: 0 },
+    gpu: { available: false, gpu_count: 0, gpus: [], selectedGpu: null, shouldThrottle: false },
+    vision: { available: true, model: 'gemma3:4b' },
+    current: { word: null, translation: null, lesson: null },
+    apis: {
+        pexels: { enabled: true, keySet: !!process.env.PEXELS_API_KEY },
+        pixabay: { enabled: true, keySet: !!process.env.PIXABAY_API_KEY }
+    }
 };
 
-// Get curator status
-app.get('/api/curator/status', (req, res) => {
-    // Check if process is still running
-    if (curatorProcess && curatorProcess.exitCode !== null) {
+function ensureCuratorWebSocketServer() {
+    if (curatorWsProcess && curatorWsProcess.exitCode === null) return;
+
+    const args = ['websocket_server.py', '--port', '8765'];
+    curatorWsProcess = spawn('python', args, {
+        cwd: path.join(process.cwd(), 'image-curator'),
+        env: { ...process.env },
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    curatorStatus.status = 'ready';
+    curatorStatus.pid = curatorWsProcess.pid;
+
+    curatorWsProcess.stdout.on('data', (data) => console.log('[Curator WS]', data.toString().trim()));
+    curatorWsProcess.stderr.on('data', (data) => console.error('[Curator WS ERR]', data.toString().trim()));
+    curatorWsProcess.on('exit', (code) => {
+        console.log(`[Curator WS] exited with code ${code}`);
+        curatorWsProcess = null;
         curatorStatus.status = 'offline';
-        curatorStatus.pid = null;
-        curatorProcess = null;
-    }
-    
-    res.json({
-        ...curatorStatus,
-        gpu: { available: true, count: 2 },  // TODO: Get from Python
-        vision: { available: true, model: curatorStatus.config.model || 'gemma3:4b' },
-        apis: {
-            pexels: { enabled: true, keySet: !!process.env.PEXELS_API_KEY },
-            pixabay: { enabled: false, keySet: !!process.env.PIXABAY_API_KEY }
+    });
+}
+
+function connectCuratorWebSocket() {
+    if (curatorWsClient && curatorWsClient.readyState === WebSocket.OPEN) return;
+
+    ensureCuratorWebSocketServer();
+    curatorWsClient = new WebSocket('ws://localhost:8765');
+
+    curatorWsClient.on('open', () => {
+        curatorStatus.status = 'idle';
+    });
+
+    curatorWsClient.on('close', () => {
+        curatorStatus.status = 'offline';
+    });
+
+    curatorWsClient.on('message', (raw) => {
+        try {
+            const msg = JSON.parse(raw.toString());
+            handleCuratorMessage(msg);
+        } catch (e) {
+            console.error('[Curator WS] Failed to parse message', e);
         }
     });
-});
+}
 
-// Start curator
-app.post('/api/curator/start', (req, res) => {
-    if (curatorProcess && curatorProcess.exitCode === null) {
-        return res.status(400).json({ error: 'Curator already running', pid: curatorProcess.pid });
+function handleCuratorMessage(msg) {
+    switch (msg.type) {
+        case 'status':
+            curatorStatus.status = msg.data.status || curatorStatus.status;
+            break;
+        case 'progress':
+            curatorStatus.progress = msg.data;
+            break;
+        case 'current_word':
+            curatorStatus.current = {
+                word: msg.data.word,
+                translation: msg.data.translation,
+                lesson: msg.data.lesson
+            };
+            break;
+        case 'candidates':
+            curatorStatus.current = { ...curatorStatus.current, candidates: msg.data };
+            break;
+        case 'selected':
+            curatorStatus.current = { ...curatorStatus.current, selected: msg.data };
+            break;
+        case 'gpu':
+            curatorStatus.gpu = msg.data;
+            break;
+        case 'log':
+            // keep last log entry on status for quick debugging
+            curatorStatus.lastLog = msg.data;
+            break;
+        case 'complete':
+            curatorStatus.status = 'completed';
+            break;
+        default:
+            break;
     }
-    
-    const config = req.body || {};
-    const model = config.model || 'gemma3:4b';
-    const candidates = config.candidates || 5;
-    const useVision = config.useVision !== false;
-    const lesson = config.lesson || null;
-    
-    // Build command args
-    const args = [
-        'batch_curator.py',
-        '--model', model,
-        '--candidates', String(candidates),
-        '--num-gpu-layers', '20',  // Limit GPU usage
-        '--min-score', '28'
-    ];
-    
-    if (lesson) {
-        args.push('--lesson', lesson);
-    }
-    
-    if (!useVision) {
-        args.push('--no-vision');
-    }
-    
-    try {
-        curatorProcess = spawn('python', args, {
-            cwd: path.join(process.cwd(), 'image-curator'),
-            env: { ...process.env },
-            stdio: ['pipe', 'pipe', 'pipe']
-        });
-        
-        curatorStatus = {
-            status: 'running',
-            pid: curatorProcess.pid,
-            startedAt: new Date().toISOString(),
-            config: { model, candidates, useVision, lesson },
-            progress: { total: 0, processed: 0, succeeded: 0, failed: 0, skipped: 0 }
+}
+
+function ensureWsReady() {
+    return new Promise((resolve, reject) => {
+        connectCuratorWebSocket();
+        const start = Date.now();
+
+        const check = () => {
+            if (curatorWsClient && curatorWsClient.readyState === WebSocket.OPEN) {
+                return resolve();
+            }
+            if (Date.now() - start > 5000) {
+                return reject(new Error('Curator WebSocket not ready'));
+            }
+            setTimeout(check, 100);
         };
-        
-        // Capture output for logging
-        curatorProcess.stdout.on('data', (data) => {
-            const output = data.toString();
-            console.log('[Curator]', output);
-            
-            // Parse progress from output (basic parsing)
-            const progressMatch = output.match(/(\d+)\/(\d+) words processed/);
-            if (progressMatch) {
-                curatorStatus.progress.processed = parseInt(progressMatch[1]);
-                curatorStatus.progress.total = parseInt(progressMatch[2]);
+
+        check();
+    });
+}
+
+// Get curator status
+app.get('/api/curator/status', async (req, res) => {
+    try {
+        ensureCuratorWebSocketServer();
+        connectCuratorWebSocket();
+        res.json({
+            ...curatorStatus,
+            apis: {
+                pexels: { enabled: true, keySet: !!process.env.PEXELS_API_KEY },
+                pixabay: { enabled: true, keySet: !!process.env.PIXABAY_API_KEY }
             }
         });
-        
-        curatorProcess.stderr.on('data', (data) => {
-            console.error('[Curator Error]', data.toString());
-        });
-        
-        curatorProcess.on('exit', (code) => {
-            console.log(`[Curator] Process exited with code ${code}`);
-            curatorStatus.status = code === 0 ? 'completed' : 'error';
-            curatorStatus.pid = null;
-            curatorProcess = null;
-        });
-        
-        res.json({ 
-            status: 'started', 
-            pid: curatorProcess.pid,
-            config: curatorStatus.config
-        });
-        
     } catch (e) {
-        console.error('Failed to start curator:', e);
+        res.status(500).json({ error: 'Failed to fetch curator status', message: e.message });
+    }
+});
+
+// Start curator via websocket server
+app.post('/api/curator/start', async (req, res) => {
+    try {
+        await ensureWsReady();
+
+        const config = req.body || {};
+        const payload = {
+            type: 'start',
+            data: {
+                model: config.model || 'gemma3:4b',
+                candidates: config.candidates || 5,
+                gpu_throttle: config.gpuThrottle || 75,
+                resume_on_crash: config.resumeOnCrash !== false,
+                min_score: config.minScore || 28,
+                min_relevance: config.minRelevance || 7,
+                use_vision: config.useVision !== false,
+                lesson: config.lesson || null
+            }
+        };
+
+        curatorWsClient.send(JSON.stringify(payload));
+        curatorStatus.status = 'running';
+        curatorStatus.startedAt = new Date().toISOString();
+        curatorStatus.config = payload.data;
+
+        res.json({ status: 'started', config: payload.data });
+    } catch (e) {
+        console.error('Failed to start curator via websocket:', e);
         res.status(500).json({ error: 'Failed to start curator', message: e.message });
     }
 });
 
 // Stop curator
-app.post('/api/curator/stop', (req, res) => {
-    if (!curatorProcess || curatorProcess.exitCode !== null) {
-        curatorStatus.status = 'offline';
-        return res.json({ status: 'not_running' });
-    }
-    
+app.post('/api/curator/stop', async (req, res) => {
     try {
-        curatorProcess.kill('SIGTERM');
+        await ensureWsReady();
+        curatorWsClient.send(JSON.stringify({ type: 'stop' }));
         curatorStatus.status = 'stopping';
-        
-        // Force kill after 5 seconds if not stopped
-        setTimeout(() => {
-            if (curatorProcess && curatorProcess.exitCode === null) {
-                curatorProcess.kill('SIGKILL');
-            }
-        }, 5000);
-        
-        res.json({ status: 'stopping', pid: curatorProcess.pid });
-        
+        res.json({ status: 'stopping' });
     } catch (e) {
         res.status(500).json({ error: 'Failed to stop curator', message: e.message });
     }
@@ -667,6 +713,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
+ensureCuratorWebSocketServer();
 app.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════════╗

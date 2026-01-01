@@ -375,9 +375,18 @@ export function renderAPIKeyManager() {
  * Called after DOM is ready
  */
 export function initAPIKeyManager() {
-    const container = document.getElementById('apiKeyManagerContent');
+    let container = document.getElementById('apiKeyManagerContent');
+
+    // If the inner container is missing, re-render the wrapper inside the panel
     if (!container) {
-        console.warn('[APIKeyManager] Container not found');
+        const outer = document.getElementById('apiKeyManagerContainer');
+        if (outer) {
+            outer.innerHTML = renderAPIKeyManager();
+            container = document.getElementById('apiKeyManagerContent');
+        }
+    }
+
+    if (!container) {
         return;
     }
     

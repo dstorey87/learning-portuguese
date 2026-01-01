@@ -70,8 +70,10 @@ class VisionClient:
     ]
 
     def __init__(
-        self, model: Optional[str] = None, host: str = "http://localhost:11434",
-        num_gpu: Optional[int] = None
+        self,
+        model: Optional[str] = None,
+        host: str = "http://localhost:11434",
+        num_gpu: Optional[int] = None,
     ):
         """
         Initialize vision client.
@@ -225,8 +227,8 @@ Be strict: only recommend (true) if total score >= 28/40 AND relevance >= 7."""
             # Build options with GPU limiting if configured
             options = {}
             if self.num_gpu is not None:
-                options['num_gpu'] = self.num_gpu
-            
+                options["num_gpu"] = self.num_gpu
+
             response = self.client.chat(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt, "images": [image_data]}],

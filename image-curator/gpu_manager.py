@@ -32,6 +32,19 @@ class GPUManager:
         self.fallback_cpu = fallback_cpu
         self.target_gpu = target_gpu
         self._nvidia_available = self._check_nvidia_smi()
+        self._initialized = False
+
+    async def initialize(self) -> bool:
+        """
+        Async-friendly initializer for compatibility with websocket server.
+
+        Returns:
+            True once initialization check completes.
+        """
+        # Nothing heavy to do here yet, but keep the async contract
+        self._nvidia_available = self._check_nvidia_smi()
+        self._initialized = True
+        return True
 
     def _check_nvidia_smi(self) -> bool:
         """Check if nvidia-smi is available."""
@@ -168,6 +181,27 @@ class GPUManager:
             )
 
         return should_throttle
+
+    def get_stats(self) -> Dict:
+        """
+        Structured GPU stats for UI/websocket consumption.
+
+        Returns:
+            Dict with availability, GPU list, selection, and throttle state.
+        """
+        gpus = self.get_gpu_info()
+        selected = self.select_best_gpu()
+
+        return {
+            "available": bool(gpus),
+            "gpu_count": len(gpus),
+            "gpus": gpus,
+            "selectedGpu": selected,
+            "targetGpu": self.target_gpu,
+            "shouldThrottle": self.should_throttle(),
+            "throttleThreshold": self.throttle_threshold,
+            "initialized": self._initialized,
+        }
 
     def get_current_utilization(self) -> Optional[int]:
         """

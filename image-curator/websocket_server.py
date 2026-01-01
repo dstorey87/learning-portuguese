@@ -35,6 +35,7 @@ class MessageType(Enum):
     LOG = "log"
     GPU = "gpu"
     ERROR = "error"
+    COMPLETE = "complete"
 
     # Client -> Server
     START = "start"
@@ -89,6 +90,7 @@ class CuratorWebSocketServer:
         self._server = None
         self._curator_task = None
         self._gpu_monitor_task = None
+        self._status_broadcast_task = None
 
     async def start(self):
         """Start the WebSocket server."""
@@ -102,6 +104,9 @@ class CuratorWebSocketServer:
         self._gpu_monitor_task = asyncio.create_task(self._monitor_gpu())
 
         await self._broadcast(MessageType.STATUS, {"status": "ready"})
+        self._status_broadcast_task = asyncio.create_task(
+            self._broadcast_status_periodically()
+        )
 
     async def stop(self):
         """Stop the WebSocket server."""
@@ -112,6 +117,8 @@ class CuratorWebSocketServer:
         # Cancel GPU monitoring
         if self._gpu_monitor_task:
             self._gpu_monitor_task.cancel()
+        if self._status_broadcast_task:
+            self._status_broadcast_task.cancel()
 
         # Close all client connections
         for client in self.clients.copy():
@@ -191,11 +198,16 @@ class CuratorWebSocketServer:
             candidates_per_word=config_data.get("candidates", 3),
             gpu_throttle_percent=config_data.get("gpu_throttle", 75),
             resume_from_crash=config_data.get("resume_on_crash", True),
+            min_score=config_data.get("min_score", 28),
+            min_relevance=config_data.get("min_relevance", 7),
+            use_vision=config_data.get("use_vision", True),
         )
 
         # Create and initialize curator
         self.curator = BatchCurator(config)
         self.curator.add_progress_callback(self._on_progress)
+        self.curator.add_candidate_callback(self._on_candidates)
+        self.curator.add_log_callback(self._on_log)
 
         if not await self.curator.initialize():
             await self._broadcast(
@@ -287,6 +299,7 @@ class CuratorWebSocketServer:
             await self._broadcast(
                 MessageType.LOG, {"message": f"Batch complete: {results}"}
             )
+            await self._broadcast(MessageType.COMPLETE, results)
         except asyncio.CancelledError:
             logger.info("Curator task cancelled")
         except Exception as e:
@@ -298,14 +311,45 @@ class CuratorWebSocketServer:
 
     def _on_progress(self, progress: BatchProgress):
         """Callback for curator progress updates."""
-        asyncio.create_task(self._broadcast(MessageType.PROGRESS, progress.to_dict()))
+        progress_payload = progress.to_dict()
+        asyncio.create_task(self._broadcast(MessageType.PROGRESS, progress_payload))
 
         if progress.current_word:
             asyncio.create_task(
                 self._broadcast(
-                    MessageType.CURRENT_WORD, {"word": progress.current_word}
+                    MessageType.CURRENT_WORD,
+                    {
+                        "word": progress.current_word,
+                        "translation": progress.current_translation,
+                        "lesson": progress.current_lesson,
+                    },
                 )
             )
+
+    def _on_candidates(self, payload: dict):
+        """Forward candidate updates to clients."""
+        asyncio.create_task(
+            self._broadcast(MessageType.CANDIDATES, payload.get("candidates", []))
+        )
+
+    def _on_log(self, payload: dict):
+        """Forward log events to clients."""
+        asyncio.create_task(self._broadcast(MessageType.LOG, payload))
+
+    async def _broadcast_status_periodically(self):
+        """Send periodic status to keep clients synced."""
+        while True:
+            try:
+                await self._broadcast(
+                    MessageType.STATUS,
+                    {"status": "running" if self.is_running else "stopped"},
+                )
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Status heartbeat error: {e}")
+                await asyncio.sleep(5)
 
     async def _monitor_gpu(self):
         """Monitor GPU stats and broadcast periodically."""

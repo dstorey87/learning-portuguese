@@ -49,9 +49,12 @@ class BatchConfig:
     resume_from_crash: bool = True
     gpu_throttle_percent: int = 75
     target_gpu: Optional[int] = None  # Specific GPU to use (None = auto-select)
-    num_gpu_layers: Optional[int] = None  # Limit GPU layers (None = all, lower = less GPU load)
+    num_gpu_layers: Optional[int] = (
+        None  # Limit GPU layers (None = all, lower = less GPU load)
+    )
     save_rejected: bool = True
     download_images: bool = True
+    use_vision: bool = True
     dry_run: bool = False
     lesson_filter: Optional[str] = None
     category_filter: Optional[str] = None
@@ -68,16 +71,22 @@ class BatchProgress:
     failed: int = 0
     skipped: int = 0
     current_word: Optional[str] = None
+    current_translation: Optional[str] = None
+    current_lesson: Optional[str] = None
     start_time: Optional[datetime] = None
 
     def to_dict(self) -> Dict:
         return {
+            "total": self.total_words,
             "total_words": self.total_words,
             "processed": self.processed,
             "successful": self.successful,
+            "succeeded": self.successful,
             "failed": self.failed,
             "skipped": self.skipped,
             "current_word": self.current_word,
+            "current_translation": self.current_translation,
+            "current_lesson": self.current_lesson,
             "percent_complete": round(
                 self.processed / max(self.total_words, 1) * 100, 1
             ),
@@ -118,10 +127,20 @@ class BatchCurator:
         self.orchestrator = None
         self._shutdown_requested = False
         self._progress_callbacks = []
+        self._candidate_callbacks = []
+        self._log_callbacks = []
 
     def add_progress_callback(self, callback):
         """Add callback for progress updates."""
         self._progress_callbacks.append(callback)
+
+    def add_candidate_callback(self, callback):
+        """Add callback for candidate updates."""
+        self._candidate_callbacks.append(callback)
+
+    def add_log_callback(self, callback):
+        """Add callback for log events."""
+        self._log_callbacks.append(callback)
 
     def _notify_progress(self):
         """Notify all progress callbacks."""
@@ -129,6 +148,31 @@ class BatchCurator:
             try:
                 cb(self.progress)
             except:
+                pass
+
+    def _notify_candidates(self, word: str, candidates: list):
+        """Notify candidate callbacks with candidate list."""
+        payload = {"word": word, "candidates": candidates}
+        for cb in self._candidate_callbacks:
+            try:
+                cb(payload)
+            except Exception:
+                pass
+
+    def _notify_selected(self, selection: dict):
+        """Notify when a selection is made."""
+        for cb in self._candidate_callbacks:
+            try:
+                cb({"selected": selection})
+            except Exception:
+                pass
+
+    def _notify_log(self, message: str, level: str = "info"):
+        """Notify log subscribers (used by websocket server)."""
+        for cb in self._log_callbacks:
+            try:
+                cb({"level": level, "message": message})
+            except Exception:
                 pass
 
     async def initialize(self) -> bool:
@@ -143,18 +187,27 @@ class BatchCurator:
             self.api_client = create_api_client()
 
             # Initialize vision client with GPU layer limiting
-            self.vision_client = VisionClient(
-                model=self.config.vision_model,
-                num_gpu=self.config.num_gpu_layers
-            )
-            if self.config.num_gpu_layers:
-                logger.info(f"Vision client using model: {self.config.vision_model} (GPU layers: {self.config.num_gpu_layers})")
+            if self.config.use_vision:
+                self.vision_client = VisionClient(
+                    model=self.config.vision_model, num_gpu=self.config.num_gpu_layers
+                )
+                if self.config.num_gpu_layers:
+                    logger.info(
+                        f"Vision client using model: {self.config.vision_model} (GPU layers: {self.config.num_gpu_layers})"
+                    )
+                else:
+                    logger.info(
+                        f"Vision client using model: {self.config.vision_model}"
+                    )
             else:
-                logger.info(f"Vision client using model: {self.config.vision_model}")
+                self.vision_client = None
+                logger.info("Vision evaluation disabled by config")
 
             # Create orchestrator
             self.orchestrator = ImageSearchOrchestrator(
-                api_client=self.api_client, vision_client=self.vision_client
+                api_client=self.api_client,
+                vision_client=self.vision_client,
+                enable_vision=self.config.use_vision,
             )
 
             logger.info("BatchCurator initialized successfully")
@@ -183,7 +236,7 @@ class BatchCurator:
 
         Processes lessons in numerical order (001, 002, etc.)
         and words within each lesson by word_id (001_01, 001_02, etc.)
-        
+
         Returns list of dicts with:
         - word_id: Unique word identifier (e.g., 001_01)
         - word: Portuguese word
@@ -201,7 +254,7 @@ class BatchCurator:
         # Get CSV files and sort by lesson number (001, 002, etc.)
         csv_files = sorted(
             [f for f in csv_dir.glob("*.csv") if f.stem[0].isdigit()],
-            key=lambda f: f.stem
+            key=lambda f: f.stem,
         )
 
         for csv_file in csv_files:
@@ -214,16 +267,17 @@ class BatchCurator:
                         continue
 
                 lesson_words = []
-                
+
                 with open(csv_file, "r", encoding="utf-8") as f:
                     import csv as csv_module
+
                     reader = csv_module.DictReader(f)
-                    
+
                     for row in reader:
                         word_id = row.get("word_id", "")
                         word = row.get("portuguese", "").strip()
                         english = row.get("english", "").strip()
-                        
+
                         if not word or not english:
                             continue
 
@@ -232,14 +286,16 @@ class BatchCurator:
                             if word not in self.config.word_filter:
                                 continue
 
-                        lesson_words.append({
-                            "word_id": word_id,
-                            "word": word,
-                            "english": english,
-                            "lesson_id": lesson_id,
-                            "category": self._get_category(lesson_id),
-                        })
-                
+                        lesson_words.append(
+                            {
+                                "word_id": word_id,
+                                "word": word,
+                                "english": english,
+                                "lesson_id": lesson_id,
+                                "category": self._get_category(lesson_id),
+                            }
+                        )
+
                 # Sort words within lesson by word_id
                 lesson_words.sort(key=lambda w: w.get("word_id", ""))
                 vocabulary.extend(lesson_words)
@@ -297,30 +353,36 @@ class BatchCurator:
     def _update_csv_image_url(self, item: Dict, local_path: str) -> bool:
         """
         BUG-020 FIX: Update CSV file with curated image URL.
-        
+
         Args:
             item: Dict with lesson_id and word_id
             local_path: Path to saved image
-            
+
         Returns:
             True if CSV updated successfully
         """
         try:
             import csv as csv_module
-            
+
             lesson_id = item.get("lesson_id", "")
             word_id = item.get("word_id", "")
-            
+
             if not lesson_id or not word_id:
                 logger.warning(f"Cannot update CSV: missing lesson_id or word_id")
                 return False
-            
-            csv_path = Path(__file__).parent.parent / "src" / "data" / "csv" / f"{lesson_id}.csv"
-            
+
+            csv_path = (
+                Path(__file__).parent.parent
+                / "src"
+                / "data"
+                / "csv"
+                / f"{lesson_id}.csv"
+            )
+
             if not csv_path.exists():
                 logger.warning(f"CSV not found: {csv_path}")
                 return False
-            
+
             # Convert local path to relative asset URL
             # From: C:\...\assets\images\library\greetings\001_01.jpg
             # To: assets/images/library/greetings/001_01.jpg
@@ -331,7 +393,7 @@ class BatchCurator:
             except ValueError:
                 # Path is not relative to project root
                 image_url = local_path
-            
+
             # Read CSV
             rows = []
             fieldnames = []
@@ -339,11 +401,11 @@ class BatchCurator:
                 reader = csv_module.DictReader(f)
                 fieldnames = reader.fieldnames or []
                 rows = list(reader)
-            
+
             # Add image_url column if it doesn't exist
             if "image_url" not in fieldnames:
                 fieldnames.append("image_url")
-            
+
             # Update the matching row
             updated = False
             for row in rows:
@@ -351,20 +413,20 @@ class BatchCurator:
                     row["image_url"] = image_url
                     updated = True
                     break
-            
+
             if not updated:
                 logger.warning(f"Word ID {word_id} not found in {csv_path}")
                 return False
-            
+
             # Write back
             with open(csv_path, "w", encoding="utf-8", newline="") as f:
                 writer = csv_module.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(rows)
-            
+
             logger.info(f"Updated CSV {lesson_id}.csv: {word_id} -> {image_url}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to update CSV: {e}")
             return False
@@ -384,9 +446,12 @@ class BatchCurator:
         english = item["english"]
 
         self.progress.current_word = f"{word_id} ({word})" if word_id else word
+        self.progress.current_translation = english
+        self.progress.current_lesson = item.get("lesson_id")
         self._notify_progress()
 
         logger.info(f"Processing: {word_id} - {word} ({english})")
+        self._notify_log(f"Processing {word} ({english})")
 
         if self.config.dry_run:
             logger.info(f"[DRY RUN] Would process: {word_id} - {word}")
@@ -409,17 +474,18 @@ class BatchCurator:
                 category=item.get("category", ""),
                 search_count=self.config.candidates_per_word,
                 return_count=self.config.candidates_per_word,
-                use_vision=True,
+                use_vision=self.config.use_vision,
             )
 
             if not results:
                 logger.warning(f"No images found for '{word}'")
+                self._notify_log(f"No images found for '{word}'", level="warn")
                 return False
 
             # BUG-016 FIX: Score ALL candidates, then select BEST one above threshold
             # Results are tuples of (ImageResult, score) where score is 0-10 average
             scored_candidates = []
-            
+
             for image_result, score in results:
                 # Convert score from 0-10 average to 0-40 total scale
                 score_40 = score * 4 if score <= 10 else score
@@ -427,17 +493,33 @@ class BatchCurator:
                 # If vision returned detailed scores, use those; otherwise estimate
                 estimated_relevance = score  # score is already 0-10 average
                 scored_candidates.append((image_result, score_40, estimated_relevance))
-            
+
+            # Broadcast candidates to listeners (e.g., websocket)
+            self._notify_candidates(
+                word,
+                [
+                    {
+                        **image_result.to_dict(),
+                        "score": round(score_40 / 4, 2),  # 0-10 scale for UI
+                        "relevance": relevance,
+                    }
+                    for (image_result, score_40, relevance) in scored_candidates
+                ],
+            )
+
             # Sort by total score descending to find best
             scored_candidates.sort(key=lambda x: x[1], reverse=True)
-            
+
             # Find best that meets BOTH thresholds (BUG-022 FIX)
             best_result = None
             best_score = 0
-            
+
             for image_result, score_40, relevance in scored_candidates:
                 # Check both total score AND relevance minimum per plan
-                if score_40 >= self.config.min_score and relevance >= self.config.min_relevance:
+                if (
+                    score_40 >= self.config.min_score
+                    and relevance >= self.config.min_relevance
+                ):
                     best_result = image_result
                     best_score = score_40
                     break  # Already sorted, first match is best
@@ -445,6 +527,9 @@ class BatchCurator:
             if not best_result:
                 logger.warning(
                     f"No image for '{word}' met minimum score {self.config.min_score}"
+                )
+                self._notify_log(
+                    f"No candidate met min score for '{word}'", level="warn"
                 )
 
                 # Save rejected candidates if configured
@@ -463,17 +548,30 @@ class BatchCurator:
 
             if image_record:
                 logger.info(f"Selected image for '{word}' with score {best_score}/40")
-                
+                self._notify_log(
+                    f"Selected image for '{word}' ({best_score}/40)", level="success"
+                )
+                self._notify_selected(
+                    {
+                        **best_result.to_dict(),
+                        "score": round(best_score / 4, 2),  # 0-10 scale
+                        "word": word,
+                        "word_id": word_id,
+                        "lesson_id": item.get("lesson_id"),
+                    }
+                )
+
                 # BUG-020 FIX: Update CSV with image URL
                 if image_record.local_path:
                     self._update_csv_image_url(item, image_record.local_path)
-                
+
                 return True
 
             return False
 
         except Exception as e:
             logger.error(f"Error processing '{word}': {e}")
+            self._notify_log(f"Error processing '{word}': {e}", level="error")
             return False
 
     async def _save_candidate(
@@ -484,7 +582,9 @@ class BatchCurator:
             # Create image record - handle different attribute names
             record = ImageRecord(
                 word=item["word"],
-                word_id=item.get("word_id", ""),  # Use word_id for filename (e.g., "001_01")
+                word_id=item.get(
+                    "word_id", ""
+                ),  # Use word_id for filename (e.g., "001_01")
                 url=result.url,
                 source=result.source,
                 lesson_id=item["lesson_id"],
@@ -523,34 +623,36 @@ class BatchCurator:
         try:
             import aiohttp
 
+            # Local import to avoid hard dependency at module import time
+            try:
+                from .image_processor import process_image
+            except ImportError:
+                from image_processor import process_image
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(result.url) as resp:
                     if resp.status == 200:
-                        image_data = await resp.read()
+                        original_bytes = await resp.read()
 
-                        # Detect format
-                        content_type = resp.headers.get("content-type", "")
-                        if "png" in content_type:
-                            record.format = "png"
-                        elif "gif" in content_type:
-                            record.format = "gif"
-                        elif "webp" in content_type:
-                            record.format = "webp"
-                        else:
-                            record.format = "jpg"
-
-                        record.file_size = len(image_data)
+                        # Resize/compress to required dimensions/quality
+                        processed = process_image(original_bytes)
+                        record.format = processed.format
+                        record.file_size = processed.file_size
+                        record.width = processed.width
+                        record.height = processed.height
 
                         # Save locally
-                        local_path = self.storage.save_image(image_data, record)
+                        local_path = self.storage.save_image(processed.data, record)
 
-                        # Update database with local path
+                        # Update database with local path and dimensions
                         self.library.update_image(
                             record.id,
                             {
                                 "local_path": local_path,
                                 "format": record.format,
                                 "file_size": record.file_size,
+                                "width": record.width,
+                                "height": record.height,
                             },
                         )
 
@@ -598,6 +700,7 @@ class BatchCurator:
             self.library.add_to_queue(item["word"], item["lesson_id"])
 
         logger.info(f"Starting batch curation of {len(to_process)} words")
+        self._notify_log(f"Starting batch curation of {len(to_process)} words")
 
         # Process each word
         for item in to_process:
@@ -626,6 +729,10 @@ class BatchCurator:
             f"Batch complete: {self.progress.successful} successful, "
             f"{self.progress.failed} failed, {self.progress.skipped} skipped"
         )
+        self._notify_log(
+            f"Batch complete: {self.progress.successful} success, {self.progress.failed} failed, {self.progress.skipped} skipped",
+            level="success" if summary.get("completed") else "info",
+        )
 
         return summary
 
@@ -636,7 +743,9 @@ async def main():
     parser.add_argument(
         "--model", default="gemma3:4b", help="Vision model to use (default: gemma3:4b)"
     )
-    parser.add_argument("--candidates", type=int, default=5, help="Candidates per word (default: 5)")
+    parser.add_argument(
+        "--candidates", type=int, default=5, help="Candidates per word (default: 5)"
+    )
     parser.add_argument(
         "--min-score", type=int, default=28, help="Minimum score to accept (out of 40)"
     )
@@ -666,6 +775,11 @@ async def main():
         help="Show what would be done without processing",
     )
     parser.add_argument(
+        "--no-vision",
+        action="store_true",
+        help="Disable vision evaluation (faster, lower quality)",
+    )
+    parser.add_argument(
         "--no-download", action="store_true", help="Do not download images locally"
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
@@ -690,6 +804,7 @@ async def main():
         word_filter=args.words,
         dry_run=args.dry_run,
         download_images=not args.no_download,
+        use_vision=not args.no_vision,
     )
 
     # Create curator

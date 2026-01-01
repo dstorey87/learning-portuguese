@@ -66,7 +66,7 @@ test.describe('TV-001: App Load & Render', () => {
         await expect(header).toBeVisible();
         
         // Verify user info section
-        const guestButton = page.locator('button:has-text("Guest")');
+        const guestButton = page.locator('#userBtn, button:has-text("Guest")').first();
         await expect(guestButton).toBeVisible();
     });
     

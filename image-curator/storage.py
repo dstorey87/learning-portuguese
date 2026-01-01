@@ -245,7 +245,7 @@ class LocalImageStorage:
 
         # Use word_id for filename if available (e.g., "001_01"), otherwise fall back to word
         filename_base = image.word_id if image.word_id else image.word
-        
+
         # Get storage path
         local_path = self.get_storage_path(filename_base, image.category, extension)
 

@@ -1,22 +1,22 @@
 {
   "version": "1.0",
-  "generated_at": "2026-01-01T13:55:55.471277",
+  "generated_at": "2026-01-01T16:58:50.383129",
   "image": {
-    "id": 15,
-    "word": "001_01",
+    "id": 1,
+    "word": "Olá",
     "lesson_id": "001_greetings",
     "category": "greetings",
     "format": "jpg",
     "width": null,
     "height": null,
-    "file_size": 17100
+    "file_size": 18038
   },
   "source": {
     "provider": "pexels",
-    "url": "https://www.pexels.com/@antonio-nature-695510740",
-    "photographer": "Antonio  Nature",
-    "alt_text": "Drone shot capturing misty mountains in Coclé, Panama at sunrise, highlighting nature's beauty.",
-    "description": "Drone shot capturing misty mountains in Coclé, Panama at sunrise, highlighting nature's beauty.",
+    "url": "https://www.pexels.com/@polina-zimmerman",
+    "photographer": "Polina Zimmerman",
+    "alt_text": "Smiling woman with curly hair waves hello in a bright interior.",
+    "description": "Smiling woman with curly hair waves hello in a bright interior.",
     "tags": []
   },
   "ai_validation": {

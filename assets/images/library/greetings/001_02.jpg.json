@@ -1,22 +1,22 @@
 {
   "version": "1.0",
-  "generated_at": "2026-01-01T13:53:26.655694",
+  "generated_at": "2026-01-01T16:58:51.804391",
   "image": {
-    "id": 14,
-    "word": "001_02",
+    "id": 2,
+    "word": "Bom dia",
     "lesson_id": "001_greetings",
     "category": "greetings",
     "format": "jpg",
     "width": null,
     "height": null,
-    "file_size": 19354
+    "file_size": 22622
   },
   "source": {
     "provider": "pexels",
-    "url": "https://www.pexels.com/@markusspiske",
-    "photographer": "Markus Spiske",
-    "alt_text": "Close-up of a vintage AGFA filmstrip with cinematic exposures, evoking nostalgia.",
-    "description": "Close-up of a vintage AGFA filmstrip with cinematic exposures, evoking nostalgia.",
+    "url": "https://www.pexels.com/@pixabay",
+    "photographer": "Pixabay",
+    "alt_text": "Flat lay of a coffee cup with latte art next to a blank notebook on a wooden table.",
+    "description": "Flat lay of a coffee cup with latte art next to a blank notebook on a wooden table.",
     "tags": []
   },
   "ai_validation": {

@@ -5,6 +5,8 @@
  * @module components/common/Modal
  */
 
+import { isAdmin } from '../../services/AuthService.js';
+
 /**
  * Modal configuration
  */
@@ -581,6 +583,15 @@ export function showLoginModal(options = {}) {
  */
 export function showPaywallModal(options = {}) {
     const { onUpgrade = null } = options;
+
+    // Admins should not see paywall (bug-036a)
+    try {
+        if (isAdmin && isAdmin()) {
+            return null;
+        }
+    } catch {
+        // ignore and continue
+    }
     
     const modal = createModal({
         id: 'paywall',
