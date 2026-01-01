@@ -217,7 +217,7 @@ class ImageSearchOrchestrator:
                 image_url,
                 portuguese_word,
                 english_translation,
-                ""  # context
+                "",  # context
             )
             # Result is an ImageScore object - return average score (0-10)
             return result.average_score

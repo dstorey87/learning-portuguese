@@ -20,6 +20,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     word TEXT NOT NULL,
+    word_id TEXT,
     lesson_id TEXT,
     url TEXT NOT NULL,
     local_path TEXT,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS images (
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_images_word ON images(word);
+CREATE INDEX IF NOT EXISTS idx_images_word_id ON images(word_id);
 CREATE INDEX IF NOT EXISTS idx_images_lesson ON images(lesson_id);
 CREATE INDEX IF NOT EXISTS idx_images_status ON images(status);
 CREATE INDEX IF NOT EXISTS idx_images_category ON images(category);
@@ -175,6 +177,12 @@ class ImageLibrary:
         """Initialize database schema."""
         with self._get_connection() as conn:
             conn.executescript(SCHEMA)
+            # Migration: add word_id column if it doesn't exist (for existing DBs)
+            try:
+                conn.execute("SELECT word_id FROM images LIMIT 1")
+            except sqlite3.OperationalError:
+                logger.info("Migrating database: adding word_id column")
+                conn.execute("ALTER TABLE images ADD COLUMN word_id TEXT")
             logger.info(f"Database initialized at {self.db_path}")
 
     @contextmanager
