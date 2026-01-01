@@ -16,7 +16,8 @@ import signal
 
 # Load environment variables from .env
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / '.env')
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Handle relative imports
 try:
@@ -47,6 +48,7 @@ class BatchConfig:
     resume_from_crash: bool = True
     gpu_throttle_percent: int = 75
     target_gpu: Optional[int] = None  # Specific GPU to use (None = auto-select)
+    num_gpu_layers: Optional[int] = None  # Limit GPU layers (None = all, lower = less GPU load)
     save_rejected: bool = True
     download_images: bool = True
     dry_run: bool = False
@@ -108,7 +110,7 @@ class BatchCurator:
         self.storage = LocalImageStorage()
         self.gpu_manager = GPUManager(
             throttle_threshold=self.config.gpu_throttle_percent,
-            target_gpu=self.config.target_gpu
+            target_gpu=self.config.target_gpu,
         )
         self.api_client = None
         self.vision_client = None
@@ -139,9 +141,15 @@ class BatchCurator:
             # Initialize API client
             self.api_client = create_api_client()
 
-            # Initialize vision client
-            self.vision_client = VisionClient(model=self.config.vision_model)
-            logger.info(f"Vision client using model: {self.config.vision_model}")
+            # Initialize vision client with GPU layer limiting
+            self.vision_client = VisionClient(
+                model=self.config.vision_model,
+                num_gpu=self.config.num_gpu_layers
+            )
+            if self.config.num_gpu_layers:
+                logger.info(f"Vision client using model: {self.config.vision_model} (GPU layers: {self.config.num_gpu_layers})")
+            else:
+                logger.info(f"Vision client using model: {self.config.vision_model}")
 
             # Create orchestrator
             self.orchestrator = ImageSearchOrchestrator(
@@ -160,7 +168,7 @@ class BatchCurator:
         self._shutdown_requested = True
 
         # API client cleanup if it has close method
-        if self.api_client and hasattr(self.api_client, 'close'):
+        if self.api_client and hasattr(self.api_client, "close"):
             try:
                 await self.api_client.close()
             except:
@@ -294,7 +302,9 @@ class BatchCurator:
             # Check GPU throttling - wait until available (blocks until <75%)
             if self.gpu_manager.should_throttle():
                 logger.info("GPU throttled, waiting for availability...")
-                if not self.gpu_manager.wait_for_available(check_interval=2.0, max_wait=120.0):
+                if not self.gpu_manager.wait_for_available(
+                    check_interval=2.0, max_wait=120.0
+                ):
                     logger.warning("GPU throttle timeout, proceeding anyway")
 
             # Search for candidate images
@@ -302,10 +312,10 @@ class BatchCurator:
             results = await self.orchestrator.search_and_evaluate(
                 portuguese_word=word,
                 english_translation=english,
-                category=item.get('category', ''),
+                category=item.get("category", ""),
                 search_count=self.config.candidates_per_word,
                 return_count=self.config.candidates_per_word,
-                use_vision=True
+                use_vision=True,
             )
 
             if not results:
@@ -334,7 +344,9 @@ class BatchCurator:
                 # Save rejected candidates if configured
                 if self.config.save_rejected:
                     for image_result, score in results:
-                        await self._save_candidate(item, image_result, status="rejected")
+                        await self._save_candidate(
+                            item, image_result, status="rejected"
+                        )
 
                 return False
 
@@ -365,11 +377,15 @@ class BatchCurator:
                 source=result.source,
                 lesson_id=item["lesson_id"],
                 category=item.get("category", ""),
-                source_url=getattr(result, 'photographer_url', '') or '',
-                photographer=getattr(result, 'photographer', '') or '',
-                alt_text=getattr(result, 'alt_text', '') or getattr(result, 'alt', '') or '',
-                description=getattr(result, 'alt_text', '') or getattr(result, 'alt', '') or '',
-                tags=getattr(result, 'tags', []) or [],
+                source_url=getattr(result, "photographer_url", "") or "",
+                photographer=getattr(result, "photographer", "") or "",
+                alt_text=getattr(result, "alt_text", "")
+                or getattr(result, "alt", "")
+                or "",
+                description=getattr(result, "alt_text", "")
+                or getattr(result, "alt", "")
+                or "",
+                tags=getattr(result, "tags", []) or [],
                 status=status,
             )
 
@@ -513,10 +529,22 @@ async def main():
         "--min-score", type=int, default=28, help="Minimum score to accept (out of 40)"
     )
     parser.add_argument(
-        "--gpu-throttle", type=int, default=75, help="GPU throttle percentage (default: 75)"
+        "--gpu-throttle",
+        type=int,
+        default=75,
+        help="GPU throttle percentage (default: 75)",
     )
     parser.add_argument(
-        "--target-gpu", type=int, default=None, help="Specific GPU index to use (default: auto-select)"
+        "--target-gpu",
+        type=int,
+        default=None,
+        help="Specific GPU index to use (default: auto-select)",
+    )
+    parser.add_argument(
+        "--num-gpu-layers",
+        type=int,
+        default=None,
+        help="Limit GPU layers to reduce load (default: all layers on GPU)",
     )
     parser.add_argument("--lesson", help="Filter to specific lesson")
     parser.add_argument("--words", nargs="+", help="Process specific words only")
@@ -545,6 +573,7 @@ async def main():
         min_score=args.min_score,
         gpu_throttle_percent=args.gpu_throttle,
         target_gpu=args.target_gpu,
+        num_gpu_layers=args.num_gpu_layers,
         lesson_filter=args.lesson,
         word_filter=args.words,
         dry_run=args.dry_run,

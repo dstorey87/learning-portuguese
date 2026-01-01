@@ -70,7 +70,8 @@ class VisionClient:
     ]
 
     def __init__(
-        self, model: Optional[str] = None, host: str = "http://localhost:11434"
+        self, model: Optional[str] = None, host: str = "http://localhost:11434",
+        num_gpu: Optional[int] = None
     ):
         """
         Initialize vision client.
@@ -78,6 +79,7 @@ class VisionClient:
         Args:
             model: Specific model to use, or None for auto-detect
             host: Ollama server URL
+            num_gpu: Number of GPU layers to use (None=all, lower values reduce GPU load)
         """
         if not OLLAMA_AVAILABLE:
             raise ImportError("ollama package not installed. Run: pip install ollama")
@@ -85,6 +87,7 @@ class VisionClient:
         self.host = host
         self.client = ollama.Client(host=host)
         self.model = model or self._detect_best_model()
+        self.num_gpu = num_gpu  # Limit GPU layers to reduce load
 
         if not self.model:
             logger.warning(
@@ -219,9 +222,15 @@ Respond ONLY with valid JSON in this exact format:
 Be strict: only recommend (true) if total score >= 28/40 AND relevance >= 7."""
 
         try:
+            # Build options with GPU limiting if configured
+            options = {}
+            if self.num_gpu is not None:
+                options['num_gpu'] = self.num_gpu
+            
             response = self.client.chat(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt, "images": [image_data]}],
+                options=options if options else None,
             )
 
             response_text = response["message"]["content"]
