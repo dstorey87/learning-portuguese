@@ -176,3 +176,28 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Plan Reference:** Vision prompt says "only recommend if total >= 28 AND relevance >= 7"
 - **File:** `image-curator/batch_curator.py` - `process_word()` selection logic
 - **Fix Applied:** Added `min_relevance=7` config and check: `score_40 >= min_score AND relevance >= min_relevance`
+
+## bug-023: Server missing /api/curator/* endpoints
+- **Description:** Admin console expects `/api/curator/start`, `/api/curator/stop`, `/api/curator/status` endpoints but server.js has no curator routes. Curator cannot be controlled from admin UI.
+- **Impact:** CRITICAL - Admin console Start/Stop buttons don't work, no way to control curator from GUI
+- **Status:** ✅ FIXED
+- **Priority:** Critical
+- **Plan Reference:** Branch 4 Admin Console - "Start Python process via server API"
+- **File:** `server.js` - curator API routes
+- **Fix Applied:** Added `/api/curator/start`, `/api/curator/stop`, `/api/curator/status` endpoints that spawn/control Python curator process
+
+## bug-024: Admin console model dropdown has outdated options
+- **Description:** ImageCuratorConsole.js dropdown shows llama3.2-vision, llava, qwen2.5-vl but not gemma3:4b which is the recommended model per plan.
+- **Impact:** Medium - User can't easily select the recommended model
+- **Status:** ✅ FIXED
+- **Priority:** Medium
+- **File:** `src/pages/admin/ImageCuratorConsole.js` - renderConfig() function
+- **Fix Applied:** Updated dropdown with gemma3:4b as default, added qwen2.5-vl:7b, minicpm-v:8b options
+
+## bug-025: Admin console defaults are wrong
+- **Description:** ImageCuratorConsole.js defaults to model='llama3.2-vision' and candidatesPerWord=3, but plan specifies gemma3:4b and 5 candidates.
+- **Impact:** Medium - Console sends wrong defaults to curator
+- **Status:** ✅ FIXED
+- **Priority:** Medium
+- **File:** `src/pages/admin/ImageCuratorConsole.js` - curatorState.config
+- **Fix Applied:** Changed config defaults: model='gemma3:4b', candidatesPerWord=5

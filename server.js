@@ -520,6 +520,146 @@ app.post('/admin/lessons/:id/upload-image', upload.single('image'), (req, res) =
     res.json({ path: relativePath });
 });
 
+// ============================================================================
+// Image Curator API (controls Python curator service)
+// ============================================================================
+
+import { spawn } from 'child_process';
+
+let curatorProcess = null;
+let curatorStatus = {
+    status: 'offline',
+    pid: null,
+    startedAt: null,
+    config: {},
+    progress: { total: 0, processed: 0, succeeded: 0, failed: 0, skipped: 0 }
+};
+
+// Get curator status
+app.get('/api/curator/status', (req, res) => {
+    // Check if process is still running
+    if (curatorProcess && curatorProcess.exitCode !== null) {
+        curatorStatus.status = 'offline';
+        curatorStatus.pid = null;
+        curatorProcess = null;
+    }
+    
+    res.json({
+        ...curatorStatus,
+        gpu: { available: true, count: 2 },  // TODO: Get from Python
+        vision: { available: true, model: curatorStatus.config.model || 'gemma3:4b' },
+        apis: {
+            pexels: { enabled: true, keySet: !!process.env.PEXELS_API_KEY },
+            pixabay: { enabled: false, keySet: !!process.env.PIXABAY_API_KEY }
+        }
+    });
+});
+
+// Start curator
+app.post('/api/curator/start', (req, res) => {
+    if (curatorProcess && curatorProcess.exitCode === null) {
+        return res.status(400).json({ error: 'Curator already running', pid: curatorProcess.pid });
+    }
+    
+    const config = req.body || {};
+    const model = config.model || 'gemma3:4b';
+    const candidates = config.candidates || 5;
+    const useVision = config.useVision !== false;
+    const lesson = config.lesson || null;
+    
+    // Build command args
+    const args = [
+        'batch_curator.py',
+        '--model', model,
+        '--candidates', String(candidates),
+        '--num-gpu-layers', '20',  // Limit GPU usage
+        '--min-score', '28'
+    ];
+    
+    if (lesson) {
+        args.push('--lesson', lesson);
+    }
+    
+    if (!useVision) {
+        args.push('--no-vision');
+    }
+    
+    try {
+        curatorProcess = spawn('python', args, {
+            cwd: path.join(process.cwd(), 'image-curator'),
+            env: { ...process.env },
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+        
+        curatorStatus = {
+            status: 'running',
+            pid: curatorProcess.pid,
+            startedAt: new Date().toISOString(),
+            config: { model, candidates, useVision, lesson },
+            progress: { total: 0, processed: 0, succeeded: 0, failed: 0, skipped: 0 }
+        };
+        
+        // Capture output for logging
+        curatorProcess.stdout.on('data', (data) => {
+            const output = data.toString();
+            console.log('[Curator]', output);
+            
+            // Parse progress from output (basic parsing)
+            const progressMatch = output.match(/(\d+)\/(\d+) words processed/);
+            if (progressMatch) {
+                curatorStatus.progress.processed = parseInt(progressMatch[1]);
+                curatorStatus.progress.total = parseInt(progressMatch[2]);
+            }
+        });
+        
+        curatorProcess.stderr.on('data', (data) => {
+            console.error('[Curator Error]', data.toString());
+        });
+        
+        curatorProcess.on('exit', (code) => {
+            console.log(`[Curator] Process exited with code ${code}`);
+            curatorStatus.status = code === 0 ? 'completed' : 'error';
+            curatorStatus.pid = null;
+            curatorProcess = null;
+        });
+        
+        res.json({ 
+            status: 'started', 
+            pid: curatorProcess.pid,
+            config: curatorStatus.config
+        });
+        
+    } catch (e) {
+        console.error('Failed to start curator:', e);
+        res.status(500).json({ error: 'Failed to start curator', message: e.message });
+    }
+});
+
+// Stop curator
+app.post('/api/curator/stop', (req, res) => {
+    if (!curatorProcess || curatorProcess.exitCode !== null) {
+        curatorStatus.status = 'offline';
+        return res.json({ status: 'not_running' });
+    }
+    
+    try {
+        curatorProcess.kill('SIGTERM');
+        curatorStatus.status = 'stopping';
+        
+        // Force kill after 5 seconds if not stopped
+        setTimeout(() => {
+            if (curatorProcess && curatorProcess.exitCode === null) {
+                curatorProcess.kill('SIGKILL');
+            }
+        }, 5000);
+        
+        res.json({ status: 'stopping', pid: curatorProcess.pid });
+        
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to stop curator', message: e.message });
+    }
+});
+
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     if (res.headersSent) return next(err);

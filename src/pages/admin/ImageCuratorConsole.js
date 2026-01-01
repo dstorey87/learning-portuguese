@@ -77,8 +77,8 @@ let curatorState = {
     
     // Config
     config: {
-        model: 'llama3.2-vision',
-        candidatesPerWord: 3,
+        model: 'gemma3:4b',  // Per plan: gemma3:4b recommended for multilingual
+        candidatesPerWord: 5,  // Per plan: search 5 candidates, select best
         resumeOnCrash: true,
         useVision: true
     },
@@ -407,14 +407,20 @@ function renderConfig() {
             <label>
                 <span>Vision Model</span>
                 <select id="curator-model" onchange="window.imageCurator.updateConfig('model', this.value)">
+                    <option value="gemma3:4b" ${c.model === 'gemma3:4b' ? 'selected' : ''}>
+                        gemma3:4b (Recommended - Multilingual)
+                    </option>
+                    <option value="qwen2.5-vl:7b" ${c.model === 'qwen2.5-vl:7b' ? 'selected' : ''}>
+                        qwen2.5-vl:7b (Best Accuracy)
+                    </option>
                     <option value="llama3.2-vision" ${c.model === 'llama3.2-vision' ? 'selected' : ''}>
-                        llama3.2-vision (Recommended)
+                        llama3.2-vision
                     </option>
-                    <option value="llava" ${c.model === 'llava' ? 'selected' : ''}>
-                        llava
+                    <option value="llava:7b" ${c.model === 'llava:7b' ? 'selected' : ''}>
+                        llava:7b
                     </option>
-                    <option value="qwen2.5-vl" ${c.model === 'qwen2.5-vl' ? 'selected' : ''}>
-                        qwen2.5-vl
+                    <option value="minicpm-v:8b" ${c.model === 'minicpm-v:8b' ? 'selected' : ''}>
+                        minicpm-v:8b (Best OCR)
                     </option>
                 </select>
             </label>
