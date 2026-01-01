@@ -545,8 +545,15 @@ export function calculateScore(transcribed, expected, options = {}) {
     }
     
     // Normalize texts
-    const transcribedNorm = transcribed.toLowerCase().trim().replace(/[.,!?]/g, '');
-    const expectedNorm = expected.toLowerCase().trim().replace(/[.,!?]/g, '');
+    // First convert any digits to Portuguese number words (speech recognition sometimes converts "quatro" to "4")
+    const digitToWord = {
+        '0': 'zero', '1': 'um', '2': 'dois', '3': 'três', '4': 'quatro',
+        '5': 'cinco', '6': 'seis', '7': 'sete', '8': 'oito', '9': 'nove', '10': 'dez'
+    };
+    const convertDigits = (text) => text.replace(/\b(\d+)\b/g, (m, d) => digitToWord[d] || m);
+    
+    const transcribedNorm = convertDigits(transcribed.toLowerCase().trim().replace(/[.,!?]/g, ''));
+    const expectedNorm = convertDigits(expected.toLowerCase().trim().replace(/[.,!?]/g, ''));
     
     // Split into words
     const transcribedWords = transcribedNorm.split(/\s+/).filter(Boolean);

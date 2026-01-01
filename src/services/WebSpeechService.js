@@ -187,6 +187,34 @@ const PHONETIC_VARIATIONS = {
 };
 
 /**
+ * Digit to Portuguese number word mapping
+ * Used when speech recognition converts spoken "quatro" to "4"
+ */
+const DIGIT_TO_PORTUGUESE = {
+    '0': 'zero',
+    '1': 'um',
+    '2': 'dois',
+    '3': 'três',
+    '4': 'quatro',
+    '5': 'cinco',
+    '6': 'seis',
+    '7': 'sete',
+    '8': 'oito',
+    '9': 'nove',
+    '10': 'dez',
+    '11': 'onze',
+    '12': 'doze',
+    '13': 'treze',
+    '14': 'catorze',
+    '15': 'quinze',
+    '16': 'dezasseis',
+    '17': 'dezassete',
+    '18': 'dezoito',
+    '19': 'dezanove',
+    '20': 'vinte'
+};
+
+/**
  * Normalize Portuguese text for comparison
  * @param {string} text - Text to normalize
  * @returns {string} Normalized text
@@ -203,6 +231,12 @@ export function normalizePortuguese(text) {
         .replace(/[.,!?;:'"()[\]{}]/g, '')
         // Normalize quotes
         .replace(/[""'']/g, "'");
+    
+    // Convert digits back to Portuguese number words (fix for speech recognition issue)
+    // This handles cases where the browser converts spoken "quatro" to "4"
+    normalized = normalized.replace(/\b(\d+)\b/g, (match, digit) => {
+        return DIGIT_TO_PORTUGUESE[digit] || match;
+    });
     
     // Apply known phonetic variations
     Object.entries(PHONETIC_VARIATIONS).forEach(([correct, variations]) => {

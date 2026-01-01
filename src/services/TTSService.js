@@ -11,6 +11,7 @@
  * 
  * @module services/TTSService
  */
+import { resolveApiBase } from '../config/apiBase.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -19,18 +20,6 @@
 /**
  * TTS Service configuration
  */
-function resolveApiBase() {
-    // Priority: explicit global → persisted override → default localhost.
-    if (typeof window !== 'undefined' && window.PORTULINGO_API_URL) return window.PORTULINGO_API_URL;
-    try {
-        const stored = localStorage.getItem('portulingo_api_base');
-        if (stored) return stored;
-    } catch (err) {
-        console.warn('[TTS] unable to read stored api base', err);
-    }
-    return 'http://localhost:3001';
-}
-
 export const TTS_CONFIG = {
     serverUrl: resolveApiBase(),
     timeout: 15000,

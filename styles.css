@@ -456,10 +456,33 @@ body {
     box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
 }
 
+/* bug-005 fix: Enhanced error text visibility */
 .error-text {
     color: #ef4444;
     font-size: 0.9rem;
     margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* bug-002 fix: Standardized button base styles */
+.btn,
+button[class*="btn-"] {
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    border-radius: 12px;
+}
+
+.btn:disabled,
+button[class*="btn-"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* ===== ADMIN BADGE ===== */
@@ -2536,10 +2559,41 @@ body {
     max-height: 85vh;
     overflow-y: auto;
     position: relative;
+    /* bug-001 fix: Ensure text visibility with high contrast */
+    color: var(--text);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* bug-001 fix: Ensure all modal text has proper contrast */
+.modal-content h2,
+.modal-content h3,
+.modal-content h4,
+.modal-content p,
+.modal-content label,
+.modal-content span {
+    color: var(--text);
+}
+
+.modal-content .muted {
+    color: var(--muted);
 }
 
 .large-modal {
     max-width: 900px;
+}
+
+/* bug-007 fix: Constrain modal sizes on large desktops */
+@media (min-width: 1200px) {
+    .modal-content {
+        max-width: 500px;
+        width: 85%;
+        max-height: 70vh;
+    }
+    
+    .large-modal {
+        max-width: 700px;
+        max-height: 75vh;
+    }
 }
 
 .close-modal {

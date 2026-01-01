@@ -86,4 +86,9 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Evidence:** Screenshots in `.playwright-mcp/numbers_image_fix_*.png` show correct images loading from CSV URLs
 - **Rollout:** Numbers 1-10 complete. Other lessons can be updated by adding `image_url` column with curated URLs.
 
-
+## bug-015: This site can’t be reached
+- **Description:** Occasionally, users encounter a "This site can’t be reached" error when trying to login, clicking on the guest button in the application.
+- **Impact:** Critical - Prevents users from accessing the application, leading to frustration. "https://exterior-deposit-genres-designation.trycloudflare.com/auth/google" is the URL it is failing to load, which does not look right
+- **Status:** Open
+- **Priority:** Critical
+- **Proposed Fix:** Investigate server logs to identify the root cause of the connectivity issue. Implement necessary fixes to ensure reliable access to the application.

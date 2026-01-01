@@ -1919,15 +1919,16 @@ export class ChallengeRenderer {
                 <div class="mcq-options">
                     ${resolvedOptions.map(opt => {
                         const optImageUrl = getWordImage(opt, state.lesson);
+                        // Show only Portuguese text to test actual knowledge
+                        // Showing English would let users match without learning
                         return `
                         <button class="mcq-option ${optImageUrl ? 'has-image' : ''}" data-key="${escapeHtml(opt.key)}">
                             ${optImageUrl ? `
                                 <div class="option-image-container">
-                                    <img class="option-image" src="${optImageUrl}" alt="${escapeHtml(opt.en || '')}" loading="lazy" onerror="this.parentElement.classList.add('image-error')">
+                                    <img class="option-image" src="${optImageUrl}" alt="${escapeHtml(opt.pt || opt.en || 'Option image')}" loading="lazy" onerror="this.parentElement.classList.add('image-error')">
                                 </div>
                             ` : ''}
-                            <div class="mcq-option-pt">${escapeHtml(opt.pt || opt.en || '')}</div>
-                            <div class="mcq-option-en">${escapeHtml(opt.en || '')}</div>
+                            <div class="mcq-option-text">${escapeHtml(opt.pt || '')}</div>
                         </button>
                     `;}).join('')}
                 </div>

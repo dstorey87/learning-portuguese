@@ -2,22 +2,12 @@
  * Application Constants
  * Central configuration for the PortuLingo app
  */
+import { resolveApiBase } from './apiBase.js';
 
 export const APP_CONFIG = {
     name: 'PortuLingo',
     version: '2.0.0',
     language: 'pt-PT', // European Portuguese only
-};
-
-const resolveApiBase = () => {
-    if (typeof window !== 'undefined' && window.PORTULINGO_API_URL) return window.PORTULINGO_API_URL;
-    try {
-        const stored = localStorage.getItem('portulingo_api_base');
-        if (stored) return stored;
-    } catch (err) {
-        console.warn('[API] unable to read stored api base', err);
-    }
-    return 'http://localhost:3001';
 };
 
 export const API_ENDPOINTS = {

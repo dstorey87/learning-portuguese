@@ -1,4 +1,5 @@
 import { getAllLessonsFlat } from './data.js';
+import { resolveApiBase } from './src/config/apiBase.js';
 import { 
     getAllTopics,
     getAllLessons,
@@ -61,9 +62,7 @@ import {
 } from './src/services/VoiceService.js';
 
 // ===== API BASE RESOLUTION =====
-const API_BASE = (typeof window !== 'undefined' && (window.PORTULINGO_API_URL || window.PORTULINGO_API_BASE))
-    ? (window.PORTULINGO_API_URL || window.PORTULINGO_API_BASE)
-    : (localStorage.getItem('portulingo_api_base') || 'http://localhost:3001');
+const API_BASE = resolveApiBase();
 // eslint-disable-next-line no-unused-vars -- Reserved for future use (payment callbacks, etc.)
 const APP_BASE = (typeof window !== 'undefined' && (window.PORTULINGO_APP_URL || window.location.origin))
     ? (window.PORTULINGO_APP_URL || window.location.origin)
@@ -839,9 +838,10 @@ function renderLessonComplete(state) {
     const seconds = durationSec % 60;
 
     const gradedChallenges = (state.challenges || []).filter(c => c.type !== 'learn-word');
-    const gradedCount = gradedChallenges.length || 1;
+    const gradedCount = gradedChallenges.length;
     const correct = Math.max(0, state.correct || 0);
-    const accuracy = Math.min(100, Math.round((correct / gradedCount) * 100));
+    // If no graded challenges (all learn-word), auto-pass with 100%
+    const accuracy = gradedCount === 0 ? 100 : Math.min(100, Math.round((correct / gradedCount) * 100));
 
     container.innerHTML = `
         <div class="challenge-card lesson-complete">
@@ -3151,7 +3151,7 @@ function setupEventListeners() {
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
     
-    // User button - shows login modal for guests, logout option for logged-in users
+    // User button - opens login modal for guests, logout option for logged-in users
     const userBtn = document.getElementById('userBtn');
     if (userBtn) {
         userBtn.addEventListener('click', () => {
@@ -3162,8 +3162,8 @@ function setupEventListeners() {
                     handleLogout();
                 }
             } else {
-                // Not logged in - start Google OAuth
-                beginGoogleLogin();
+                // Not logged in - open the login modal so user can continue as guest or with username
+                showLoginModal();
             }
         });
     }
@@ -4127,6 +4127,9 @@ function initApp() {
 
     // Wire app-wide UI event handlers
     setupEventListeners();
+
+    // Initialize voice settings and load saved preferences (bug-009 fix)
+    setupVoiceSettings();
 
     // Initial Learn page content
     renderTopicFilters();
