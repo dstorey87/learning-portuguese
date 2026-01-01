@@ -9,9 +9,8 @@ This repo follows a strict branch-first workflow with MCP Playwright validation 
   - Types: `feature/`, `fix/`, `refactor/`, `docs/`, `test/`, `chore/`
 
 ```bash
-git checkout main
-git pull origin main
-git checkout -b <type>/<task-id>-<short-description>
+git fetch origin
+git checkout -b <type>/<task-id>-<short-description> origin/main
 ```
 
 ## 2) Testing (mandatory)
@@ -43,15 +42,20 @@ npm test
 ```
 
 ## 3) Merge policy (mandatory)
-After ALL tests pass:
-```bash
-git checkout main
-git pull origin main
-git merge <branch-name>
-git push origin main
-git branch -d <branch-name>
-git push origin --delete <branch-name>
-```
+- Never check out or commit on `main` locally
+- Rebase task branch on latest default before opening PR:
+  ```bash
+  git fetch origin
+  git rebase origin/main
+  ```
+- Run required tests (targeted + full) and capture MCP Playwright evidence
+- Open PR from task branch to `main`; merge performed by reviewer/automation
+- After merge: clean up local branch and start the next task branch from `origin/main` (without checking out `main`):
+  ```bash
+  git fetch origin
+  git branch -D <branch-name>
+  git checkout -b <type>/<task-id>-<short-description> origin/main
+  ```
 
 ## 4) AI event logging (mandatory)
 All learning interactions must emit events via:
