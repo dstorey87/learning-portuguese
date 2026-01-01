@@ -14,16 +14,18 @@ logger = logging.getLogger(__name__)
 class GPUManager:
     """Manages GPU utilization monitoring and throttling."""
 
-    def __init__(self, throttle_threshold: int = 75, fallback_cpu: bool = True):
+    def __init__(self, throttle_threshold: int = 75, fallback_cpu: bool = True, target_gpu: int = None):
         """
         Initialize GPU manager.
 
         Args:
             throttle_threshold: Pause processing if GPU utilization exceeds this %
             fallback_cpu: If True, allow CPU fallback when GPU unavailable
+            target_gpu: Specific GPU index to use (None = auto-select lowest utilization)
         """
         self.throttle_threshold = throttle_threshold
         self.fallback_cpu = fallback_cpu
+        self.target_gpu = target_gpu
         self._nvidia_available = self._check_nvidia_smi()
 
     def _check_nvidia_smi(self) -> bool:
@@ -101,7 +103,7 @@ class GPUManager:
 
     def select_best_gpu(self) -> Optional[int]:
         """
-        Select GPU with lowest utilization.
+        Select GPU - uses target_gpu if set, otherwise lowest utilization.
 
         Returns:
             GPU index, or None if no GPUs available
@@ -109,6 +111,17 @@ class GPUManager:
         gpus = self.get_gpu_info()
         if not gpus:
             return None
+
+        # If target GPU is specified, use it
+        if self.target_gpu is not None:
+            target = next((g for g in gpus if g["index"] == self.target_gpu), None)
+            if target:
+                logger.debug(
+                    f"Using target GPU {target['index']} ({target['name']}) at {target['utilization']}% utilization"
+                )
+                return target["index"]
+            else:
+                logger.warning(f"Target GPU {self.target_gpu} not found, falling back to auto-select")
 
         # Prefer GPU with lowest utilization
         best = min(gpus, key=lambda g: g["utilization"])
@@ -149,6 +162,55 @@ class GPUManager:
 
         return should_throttle
 
+    def get_current_utilization(self) -> Optional[int]:
+        """
+        Get current utilization of the selected GPU.
+
+        Returns:
+            Utilization percentage, or None if unavailable
+        """
+        gpus = self.get_gpu_info()
+        if not gpus:
+            return None
+
+        gpu_idx = self.select_best_gpu()
+        if gpu_idx is None:
+            return None
+
+        current_gpu = next((g for g in gpus if g["index"] == gpu_idx), None)
+        return current_gpu["utilization"] if current_gpu else None
+
+    def wait_for_available(self, check_interval: float = 2.0, max_wait: float = 60.0) -> bool:
+        """
+        Block until GPU utilization drops below threshold.
+
+        Args:
+            check_interval: Seconds between utilization checks
+            max_wait: Maximum seconds to wait before giving up
+
+        Returns:
+            True if GPU became available, False if timed out
+        """
+        import time
+
+        if not self._nvidia_available:
+            return True  # No GPU monitoring = always available
+
+        start_time = time.time()
+        while self.should_throttle():
+            elapsed = time.time() - start_time
+            if elapsed >= max_wait:
+                logger.warning(f"GPU throttle timeout after {max_wait}s")
+                return False
+
+            utilization = self.get_current_utilization()
+            logger.info(
+                f"GPU at {utilization}% (threshold {self.throttle_threshold}%), waiting... ({elapsed:.0f}s/{max_wait:.0f}s)"
+            )
+            time.sleep(check_interval)
+
+        return True
+
     def get_status(self) -> Dict:
         """
         Get overall GPU status summary.
@@ -164,6 +226,7 @@ class GPUManager:
             "gpu_count": len(gpus),
             "gpus": gpus,
             "selected_gpu": best_idx,
+            "target_gpu": self.target_gpu,
             "should_throttle": self.should_throttle(),
             "throttle_threshold": self.throttle_threshold,
             "fallback_cpu": self.fallback_cpu,
@@ -174,11 +237,11 @@ class GPUManager:
 _gpu_manager: Optional[GPUManager] = None
 
 
-def get_gpu_manager(throttle_threshold: int = 75) -> GPUManager:
+def get_gpu_manager(throttle_threshold: int = 75, target_gpu: int = None) -> GPUManager:
     """Get or create the GPU manager singleton."""
     global _gpu_manager
     if _gpu_manager is None:
-        _gpu_manager = GPUManager(throttle_threshold=throttle_threshold)
+        _gpu_manager = GPUManager(throttle_threshold=throttle_threshold, target_gpu=target_gpu)
     return _gpu_manager
 
 

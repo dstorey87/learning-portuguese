@@ -46,6 +46,7 @@ class BatchConfig:
     min_score: int = 28  # Minimum score (out of 40) to accept
     resume_from_crash: bool = True
     gpu_throttle_percent: int = 75
+    target_gpu: Optional[int] = None  # Specific GPU to use (None = auto-select)
     save_rejected: bool = True
     download_images: bool = True
     dry_run: bool = False
@@ -105,7 +106,10 @@ class BatchCurator:
         self.progress = BatchProgress()
         self.library = get_library()
         self.storage = LocalImageStorage()
-        self.gpu_manager = GPUManager(throttle_threshold=self.config.gpu_throttle_percent)
+        self.gpu_manager = GPUManager(
+            throttle_threshold=self.config.gpu_throttle_percent,
+            target_gpu=self.config.target_gpu
+        )
         self.api_client = None
         self.vision_client = None
         self.orchestrator = None
@@ -287,10 +291,11 @@ class BatchCurator:
             return True
 
         try:
-            # Check GPU throttling (simple check, not async)
+            # Check GPU throttling - wait until available (blocks until <75%)
             if self.gpu_manager.should_throttle():
-                logger.info("GPU throttled, waiting...")
-                await asyncio.sleep(5)
+                logger.info("GPU throttled, waiting for availability...")
+                if not self.gpu_manager.wait_for_available(check_interval=2.0, max_wait=120.0):
+                    logger.warning("GPU throttle timeout, proceeding anyway")
 
             # Search for candidate images
             # Returns List[Tuple[ImageResult, float]] - tuples of (image, score)
@@ -508,7 +513,10 @@ async def main():
         "--min-score", type=int, default=28, help="Minimum score to accept (out of 40)"
     )
     parser.add_argument(
-        "--gpu-throttle", type=int, default=75, help="GPU throttle percentage"
+        "--gpu-throttle", type=int, default=75, help="GPU throttle percentage (default: 75)"
+    )
+    parser.add_argument(
+        "--target-gpu", type=int, default=None, help="Specific GPU index to use (default: auto-select)"
     )
     parser.add_argument("--lesson", help="Filter to specific lesson")
     parser.add_argument("--words", nargs="+", help="Process specific words only")
@@ -536,6 +544,7 @@ async def main():
         candidates_per_word=args.candidates,
         min_score=args.min_score,
         gpu_throttle_percent=args.gpu_throttle,
+        target_gpu=args.target_gpu,
         lesson_filter=args.lesson,
         word_filter=args.words,
         dry_run=args.dry_run,
