@@ -201,3 +201,69 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Priority:** Medium
 - **File:** `src/pages/admin/ImageCuratorConsole.js` - curatorState.config
 - **Fix Applied:** Changed config defaults: model='gemma3:4b', candidatesPerWord=5
+
+## bug-026: ImageCuratorConsole GPU text crashes on undefined gpus array
+- **Description:** Admin dashboard failed to render with error "Cannot read properties of undefined (reading 'undefined')" at renderStatusBar in ImageCuratorConsole.js:368. The code tried to access `s.gpu.gpus[s.gpu.selectedGpu]?.utilization` but `s.gpu.gpus` is an empty array `[]` and `selectedGpu` is null initially.
+- **Impact:** Critical - Admin dashboard completely unusable; blocks all admin functionality.
+- **Status:** ✅ FIXED
+- **Priority:** Critical
+- **File:** `src/pages/admin/ImageCuratorConsole.js:368`
+- **Fix Applied:** Safe-guarded GPU text rendering with null checks: `const gpuInfo = s.gpu.gpus && s.gpu.gpus[gpuIndex]`
+- **Screenshot:** `.playwright-mcp/admin-curator-console.png`
+
+---
+
+# Admin Dashboard Bugs (Testing Session - 2024)
+
+## bug-027: Image Management "Scan All Lessons" returns 0 words
+- **Description:** When clicking "🔄 Scan All Lessons" in the Image Management panel, the scan completes but shows `total: 0, withImages: 0, withoutImages: 0`. Despite 30 lessons being loaded with vocabulary, the image coverage scan returns no data.
+- **Impact:** High - Administrators cannot assess image coverage across lessons or identify words missing images.
+- **Status:** 🔴 OPEN
+- **Priority:** High
+- **Playwright Validation:** Log shows `"Image coverage scan complete {\"stats\":{\"total\":0,\"withImages\":0,\"withoutImages\":0,\"verified\":0,\"coverage\":0,\"verificationRate\":0}}"`
+- **File:** AdminDashboard.js - image coverage scanning functions
+- **Screenshot:** `.playwright-mcp/admin-dashboard-overview.png`
+
+## bug-028: Persistent 404 errors in console during Admin page usage
+- **Description:** While using the Admin dashboard, the browser console continuously shows "Failed to load resource: the server responded with a status of 404 (Not Found)" errors. These occur repeatedly during normal interaction.
+- **Impact:** Medium - May indicate missing resources or broken API calls; clutters console making debugging harder.
+- **Status:** 🔴 OPEN
+- **Priority:** Medium
+- **Playwright Validation:** Console messages show repeated 404 errors during all admin interactions
+- **Note:** Need to identify which endpoints/resources are returning 404
+
+## bug-029: Admin collapsible panels not collapsing on click
+- **Description:** The admin dashboard panels have collapsible UI (▼ indicators visible) but clicking on the panel headers does not toggle collapse state. Event delegation was implemented but panels remain expanded.
+- **Impact:** Medium - Users cannot minimize panels to focus on specific sections, reducing dashboard usability.
+- **Status:** 🔴 OPEN
+- **Priority:** Medium
+- **Playwright Validation:** Clicked AI Controls panel header (ref=e2590), panel remained expanded with ▼ indicator
+- **File:** AdminDashboard.js - initCollapsiblePanels() and event delegation
+- **Note:** Previous session implemented event delegation but requires re-verification
+
+## bug-030: APIKeyManager container not found warning
+- **Description:** Console shows `[WARNING] [APIKeyManager] Container not found` during Admin dashboard initialization. This warning appears multiple times.
+- **Impact:** Low - API Key management section may not be fully functional.
+- **Status:** 🟡 WARNING
+- **Priority:** Low
+- **Playwright Validation:** Multiple console warnings: `[APIKeyManager] Container not found @ http://localhost:4321/src/pages/admin/APIKeyManager....`
+
+## bug-031: Subscription paywall modal appears when clicking Admin crown button
+- **Description:** Clicking the 👑 Admin crown button in the header triggers the subscription paywall modal to appear, requiring user to close it before accessing admin functions.
+- **Impact:** Low - Slightly inconvenient UX; admin should bypass paywall.
+- **Status:** 🟡 MINOR
+- **Priority:** Low
+- **Playwright Validation:** Clicking ref=e17 (👑 button) triggered paywall modal with "🌟 Unlock Premium Features" heading
+
+---
+
+# Admin Dashboard Working Features (Testing Session)
+
+The following admin features were tested and **PASSED**:
+1. ✅ **Check Ollama button** - Updates status and last check time correctly
+2. ✅ **Lesson Editor dropdown** - Loads 30 lessons, selecting one loads metadata and CSV rows
+3. ✅ **User Actions modal** - Opens correctly showing "AI Actions for [username]"
+4. ✅ **Recent Logs display** - Shows INFO level logs with timestamps
+5. ✅ **Quick Stats** - Displays user count, events, stuck words, logger statistics
+6. ✅ **Model selection dropdown** - Shows all available Ollama models
+7. ✅ **AI Image Curator panel** - Displays status (Offline), GPU status, vision model, API keys status

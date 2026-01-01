@@ -364,9 +364,11 @@ function renderStatusBar() {
         'error': 'status-error'
     }[s.status] || 'status-offline';
     
-    const gpuText = s.gpu.available 
-        ? `GPU ${s.gpu.selectedGpu ?? 0}: ${s.gpu.gpus[s.gpu.selectedGpu]?.utilization ?? 0}%`
-        : 'No GPU';
+    const gpuIndex = s.gpu.selectedGpu ?? 0;
+    const gpuInfo = s.gpu.gpus && s.gpu.gpus[gpuIndex];
+    const gpuText = s.gpu.available && gpuInfo
+        ? `GPU ${gpuIndex}: ${gpuInfo.utilization ?? 0}%`
+        : (s.gpu.available ? `GPU ${gpuIndex}` : 'No GPU');
     
     const visionText = s.vision.available
         ? s.vision.model
