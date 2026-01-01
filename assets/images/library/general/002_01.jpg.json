@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T15:00:45.711057",
+  "image": {
+    "id": 26,
+    "word": "002_01",
+    "lesson_id": "002_polite_phrases",
+    "category": "general",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 20336
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@markus-winkler-1430818",
+    "photographer": "Markus Winkler",
+    "alt_text": "Scrabble tiles arranged to spell 'Please' on a wooden surface, symbolizing politeness.",
+    "description": "Scrabble tiles arranged to spell 'Please' on a wooden surface, symbolizing politeness.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}

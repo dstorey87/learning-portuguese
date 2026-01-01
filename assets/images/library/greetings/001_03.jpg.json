@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:56:13.034732",
+  "image": {
+    "id": 16,
+    "word": "001_03",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 34391
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@worldspectrum",
+    "photographer": "Worldspectrum",
+    "alt_text": "A majestic golden python coiled on a tree branch, showcasing its scales in dramatic lighting.",
+    "description": "A majestic golden python coiled on a tree branch, showcasing its scales in dramatic lighting.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}

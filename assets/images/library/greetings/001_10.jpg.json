@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:58:07.184367",
+  "image": {
+    "id": 22,
+    "word": "001_10",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 43055
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@polinachistyakova",
+    "photographer": "Polina Chistyakova",
+    "alt_text": "Beautiful lakeside promenade in Como, Lombardy, Italy with lush greenery and clear blue skies.",
+    "description": "Beautiful lakeside promenade in Como, Lombardy, Italy with lush greenery and clear blue skies.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}

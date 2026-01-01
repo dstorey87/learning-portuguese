@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-01T13:57:47.869942",
+  "image": {
+    "id": 21,
+    "word": "001_09",
+    "lesson_id": "001_greetings",
+    "category": "greetings",
+    "format": "jpg",
+    "width": null,
+    "height": null,
+    "file_size": 14605
+  },
+  "source": {
+    "provider": "pexels",
+    "url": "https://www.pexels.com/@pixabay",
+    "photographer": "Pixabay",
+    "alt_text": "Close-up of a yellow dice featuring a smiley face emoticon symbolizing happiness and fun.",
+    "description": "Close-up of a yellow dice featuring a smiley face emoticon symbolizing happiness and fun.",
+    "tags": []
+  },
+  "ai_validation": {
+    "model": null,
+    "validated_at": null,
+    "scores": {
+      "relevance": null,
+      "clarity": null,
+      "appropriateness": null,
+      "quality": null,
+      "total": null
+    },
+    "reason": null
+  },
+  "status": {
+    "current": "selected",
+    "manually_verified": false,
+    "verified_by": null,
+    "verified_at": null
+  },
+  "timestamps": {
+    "created_at": null,
+    "updated_at": null
+  }
+}
