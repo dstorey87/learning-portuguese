@@ -263,13 +263,13 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 
 # Admin Dashboard Bugs (Testing Session - 2024)
 
-## bug-027: Image Management "Scan All Lessons" returns 0 words
+## bug-027: Image Management "Scan All Lessons" returns 0 words ✅ FIXED
 
 - **Description:** When clicking "🔄 Scan All Lessons" in the Image Management panel, the scan completes but shows `total: 0, withImages: 0, withoutImages: 0`. Despite 30 lessons being loaded with vocabulary, the image coverage scan returns no data.
 - **Impact:** High - Administrators cannot assess image coverage across lessons or identify words missing images.
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED
 - **Priority:** High
-- **Playwright Validation:** Log shows `"Image coverage scan complete {\"stats\":{\"total\":0,\"withImages\":0,\"withoutImages\":0,\"verified\":0,\"coverage\":0,\"verificationRate\":0}}"`
+- **Playwright Validation:** After fix, scan reports non-zero stats: total=345, withImages=11, withoutImages=334, coverage=3%, verificationRate=0%. Evidence: `.playwright-mcp/admin-image-coverage.png`
 - **File:** AdminDashboard.js - image coverage scanning functions
 - **Screenshot:** `.playwright-mcp/admin-dashboard-overview.png`
 

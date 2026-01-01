@@ -39,6 +39,7 @@ const ADMIN_INGESTION_KEY = 'admin_ingested_lessons';
 const ADMIN_USER_BACKUPS_KEY = 'admin_user_backups';
 const ADMIN_USER_BACKUP_PREFIX = 'admin_user_backup_';
 const LESSON_STATE_STORAGE_KEY = 'lessonSession';
+const ADMIN_PANEL_STATE_KEY = 'admin_panel_collapsed_state';
 const ADMIN_API_BASE = 'http://localhost:3001';
 const MAX_ACTIONS_PER_USER = 500;
 const MAX_GLOBAL_EVENTS = 1000;
@@ -125,10 +126,114 @@ let adminState = {
         verificationRate: 0
     },
     missingImages: [],
-    unverifiedImages: []
+    unverifiedImages: [],
+    // Panel collapsed state (persisted)
+    collapsedPanels: {}
 };
 
 let refreshTimer = null;
+
+// ============================================================================
+// PANEL COLLAPSE/EXPAND FUNCTIONALITY
+// ============================================================================
+
+/**
+ * Load collapsed panel state from localStorage
+ */
+function loadPanelCollapsedState() {
+    try {
+        const saved = localStorage.getItem(ADMIN_PANEL_STATE_KEY);
+        if (saved) {
+            adminState.collapsedPanels = JSON.parse(saved);
+        }
+    } catch (e) {
+        Logger.warn('Failed to load panel collapsed state', { error: e.message });
+    }
+}
+
+/**
+ * Save collapsed panel state to localStorage
+ */
+function savePanelCollapsedState() {
+    try {
+        localStorage.setItem(ADMIN_PANEL_STATE_KEY, JSON.stringify(adminState.collapsedPanels));
+    } catch (e) {
+        Logger.warn('Failed to save panel collapsed state', { error: e.message });
+    }
+}
+
+/**
+ * Toggle panel collapsed state
+ * @param {string} panelId - Panel identifier
+ */
+function togglePanelCollapsed(panelId) {
+    adminState.collapsedPanels[panelId] = !adminState.collapsedPanels[panelId];
+    savePanelCollapsedState();
+    
+    // Update the DOM directly for smooth animation
+    const panel = document.querySelector(`[data-panel-id="${panelId}"]`);
+    if (panel) {
+        panel.classList.toggle('collapsed', adminState.collapsedPanels[panelId]);
+    }
+}
+
+/**
+ * Check if a panel is collapsed
+ * @param {string} panelId - Panel identifier
+ * @returns {boolean}
+ */
+function isPanelCollapsed(panelId) {
+    return !!adminState.collapsedPanels[panelId];
+}
+
+/**
+ * Initialize collapsible panels - add click handlers
+ */
+function initCollapsiblePanels() {
+    // Use event delegation on the admin dashboard container
+    // This handles dynamically rendered panels and survives re-renders
+    const dashboard = document.querySelector('.admin-dashboard');
+    if (!dashboard) return;
+    
+    // Only add the listener once
+    if (dashboard.dataset.collapsibleInit) return;
+    dashboard.dataset.collapsibleInit = 'true';
+    
+    dashboard.addEventListener('click', (e) => {
+        // Check if click is on a panel header
+        const header = e.target.closest('.admin-panel.collapsible .panel-header');
+        if (!header) return;
+        
+        // Don't toggle if clicking on buttons or inputs within header
+        if (e.target.closest('button, input, select, a, label')) {
+            return;
+        }
+        
+        const panel = header.closest('.admin-panel.collapsible');
+        const panelId = panel?.getAttribute('data-panel-id');
+        if (panelId) {
+            togglePanelCollapsed(panelId);
+        }
+    });
+    
+    // Apply initial collapsed state to all panels
+    applyCollapsedStates();
+}
+
+/**
+ * Apply collapsed state to all panels (called after render)
+ */
+function applyCollapsedStates() {
+    const panels = document.querySelectorAll('.admin-panel.collapsible[data-panel-id]');
+    panels.forEach(panel => {
+        const panelId = panel.getAttribute('data-panel-id');
+        if (adminState.collapsedPanels[panelId]) {
+            panel.classList.add('collapsed');
+        } else {
+            panel.classList.remove('collapsed');
+        }
+    });
+}
 
 // ============================================================================
 // GLOBAL EVENT LOGGING (captures ALL user events)
@@ -644,7 +749,7 @@ async function scanImageCoverage() {
         Logger.info('Scanning image coverage across all lessons');
         
         // Load all lesson metadata
-        const metadata = loadLessonMetadata();
+        const metadata = await loadLessonMetadata();
         const allWords = [];
         
         // For each lesson, try to load and parse its CSV
@@ -652,19 +757,29 @@ async function scanImageCoverage() {
             try {
                 const csvFile = lessonMeta.csvFile || `${lessonId}.csv`;
                 const response = await fetch(`/src/data/csv/${csvFile}`);
-                if (response.ok) {
-                    const csvText = await response.text();
-                    const parsed = parseCSV(csvText);
-                    
-                    // Add lesson context to each word
-                    parsed.rows.forEach(row => {
-                        allWords.push({
-                            ...row,
-                            lessonId,
-                            lessonTitle: lessonMeta.title || lessonId
-                        });
-                    });
+                if (!response.ok) {
+                    Logger.warn(`Failed to load CSV for lesson ${lessonId}`, { status: response.status });
+                    continue;
                 }
+
+                const csvText = await response.text();
+                const parsed = parseCSV(csvText);
+                const rows = Array.isArray(parsed) ? parsed : (parsed?.rows || []);
+
+                // Add lesson context to each word
+                rows.forEach(row => {
+                    const normalized = {
+                        ...row,
+                        id: row.id || row.word_id,
+                        word_id: row.word_id || row.id,
+                        pt: row.pt || row.portuguese || row.word,
+                        en: row.en || row.english || row.translation,
+                        image_url: row.image_url || row.imageUrl || row.image,
+                        lessonId,
+                        lessonTitle: lessonMeta.title || lessonId
+                    };
+                    allWords.push(normalized);
+                });
             } catch (e) {
                 Logger.warn(`Failed to load CSV for lesson ${lessonId}`, { error: e.message });
             }
@@ -1192,65 +1307,80 @@ export function renderAdminDashboard() {
 
             <div class="admin-grid">
                 <!-- User List Panel -->
-                <section class="admin-panel user-list-panel">
-                    <h3>👥 Users (${users.length})</h3>
-                    <div class="user-list">
-                        ${users.map(user => renderUserCard(user)).join('')}
+                <section class="admin-panel user-list-panel collapsible ${isPanelCollapsed('user-list') ? 'collapsed' : ''}" data-panel-id="user-list">
+                    <div class="panel-header">
+                        <h3>👥 Users (${users.length})</h3>
+                    </div>
+                    <div class="panel-content">
+                        <div class="user-list">
+                            ${users.map(user => renderUserCard(user)).join('')}
+                        </div>
                     </div>
                 </section>
 
                 <!-- Global Event Log (ALL users) -->
-                <section class="admin-panel global-events-panel">
-                    <h3>📊 Global Event Log (All Users)</h3>
-                    <div class="time-filter">
-                        <label>Show last:</label>
-                        <select onchange="window.adminDashboard.setTimeWindow(this.value)">
-                            <option value="3600000" ${adminState.timeWindow === 3600000 ? 'selected' : ''}>1 hour</option>
-                            <option value="86400000" ${adminState.timeWindow === 86400000 ? 'selected' : ''}>24 hours</option>
-                            <option value="604800000" ${adminState.timeWindow === 604800000 ? 'selected' : ''}>7 days</option>
-                        </select>
-                        <button onclick="window.adminDashboard.refreshDashboard()" class="btn-small">🔄 Refresh</button>
+                <section class="admin-panel global-events-panel collapsible ${isPanelCollapsed('global-events') ? 'collapsed' : ''}" data-panel-id="global-events">
+                    <div class="panel-header">
+                        <h3>📊 Global Event Log (All Users)</h3>
                     </div>
-                    <div class="global-event-feed">
-                        ${globalEvents.length === 0 ?
-                            '<p class="muted">No events recorded yet. User interactions will appear here.</p>' :
-                            globalEvents.slice(0, 100).map(e => renderGlobalEventEntry(e)).join('')
-                        }
+                    <div class="panel-content">
+                        <div class="time-filter">
+                            <label>Show last:</label>
+                            <select onchange="window.adminDashboard.setTimeWindow(this.value)">
+                                <option value="3600000" ${adminState.timeWindow === 3600000 ? 'selected' : ''}>1 hour</option>
+                                <option value="86400000" ${adminState.timeWindow === 86400000 ? 'selected' : ''}>24 hours</option>
+                                <option value="604800000" ${adminState.timeWindow === 604800000 ? 'selected' : ''}>7 days</option>
+                            </select>
+                            <button onclick="window.adminDashboard.refreshDashboard()" class="btn-small">🔄 Refresh</button>
+                        </div>
+                        <div class="global-event-feed">
+                            ${globalEvents.length === 0 ?
+                                '<p class="muted">No events recorded yet. User interactions will appear here.</p>' :
+                                globalEvents.slice(0, 100).map(e => renderGlobalEventEntry(e)).join('')
+                            }
+                        </div>
                     </div>
                 </section>
 
                 <!-- AI Activity Feed -->
-                <section class="admin-panel activity-panel">
-                    <h3>🤖 AI Activity Feed</h3>
-                    <div class="activity-feed">
-                        ${recentActions.length === 0 ?
-                            '<p class="muted">No recent AI activity</p>' :
-                            recentActions.slice(0, 50).map(a => renderActionEntry(a)).join('')
-                        }
+                <section class="admin-panel activity-panel collapsible ${isPanelCollapsed('ai-activity') ? 'collapsed' : ''}" data-panel-id="ai-activity">
+                    <div class="panel-header">
+                        <h3>🤖 AI Activity Feed</h3>
+                    </div>
+                    <div class="panel-content">
+                        <div class="activity-feed">
+                            ${recentActions.length === 0 ?
+                                '<p class="muted">No recent AI activity</p>' :
+                                recentActions.slice(0, 50).map(a => renderActionEntry(a)).join('')
+                            }
+                        </div>
                     </div>
                 </section>
 
                 <!-- Stats Panel -->
-                <section class="admin-panel stats-panel">
-                    <h3>📊 Quick Stats</h3>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <span class="stat-value">${users.length}</span>
-                            <span class="stat-label">Total Users</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-value">${globalEvents.length}</span>
-                            <span class="stat-label">Events (${getTimeWindowLabel()})</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-value">${users.reduce((sum, u) => sum + u.stuckWordsCount, 0)}</span>
-                            <span class="stat-label">Stuck Words</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-value">${users.reduce((sum, u) => sum + u.rescueLessonsCreated, 0)}</span>
-                            <span class="stat-label">Rescue Lessons</span>
-                        </div>
+                <section class="admin-panel stats-panel collapsible ${isPanelCollapsed('stats') ? 'collapsed' : ''}" data-panel-id="stats">
+                    <div class="panel-header">
+                        <h3>📊 Quick Stats</h3>
                     </div>
+                    <div class="panel-content">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <span class="stat-value">${users.length}</span>
+                                <span class="stat-label">Total Users</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-value">${globalEvents.length}</span>
+                                <span class="stat-label">Events (${getTimeWindowLabel()})</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-value">${users.reduce((sum, u) => sum + u.stuckWordsCount, 0)}</span>
+                                <span class="stat-label">Stuck Words</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-value">${users.reduce((sum, u) => sum + u.rescueLessonsCreated, 0)}</span>
+                                <span class="stat-label">Rescue Lessons</span>
+                            </div>
+                        </div>
 
                     <!-- Logger Stats -->
                     <div class="logger-stats">
@@ -1262,10 +1392,14 @@ export function renderAdminDashboard() {
                 </section>
 
                 <!-- Logger History -->
-                <section class="admin-panel logs-panel">
-                    <h3>📜 Recent Logs (All Users)</h3>
-                    <div class="activity-feed">
-                        ${renderLoggerHistory()}
+                <section class="admin-panel logs-panel collapsible ${isPanelCollapsed('logs') ? 'collapsed' : ''}" data-panel-id="logs">
+                    <div class="panel-header">
+                        <h3>📜 Recent Logs (All Users)</h3>
+                    </div>
+                    <div class="panel-content">
+                        <div class="activity-feed">
+                            ${renderLoggerHistory()}
+                        </div>
                     </div>
                 </section>
             </div>
@@ -1284,9 +1418,10 @@ function renderAIControls() {
     const settings = adminState.aiSettings || DEFAULT_AI_SETTINGS;
     const models = getModelOptions();
     const lastCheck = status.lastCheck ? new Date(status.lastCheck).toLocaleTimeString() : 'never';
+    const collapsed = isPanelCollapsed('ai-controls') ? 'collapsed' : '';
 
     return `
-        <section class="admin-panel ai-controls-panel">
+        <section class="admin-panel ai-controls-panel collapsible ${collapsed}" data-panel-id="ai-controls">
             <div class="panel-header">
                 <div>
                     <h3>🤖 AI Controls</h3>
@@ -1296,31 +1431,33 @@ function renderAIControls() {
                     <button onclick="window.adminDashboard.refreshAIStatus()" class="btn-small">🔄 Check Ollama</button>
                 </div>
             </div>
-            <div class="ai-status-row">
-                <span class="pill ${status.available ? 'pill-success' : 'pill-danger'}">${status.available ? 'Ollama online' : 'Offline / fallback'}</span>
-                <span class="pill">Active: ${settings.preferredModel}</span>
-                <span class="pill">Fallback: ${settings.fallbackModel}</span>
-                <span class="muted">Last check: ${lastCheck}</span>
-            </div>
-            <div class="admin-form-grid ai-form-grid">
-                <label>
-                    <span>Active model</span>
-                    <select onchange="window.adminDashboard.setActiveModel(this.value)">
-                        ${models.map(model => `<option value="${model}" ${model === settings.preferredModel ? 'selected' : ''}>${model}</option>`).join('')}
-                    </select>
-                </label>
-                <label>
-                    <span>Fallback model</span>
-                    <input type="text" value="${sanitize(settings.fallbackModel)}" oninput="window.adminDashboard.updateFallbackModel(this.value)" />
-                </label>
-                <label>
-                    <span>Temperature</span>
-                    <input type="number" min="0" max="1.5" step="0.1" value="${settings.temperature}" onchange="window.adminDashboard.updateTemperature(this.value)" />
-                </label>
-            </div>
-            <div class="ai-note">
-                <p class="muted">Use local models for accuracy and stability. Avoid dynamic image pulls; pair lessons with static assets.</p>
-                ${status.models?.length ? `<p class="muted small-text">Discovered models: ${status.models.join(', ')}</p>` : '<p class="muted small-text">No models discovered yet. Start Ollama then refresh.</p>'}
+            <div class="panel-content">
+                <div class="ai-status-row">
+                    <span class="pill ${status.available ? 'pill-success' : 'pill-danger'}">${status.available ? 'Ollama online' : 'Offline / fallback'}</span>
+                    <span class="pill">Active: ${settings.preferredModel}</span>
+                    <span class="pill">Fallback: ${settings.fallbackModel}</span>
+                    <span class="muted">Last check: ${lastCheck}</span>
+                </div>
+                <div class="admin-form-grid ai-form-grid">
+                    <label>
+                        <span>Active model</span>
+                        <select onchange="window.adminDashboard.setActiveModel(this.value)">
+                            ${models.map(model => `<option value="${model}" ${model === settings.preferredModel ? 'selected' : ''}>${model}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Fallback model</span>
+                        <input type="text" value="${sanitize(settings.fallbackModel)}" oninput="window.adminDashboard.updateFallbackModel(this.value)" />
+                    </label>
+                    <label>
+                        <span>Temperature</span>
+                        <input type="number" min="0" max="1.5" step="0.1" value="${settings.temperature}" onchange="window.adminDashboard.updateTemperature(this.value)" />
+                    </label>
+                </div>
+                <div class="ai-note">
+                    <p class="muted">Use local models for accuracy and stability. Avoid dynamic image pulls; pair lessons with static assets.</p>
+                    ${status.models?.length ? `<p class="muted small-text">Discovered models: ${status.models.join(', ')}</p>` : '<p class="muted small-text">No models discovered yet. Start Ollama then refresh.</p>'}
+                </div>
             </div>
         </section>
     `;
@@ -1334,9 +1471,10 @@ function renderImageManagement() {
     const imageStats = adminState.imageStats || { total: 0, withImages: 0, withoutImages: 0, coverage: 0 };
     const missingImages = adminState.missingImages || [];
     const unverifiedImages = adminState.unverifiedImages || [];
+    const collapsed = isPanelCollapsed('image-management') ? 'collapsed' : '';
     
     return `
-        <section class="admin-panel image-management-panel">
+        <section class="admin-panel image-management-panel collapsible ${collapsed}" data-panel-id="image-management">
             <div class="panel-header">
                 <div>
                     <h3>🖼️ Image Management</h3>
@@ -1347,48 +1485,49 @@ function renderImageManagement() {
                     <button onclick="window.adminDashboard.exportMissingImages()" class="btn-small">📋 Export Missing</button>
                 </div>
             </div>
-            
-            <div class="image-stats-grid">
-                <div class="stat-card ${imageStats.coverage >= 80 ? 'stat-good' : imageStats.coverage >= 50 ? 'stat-warning' : 'stat-danger'}">
-                    <div class="stat-number">${imageStats.coverage}%</div>
-                    <div class="stat-label">Coverage</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${imageStats.total}</div>
-                    <div class="stat-label">Total Words</div>
-                </div>
-                <div class="stat-card stat-good">
-                    <div class="stat-number">${imageStats.withImages}</div>
-                    <div class="stat-label">With Images</div>
-                </div>
-                <div class="stat-card ${imageStats.withoutImages > 0 ? 'stat-danger' : ''}">
-                    <div class="stat-number">${imageStats.withoutImages}</div>
-                    <div class="stat-label">Missing Images</div>
-                </div>
-            </div>
-            
-            ${missingImages.length > 0 ? `
-                <div class="missing-images-section">
-                    <h4>⚠️ Words Missing Images (${missingImages.length})</h4>
-                    <div class="missing-images-list">
-                        ${missingImages.slice(0, 20).map(word => `
-                            <div class="missing-image-item">
-                                <span class="word-pt">${sanitize(word.pt)}</span>
-                                <span class="word-en">${sanitize(word.en)}</span>
-                                <span class="word-lesson">${sanitize(word.lessonId || 'unknown')}</span>
-                            </div>
-                        `).join('')}
-                        ${missingImages.length > 20 ? `<p class="muted">... and ${missingImages.length - 20} more</p>` : ''}
+            <div class="panel-content">
+                <div class="image-stats-grid">
+                    <div class="stat-card ${imageStats.coverage >= 80 ? 'stat-good' : imageStats.coverage >= 50 ? 'stat-warning' : 'stat-danger'}">
+                        <div class="stat-number">${imageStats.coverage}%</div>
+                        <div class="stat-label">Coverage</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${imageStats.total}</div>
+                        <div class="stat-label">Total Words</div>
+                    </div>
+                    <div class="stat-card stat-good">
+                        <div class="stat-number">${imageStats.withImages}</div>
+                        <div class="stat-label">With Images</div>
+                    </div>
+                    <div class="stat-card ${imageStats.withoutImages > 0 ? 'stat-danger' : ''}">
+                        <div class="stat-number">${imageStats.withoutImages}</div>
+                        <div class="stat-label">Missing Images</div>
                     </div>
                 </div>
-            ` : ''}
-            
-            <div class="image-help-text">
-                <p class="muted small-text">
-                    📌 To add images: Edit CSV files directly, adding <code>image_url</code> column with full Unsplash URLs.<br>
-                    📌 Required format: <code>https://images.unsplash.com/photo-{ID}?w=400&h=300&fit=crop</code><br>
-                    📌 Words without valid image_url will show placeholder and may be skipped from lessons.
-                </p>
+                
+                ${missingImages.length > 0 ? `
+                    <div class="missing-images-section">
+                        <h4>⚠️ Words Missing Images (${missingImages.length})</h4>
+                        <div class="missing-images-list">
+                            ${missingImages.slice(0, 20).map(word => `
+                                <div class="missing-image-item">
+                                    <span class="word-pt">${sanitize(word.pt)}</span>
+                                    <span class="word-en">${sanitize(word.en)}</span>
+                                    <span class="word-lesson">${sanitize(word.lessonId || 'unknown')}</span>
+                                </div>
+                            `).join('')}
+                            ${missingImages.length > 20 ? `<p class="muted">... and ${missingImages.length - 20} more</p>` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div class="image-help-text">
+                    <p class="muted small-text">
+                        📌 To add images: Edit CSV files directly, adding <code>image_url</code> column with full Unsplash URLs.<br>
+                        📌 Required format: <code>https://images.unsplash.com/photo-{ID}?w=400&h=300&fit=crop</code><br>
+                        📌 Words without valid image_url will show placeholder and may be skipped from lessons.
+                    </p>
+                </div>
             </div>
         </section>
     `;
@@ -1396,8 +1535,9 @@ function renderImageManagement() {
 
 function renderLessonIngestion() {
     const { form, preview, staged, error } = adminState.ingestion;
+    const collapsed = isPanelCollapsed('lesson-ingestion') ? 'collapsed' : '';
     return `
-        <section class="admin-panel ingestion-panel">
+        <section class="admin-panel ingestion-panel collapsible ${collapsed}" data-panel-id="lesson-ingestion">
             <div class="panel-header">
                 <div>
                     <h3>📥 Lesson CSV Ingestion</h3>
@@ -1409,31 +1549,33 @@ function renderLessonIngestion() {
                     <input id="adminCsvUpload" type="file" accept=".csv" style="display:none" onchange="window.adminDashboard.handleCSVUpload(event)" />
                 </div>
             </div>
-            <div class="admin-form-grid">
-                <label><span>Lesson ID</span><input value="${sanitize(form.lessonId)}" oninput="window.adminDashboard.updateIngestionField('lessonId', this.value)" placeholder="e.g., 099_custom_topic" /></label>
-                <label><span>Title (EN)</span><input value="${sanitize(form.title)}" oninput="window.adminDashboard.updateIngestionField('title', this.value)" placeholder="English title" /></label>
-                <label><span>Title (PT)</span><input value="${sanitize(form.titlePt)}" oninput="window.adminDashboard.updateIngestionField('titlePt', this.value)" placeholder="Título em Português" /></label>
-                <label><span>Category</span><input value="${sanitize(form.category)}" oninput="window.adminDashboard.updateIngestionField('category', this.value)" placeholder="Building Blocks" /></label>
-                <label><span>Tier</span><input type="number" min="1" max="3" value="${form.tier}" oninput="window.adminDashboard.updateIngestionField('tier', this.value)" /></label>
-                <label><span>Order</span><input type="number" min="1" value="${form.order}" oninput="window.adminDashboard.updateIngestionField('order', this.value)" /></label>
-                <label><span>Icon</span><input value="${sanitize(form.icon)}" oninput="window.adminDashboard.updateIngestionField('icon', this.value)" placeholder="Emoji or short code" /></label>
-                <label><span>Estimated Minutes</span><input type="number" min="5" max="45" value="${form.estimatedMinutes}" oninput="window.adminDashboard.updateIngestionField('estimatedMinutes', this.value)" /></label>
-                <label class="span-2"><span>Description</span><textarea rows="2" oninput="window.adminDashboard.updateIngestionField('description', this.value)">${form.description || ''}</textarea></label>
-                <label><span>Image (static asset)</span>
-                    <select onchange="window.adminDashboard.updateIngestionField('image', this.value)">
-                        ${STATIC_IMAGE_OPTIONS.map(opt => `<option value="${opt.path}" ${opt.path === form.image ? 'selected' : ''}>${opt.label} (${opt.path})</option>`).join('')}
-                        <option value="${sanitize(form.image)}" ${STATIC_IMAGE_OPTIONS.every(opt => opt.path !== form.image) ? 'selected' : ''}>Custom path</option>
-                    </select>
-                </label>
-                <label><span>Custom image path</span><input value="${sanitize(form.image)}" oninput="window.adminDashboard.updateIngestionField('image', this.value)" placeholder="assets/lesson-thumbs/default.svg" /></label>
+            <div class="panel-content">
+                <div class="admin-form-grid">
+                    <label><span>Lesson ID</span><input value="${sanitize(form.lessonId)}" oninput="window.adminDashboard.updateIngestionField('lessonId', this.value)" placeholder="e.g., 099_custom_topic" /></label>
+                    <label><span>Title (EN)</span><input value="${sanitize(form.title)}" oninput="window.adminDashboard.updateIngestionField('title', this.value)" placeholder="English title" /></label>
+                    <label><span>Title (PT)</span><input value="${sanitize(form.titlePt)}" oninput="window.adminDashboard.updateIngestionField('titlePt', this.value)" placeholder="Título em Português" /></label>
+                    <label><span>Category</span><input value="${sanitize(form.category)}" oninput="window.adminDashboard.updateIngestionField('category', this.value)" placeholder="Building Blocks" /></label>
+                    <label><span>Tier</span><input type="number" min="1" max="3" value="${form.tier}" oninput="window.adminDashboard.updateIngestionField('tier', this.value)" /></label>
+                    <label><span>Order</span><input type="number" min="1" value="${form.order}" oninput="window.adminDashboard.updateIngestionField('order', this.value)" /></label>
+                    <label><span>Icon</span><input value="${sanitize(form.icon)}" oninput="window.adminDashboard.updateIngestionField('icon', this.value)" placeholder="Emoji or short code" /></label>
+                    <label><span>Estimated Minutes</span><input type="number" min="5" max="45" value="${form.estimatedMinutes}" oninput="window.adminDashboard.updateIngestionField('estimatedMinutes', this.value)" /></label>
+                    <label class="span-2"><span>Description</span><textarea rows="2" oninput="window.adminDashboard.updateIngestionField('description', this.value)">${form.description || ''}</textarea></label>
+                    <label><span>Image (static asset)</span>
+                        <select onchange="window.adminDashboard.updateIngestionField('image', this.value)">
+                            ${STATIC_IMAGE_OPTIONS.map(opt => `<option value="${opt.path}" ${opt.path === form.image ? 'selected' : ''}>${opt.label} (${opt.path})</option>`).join('')}
+                            <option value="${sanitize(form.image)}" ${STATIC_IMAGE_OPTIONS.every(opt => opt.path !== form.image) ? 'selected' : ''}>Custom path</option>
+                        </select>
+                    </label>
+                    <label><span>Custom image path</span><input value="${sanitize(form.image)}" oninput="window.adminDashboard.updateIngestionField('image', this.value)" placeholder="assets/lesson-thumbs/default.svg" /></label>
+                </div>
+                ${error ? `<p class="error-text">${error}</p>` : ''}
+                ${preview ? renderCSVPreview(preview) : '<p class="muted">Upload a CSV to see a preview. Template enforces word_id, portuguese, english, pronunciation, type, difficulty, tip, example_pt, example_en, image.</p>'}
+                <div class="ingestion-actions">
+                    <button class="btn-small" onclick="window.adminDashboard.stageLessonFromPreview()">✅ Stage lesson</button>
+                    <button class="btn-small btn-secondary" onclick="window.adminDashboard.clearStagedLessons()">🗑️ Clear staged</button>
+                </div>
+                ${renderStagedLessons(staged)}
             </div>
-            ${error ? `<p class="error-text">${error}</p>` : ''}
-            ${preview ? renderCSVPreview(preview) : '<p class="muted">Upload a CSV to see a preview. Template enforces word_id, portuguese, english, pronunciation, type, difficulty, tip, example_pt, example_en, image.</p>'}
-            <div class="ingestion-actions">
-                <button class="btn-small" onclick="window.adminDashboard.stageLessonFromPreview()">✅ Stage lesson</button>
-                <button class="btn-small btn-secondary" onclick="window.adminDashboard.clearStagedLessons()">🗑️ Clear staged</button>
-            </div>
-            ${renderStagedLessons(staged)}
         </section>
     `;
 }
@@ -1444,6 +1586,7 @@ function renderLessonEditor() {
     const lessons = editor.lessons || [];
     const meta = editor.meta || {};
     const columns = editor.csv.columns.length ? editor.csv.columns : DEFAULT_LESSON_COLUMNS;
+    const collapsed = isPanelCollapsed('lesson-editor') ? 'collapsed' : '';
 
     const lessonSelect = lessons.length ? `
         <select onchange="window.adminDashboard.selectLessonForEdit(this.value)">
@@ -1486,7 +1629,7 @@ function renderLessonEditor() {
     const rowsTable = editor.csv.rows.length ? editor.csv.rows.map((row, idx) => renderLessonRow(row, idx)).join('') : '<p class="muted">Select a lesson to load its CSV rows.</p>';
 
     return `
-        <section class="admin-panel lesson-editor-panel">
+        <section class="admin-panel lesson-editor-panel collapsible ${collapsed}" data-panel-id="lesson-editor">
             <div class="panel-header">
                 <div>
                     <h3>🗂️ Lesson Editor (CSV + metadata)</h3>
@@ -1497,16 +1640,18 @@ function renderLessonEditor() {
                     ${lessonSelect}
                 </div>
             </div>
-            ${editor.loading ? '<p class="muted">Loading lesson data…</p>' : ''}
-            ${editor.error ? `<p class="error-text">${sanitize(editor.error)}</p>` : ''}
-            ${editor.message ? `<p class="success-text">${sanitize(editor.message)}</p>` : ''}
-            ${metaForm}
-            <div class="lesson-editor-actions">
-                <button class="btn-small" onclick="window.adminDashboard.addLessonRow()">➕ Add row</button>
-                <button class="btn-small btn-primary" onclick="window.adminDashboard.saveLessonEditorChanges()" ${editor.saving || !editor.selectedLessonId ? 'disabled' : ''}>💾 Save changes</button>
-            </div>
-            <div class="lesson-rows">
-                ${rowsTable}
+            <div class="panel-content">
+                ${editor.loading ? '<p class="muted">Loading lesson data…</p>' : ''}
+                ${editor.error ? `<p class="error-text">${sanitize(editor.error)}</p>` : ''}
+                ${editor.message ? `<p class="success-text">${sanitize(editor.message)}</p>` : ''}
+                ${metaForm}
+                <div class="lesson-editor-actions">
+                    <button class="btn-small" onclick="window.adminDashboard.addLessonRow()">➕ Add row</button>
+                    <button class="btn-small btn-primary" onclick="window.adminDashboard.saveLessonEditorChanges()" ${editor.saving || !editor.selectedLessonId ? 'disabled' : ''}>💾 Save changes</button>
+                </div>
+                <div class="lesson-rows">
+                    ${rowsTable}
+                </div>
             </div>
         </section>
     `;
@@ -1825,6 +1970,10 @@ export function refreshDashboard() {
         // Re-initialize sub-components after re-render
         initImageCuratorConsole();
         initAPIKeyManager();
+        // Re-initialize collapsible panels (event listener is lost on re-render)
+        initCollapsiblePanels();
+        // Re-apply collapsed states after re-render
+        applyCollapsedStates();
     }
 }
 
@@ -1841,9 +1990,15 @@ export function initAdminDashboard() {
     loadAdminAISettings();
     loadIngestionState();
     loadLessonEditorIndex();
+    loadPanelCollapsedState();
 
     // Kick off AI status check without blocking render
     refreshAIStatus();
+
+    // Initialize collapsible panels after a short delay to allow DOM to render
+    setTimeout(() => {
+        initCollapsiblePanels();
+    }, 100);
 
     // Subscribe to AI events for logging
     window.addEventListener('ai-tool-call', (e) => {
@@ -1940,7 +2095,9 @@ export function initAdminDashboard() {
         restoreUserFromBackup,
         // Image management functions
         scanImageCoverage,
-        exportMissingImages
+        exportMissingImages,
+        // Panel collapse functions
+        togglePanelCollapsed
     };
 
     Logger.info('Admin dashboard initialized');
