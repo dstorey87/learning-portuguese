@@ -211,6 +211,15 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Fix Applied:** Safe-guarded GPU text rendering with null checks: `const gpuInfo = s.gpu.gpus && s.gpu.gpus[gpuIndex]`
 - **Screenshot:** `.playwright-mcp/admin-curator-console.png`
 
+## bug-032: Image library database missing word_id column
+- **Description:** When curator saves an image candidate, it fails with "table images has no column named word_id". The `ImageRecord` dataclass includes `word_id` field but the SQLite schema didn't have this column.
+- **Impact:** Critical - Curator cannot save any curated images, completely blocks image curation workflow.
+- **Status:** ✅ FIXED
+- **Priority:** Critical
+- **File:** `image-curator/image_library.py` - SCHEMA definition
+- **Fix Applied:** Added `word_id TEXT` column to images table schema and migration code to add column to existing databases
+- **Error Log:** `[Curator Error] 2026-01-01 16:56:17,770 [ERROR] __main__: Error saving candidate: table images has no column named word_id`
+
 ---
 
 # Admin Dashboard Bugs (Testing Session - 2024)
@@ -232,14 +241,17 @@ bug-001 - The modals are not designed to ensure we can always see the text, the 
 - **Playwright Validation:** Console messages show repeated 404 errors during all admin interactions
 - **Note:** Need to identify which endpoints/resources are returning 404
 
-## bug-029: Admin collapsible panels not collapsing on click
+## bug-029: Admin collapsible panels not collapsing on click ✅ FIXED
 - **Description:** The admin dashboard panels have collapsible UI (▼ indicators visible) but clicking on the panel headers does not toggle collapse state. Event delegation was implemented but panels remain expanded.
 - **Impact:** Medium - Users cannot minimize panels to focus on specific sections, reducing dashboard usability.
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED
 - **Priority:** Medium
 - **Playwright Validation:** Clicked AI Controls panel header (ref=e2590), panel remained expanded with ▼ indicator
 - **File:** AdminDashboard.js - initCollapsiblePanels() and event delegation
-- **Note:** Previous session implemented event delegation but requires re-verification
+- **Root Cause:** `initCollapsiblePanels()` was only called once during `initAdminDashboard()`, but NOT called in `refreshDashboard()` after the 30-second periodic re-render. The event delegation was set up on the old DOM, but when the dashboard re-rendered, the new DOM didn't have event listeners.
+- **Fix Applied:** Added `initCollapsiblePanels()` call to `refreshDashboard()` after `applyCollapsedStates()`. Event delegation pattern now properly survives re-renders because `dataset.collapsibleInit` check prevents duplicate listeners.
+- **Fix Verified:** MCP Playwright testing confirmed panel has `collapsed` class after click, localStorage state persists (`admin_panel_collapsed_state`), and visual screenshot shows collapsed panel.
+- **Commit:** fix/bug-027-collapsible-panels branch
 
 ## bug-030: APIKeyManager container not found warning
 - **Description:** Console shows `[WARNING] [APIKeyManager] Container not found` during Admin dashboard initialization. This warning appears multiple times.
